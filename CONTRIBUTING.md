@@ -20,6 +20,7 @@ file, consider creating a new file instead.
 using the C++20 standard. Use features in that standard
 liberally. However, you cannot use C++ features
 that are being considered for the C++23 standard.
+* Build and test your code using the current long term support Ubuntu release.
 * For functionality not provided
 by the standard libraries, you can also use the Boost libraries.
 * If possible, avoid adding dependencies on other packages.
