@@ -13,10 +13,16 @@
 
 <h2>When is it necessary to build from source?</h2>
 <p>
-In most cases, you can use a release build
-downloaded from the 
-<a href='https://github.com/chanzuckerberg/shasta/releases'>Releases</a> page on GitHub.
-(See the <a href="QuickStart.html">quick start</a> page for more information)
+In most cases, you can directly run a Shasta static executable
+from a release build
+downloaded from one of the release pages, 
+<a href='https://github.com/chanzuckerberg/shasta/releases'>chanzuckerberg/shasta/releases</a>
+for releases up to 0.10.0 
+or 
+<a href='https://github.com/paoloshasta/shasta/releases'>paoloshasta/shasta/releases</a>
+for newer relesases.
+These static executables are portable to almost any version of Linux currently in use.
+See the <a href="QuickStart.html">quick start</a> page for more information.
 You need to build from source in one of the
 following circumstances:
 <ul>
@@ -24,7 +30,7 @@ following circumstances:
 To build a version of Shasta for which no release exists.
 For example, if you want to get a recently added feature
 not available in the most recent release build.
-For this specific use case, you can download a
+For this specific use case, it might be easiest to instead download a
 Shasta test build from GitHub, as described 
 <a href="#DownloadTestBuild">below</a>.
 <li>
@@ -56,9 +62,9 @@ Shasta no longer builds on Ubuntu 20.04 or on any version of macOS.
 
 <h3>Build commands</h3>
 <ol>
-<li>Check out Shasta repository (You need to have <code>git</code> installed on your machine)
+<li>Check out the Shasta repository (you need to have <code>git</code> installed on your machine)
 <pre>
-git clone https://github.com/chanzuckerberg/shasta.git
+git clone https://github.com/paoloshasta/shasta.git
 </pre>
 <li>Install <a href="Prerequisites.html">prerequisite packages</a>
 <pre>
@@ -81,9 +87,10 @@ a <code>shasta-install</code> directory that
 contains the following:
 
 <ul>
-<li>A <code>bin</code> directory containing the Shasta executable, 
+<li>A <code>bin</code> directory containing the Shasta static executable, 
 named <code>shasta</code>, Shasta shared library
 <code>shasta.so</code>, and several scripts.
+The static executable is highly portable to other Linux versions.
 <li>A <code>conf</code> directory containing sample config files.
 <li>A <code>docs</code> directory containing this and other documentation. 
 </ul>
@@ -117,7 +124,7 @@ With this in mind, you can use the following steps to download one of these test
 <li>Make sure to be logged in to GitHub. Any user will work, but GitHub
 will not allow downloading a test build anonymously.
 <li>Go to the 
-<a href='https://github.com/chanzuckerberg/shasta/actions'>GitHub Actions</a>
+<a href='https://github.com/paoloshasta/shasta/actions'>GitHub Actions</a>
 page of the Shasta repository.
 <li>Choose a build that has green checkmark and click on it.
 The checkmark indicates that a push occurred at that commit,
