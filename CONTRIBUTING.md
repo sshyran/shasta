@@ -3,17 +3,7 @@
 Contributions of code, ideas, computational experiments,
 or documentation are welcome. 
 To contribute, please use the standard GitHub Pull Request process
-and take into consideration the suggestions below.
-To facilitate integration of your code,
-use a new branch for each Pull Request.
-You can choose any name you like for the branch you create for this purpose,
-as long as it does not conflict with the name of an existing branch.
-
-This project adheres to the Contributor Covenant 
-[code of conduct](https://github.com/chanzuckerberg/.github/tree/master/CODE_OF_CONDUCT.md). 
-By participating, you are expected to uphold this code. 
-Please report unacceptable behavior to opensource@chanzuckerberg.com.
-
+and take into consideration the coding suggestions below.
 
 #### Contributing C++ code
 
@@ -22,28 +12,22 @@ of comments to explain or clarify what the code does.
 * Use blank lines generously to separate code blocks.
 * Set your editor to convert tabs to 4 spaces.
 * To minimize name pollution of the global namespace,
-all code should be in the `ChanZuckerberg::shasta` namespace.
+all code should be in the `shasta` namespace.
 Do not use `using` directives at global scope.
 * If you need to add a large amount of code to an existing
 file, consider creating a new file instead.
 * Keep in mind that the code is currently compiled
-using the C++11 standard. Use features in that standard
+using the C++20 standard. Use features in that standard
 liberally. However, you cannot use C++ features
-that were introduced in the C++14 or C++17 standard.
+that are being considered for the C++23 standard.
 * For functionality not provided
 by the standard libraries, you can also use the Boost libraries.
 * If possible, avoid adding dependencies on other packages.
 
-
-
 #### Contributing ideas, computational experiments, comments, or criticism
-* Please use the GitHub 
-[Wiki](https://github.com/chanzuckerberg/shasta/wiki)
-or 
-[Issues](https://github.com/chanzuckerberg/shasta/issues)
-sections of the GitHub repository as appropriate.
-
-
+* Please use the GitHub
+[Issues](https://github.com/paoloshasta/shasta/issues)
+section of the GitHub repository as appropriate.
 
 #### Contributing documentation
 
