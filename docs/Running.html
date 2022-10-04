@@ -631,23 +631,6 @@ directory).
 Equivalently, you can just <code>umount</code> the <code>Data</code>
 directory, then remove it. 
 
-
-</ul>
-
-
-<h2 id=Docker>Running an assembly using Docker</h2>
-<p>
-It is also possible to run Shasta using Docker.
-This provides additional portability and flexibility,
-as well as the ability to incorporate Shasta
-into workflows and computational pipelines.
-See
-<a href="Docker.html">here</a> for more information.
-
-<h2 id=Errors>Dealing with errors</h2>
-<ul>
-<li> <code>sh: 1: cannot create /sys/kernel/mm/hugepages/hugepages-2048kB/nr_overcommit_hugepages: Read-only file system</code>: Shasta needs root privilege to use the `hugetlbfs` filesystem. If you're running this in a Docker container, you need to
-use the Docker option <code>--privileged</code>.  	
 </ul>
 
 
