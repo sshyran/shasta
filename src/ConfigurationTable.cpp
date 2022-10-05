@@ -25,17 +25,17 @@ namespace shasta {
 # Using these options require root access.
 
 # For detailed information on all available options see here:
-# https://chanzuckerberg.github.io/shasta/CommandLineOptions.html
+# https://paoloshasta.github.io/shasta/CommandLineOptions.html
 
 # For information on running a small assembly for which 
 # performance is not essential see here:
-# https://chanzuckerberg.github.io/shasta/QuickStart.html
+# https://paoloshasta.github.io/shasta/QuickStart.html
 
 # For more information on running an assembly see here:
-# https://chanzuckerberg.github.io/shasta/Running.html
+# https://paoloshasta.github.io/shasta/Running.html
 
 # For information on optimizing assembly performance see here:
-# https://chanzuckerberg.github.io/shasta/Performance.html
+# https://paoloshasta.github.io/shasta/Performance.html
 
 
 
@@ -77,17 +77,17 @@ consensusCaller = Bayesian:guppy-3.0.5-a
 # Using these options require root access.
 
 # For detailed information on all available options see here:
-# https://chanzuckerberg.github.io/shasta/CommandLineOptions.html
+# https://paoloshasta.github.io/shasta/CommandLineOptions.html
 
 # For information on running a small assembly for which 
 # performance is not essential see here:
-# https://chanzuckerberg.github.io/shasta/QuickStart.html
+# https://paoloshasta.github.io/shasta/QuickStart.html
 
 # For more information on running an assembly see here:
-# https://chanzuckerberg.github.io/shasta/Running.html
+# https://paoloshasta.github.io/shasta/Running.html
 
 # For information on optimizing assembly performance see here:
-# https://chanzuckerberg.github.io/shasta/Performance.html
+# https://paoloshasta.github.io/shasta/Performance.html
 
 
 
@@ -143,17 +143,17 @@ consensusCaller = Bayesian:guppy-3.0.5-a
 # Using these options requires root access.
 
 # For detailed information on all available options see here:
-# https://chanzuckerberg.github.io/shasta/CommandLineOptions.html
+# https://paoloshasta.github.io/shasta/CommandLineOptions.html
 
 # For information on running a small assembly for which 
 # performance is not essential see here:
-# https://chanzuckerberg.github.io/shasta/QuickStart.html
+# https://paoloshasta.github.io/shasta/QuickStart.html
 
 # For more information on running an assembly see here:
-# https://chanzuckerberg.github.io/shasta/Running.html
+# https://paoloshasta.github.io/shasta/Running.html
 
 # For information on optimizing assembly performance see here:
-# https://chanzuckerberg.github.io/shasta/Performance.html
+# https://paoloshasta.github.io/shasta/Performance.html
 
 
 
@@ -233,17 +233,17 @@ detangleMethod = 2
 # Using these options requires root access.
 
 # For detailed information on all available options see here:
-# https://chanzuckerberg.github.io/shasta/CommandLineOptions.html
+# https://paoloshasta.github.io/shasta/CommandLineOptions.html
 
 # For information on running a small assembly for which 
 # performance is not essential see here:
-# https://chanzuckerberg.github.io/shasta/QuickStart.html
+# https://paoloshasta.github.io/shasta/QuickStart.html
 
 # For more information on running an assembly see here:
-# https://chanzuckerberg.github.io/shasta/Running.html
+# https://paoloshasta.github.io/shasta/Running.html
 
 # For information on optimizing assembly performance see here:
-# https://chanzuckerberg.github.io/shasta/Performance.html
+# https://paoloshasta.github.io/shasta/Performance.html
 
 
 
@@ -370,17 +370,17 @@ iterative = True
 # Using these options requires root access.
 
 # For detailed information on all available options see here:
-# https://chanzuckerberg.github.io/shasta/CommandLineOptions.html
+# https://paoloshasta.github.io/shasta/CommandLineOptions.html
 
 # For information on running a small assembly for which 
 # performance is not essential see here:
-# https://chanzuckerberg.github.io/shasta/QuickStart.html
+# https://paoloshasta.github.io/shasta/QuickStart.html
 
 # For more information on running an assembly see here:
-# https://chanzuckerberg.github.io/shasta/Running.html
+# https://paoloshasta.github.io/shasta/Running.html
 
 # For information on optimizing assembly performance see here:
-# https://chanzuckerberg.github.io/shasta/Performance.html
+# https://paoloshasta.github.io/shasta/Performance.html
 
 
 
@@ -449,7 +449,7 @@ detangleMethod = 2
 # for providing access to the reads in advance of publication. 
 
 # Also see Shasta issue #200 for some discussion
-# https://github.com/chanzuckerberg/shasta/issues/200
+# https://github.com/paoloshasta/shasta/issues/200
 
 
 
