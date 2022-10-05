@@ -1978,15 +1978,11 @@ AAAG
 AAGG
 </pre>
 
-For both alleles, the RLE sequence is AG, so no bubble is generated.
-
-For this reason, for a phased assembly using current nanopore reads
-it is best to turn off the RLE representation of the reads
-via 
-<code><a href='CommandLineOptions.html#Reads.representation'>--Reads.representation 0</a></code>.
-Fortunately, 
-RLE is not as essential with today's higher quality nanopore
-reads as it was at the time of Shasta's initial implementation.
+For both alleles, the RLE sequence is AG, so no bubble is generated,
+and that SNP could be missed.
+Nevertheless, with current ONT reads the benefits of RLE still
+outweigh this issue, and the current assembly configurations
+for phased assembly do use RLE.
 
 
 
