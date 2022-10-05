@@ -134,7 +134,7 @@ void shasta::main::segmentFaultHandler(int)
 {
     char message[] = "\nA segment fault occurred. Please report it by filing an "
         "issue on the Shasta repository and attaching the entire log output. "
-        "To file an issue, point your browser to https://github.com/chanzuckerberg/shasta/issues\n";
+        "To file an issue, point your browser to https://github.com/paoloshasta/shasta/issues\n";
     ::write(fileno(stderr), message, sizeof(message));
     ::_exit(1);
 }
