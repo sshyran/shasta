@@ -58,7 +58,9 @@ void AssemblyGraph::createJaccardGraph(
     jaccardGraph.writeGraphviz("JaccardGraph1-Labeled.dot", false, true);
 #endif
 
-    // Store the cluster id of each segment (uninitialized for now).
+    // Store the cluster id of each segment.
+    // Each connected component of the Jaccard graph with sufficient size
+    // generates a cluster.
     createNew(clusterIds, "Mode3-ClusterIds");
     jaccardGraph.findClusters(segmentCount, clusterIds);
 
@@ -477,7 +479,7 @@ ExpandedJaccardGraph::ExpandedJaccardGraph(const JaccardGraph& jaccardGraph)
     std::map<JaccardGraph::vertex_descriptor, Graph::vertex_descriptor> vertexMap;
     BGL_FORALL_VERTICES(v, jaccardGraph, JaccardGraph) {
         const Graph::vertex_descriptor u = add_vertex(
-            ExpandedJaccardGraphVertex(jaccardGraph[v].segmentId), graph);
+            ExpandedJaccardGraphVertex(jaccardGraph[v].segmentId, true), graph);
         vertexMap.insert(make_pair(v, u));
     }
 
@@ -495,7 +497,7 @@ ExpandedJaccardGraph::ExpandedJaccardGraph(const JaccardGraph& jaccardGraph)
         Graph::vertex_descriptor u = u0;
         for(const uint64_t segmentId: segmentIds) {
             const Graph::vertex_descriptor w = add_vertex(
-                ExpandedJaccardGraphVertex(segmentId), graph);
+                ExpandedJaccardGraphVertex(segmentId, false), graph);
             add_edge(u, w, graph);
             u = w;
         }
@@ -520,7 +522,15 @@ void ExpandedJaccardGraph::writeGraphviz(ostream& s) const
     // We can't use the segment ids to identify vertices
     // because each segment id can appear multiple times.
     BGL_FORALL_VERTICES(v, graph, Graph) {
-        s << "\"" << v << "\" [label=" << graph[v].segmentId << "];\n";
+        const ExpandedJaccardGraphVertex& vertex = graph[v];
+        const double primaryFraction = vertex.primaryFraction();
+        s << "\"" << v << "\" [label=\"" << vertex.segmentId;
+        s << "\\n" << vertex.primaryCount << "/" << vertex.totalCount << "\"";
+        const double H = primaryFraction / 3.;
+        const double S = 0.5;
+        const double V = 1.;
+        s << " style=filled fillcolor=\"" << H << " " << " " << S << " "<< V << "\"";
+        s << "];\n";
     }
 
     BGL_FORALL_EDGES(e, graph, Graph) {

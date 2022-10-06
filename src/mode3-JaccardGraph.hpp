@@ -182,8 +182,28 @@ public:
     // The assembly graph segment corresponding to this vertex.
     uint64_t segmentId;
 
-    ExpandedJaccardGraphVertex(uint64_t segmentId) :
-        segmentId(segmentId) {}
+    // The total number of JaccardGraph vertices that were merged
+    // into this vertex.
+    uint64_t totalCount;
+
+    // The number of primary JaccardGraph vertices that were merged
+    // into this vertex.
+    uint64_t primaryCount;
+
+    // Construction
+    ExpandedJaccardGraphVertex(
+        uint64_t segmentId,
+        bool isPrimary) :
+        segmentId(segmentId),
+        totalCount(1),
+        primaryCount(isPrimary ? 1 : 0)
+        {}
+
+    double primaryFraction() const
+    {
+        return double(primaryCount) / double(totalCount);
+    }
+
 };
 
 
