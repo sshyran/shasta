@@ -66,7 +66,9 @@ void AssemblyGraph::createJaccardGraph(
 
     // Create the ExpandedJaccardGraph.
     ExpandedJaccardGraph expandedJaccardGraph(jaccardGraph);
-    expandedJaccardGraph.writeGraphviz("ExpandedJaccardGraph.dot");
+    expandedJaccardGraph.writeGraphviz("ExpandedJaccardGraph0.dot");
+    expandedJaccardGraph.merge();
+    expandedJaccardGraph.writeGraphviz("ExpandedJaccardGraph1.dot");
 
     cout << timestamp << "createJaccardGraph ends." << endl;
 }
@@ -517,6 +519,8 @@ void ExpandedJaccardGraph::writeGraphviz(ostream& s) const
     using Graph = ExpandedJaccardGraph;
     const Graph& graph = *this;
 
+    const bool debug = false;
+
     s << "digraph ExpandedJaccardGraph {" << endl;
 
     // We can't use the segment ids to identify vertices
@@ -525,6 +529,9 @@ void ExpandedJaccardGraph::writeGraphviz(ostream& s) const
         const ExpandedJaccardGraphVertex& vertex = graph[v];
         const double primaryFraction = vertex.primaryFraction();
         s << "\"" << v << "\" [label=\"" << vertex.segmentId;
+        if(debug) {
+            s << "\\n" << v;
+        }
         s << "\\n" << vertex.primaryCount << "/" << vertex.totalCount << "\"";
         const double H = primaryFraction / 3.;
         const double S = 0.5;
@@ -542,5 +549,238 @@ void ExpandedJaccardGraph::writeGraphviz(ostream& s) const
 
     s << "}" << endl;
 
+}
+
+
+
+// Recursively merge pairs of vertices that have a common parent or child
+// and that refer to the same segmentId.
+void ExpandedJaccardGraph::merge()
+{
+    using Graph = ExpandedJaccardGraph;
+    Graph& graph = *this;
+
+    const bool debug = false;
+    if(debug) {
+        cout << "ExpandedJaccardGraph::merge begins." << endl;
+    }
+
+    std::set<Branch> branches;
+    BGL_FORALL_VERTICES(v, graph, Graph) {
+        if(out_degree(v, graph) > 1) {
+            branches.insert(make_pair(v, 0));
+        }
+        if(in_degree(v, graph) > 1) {
+            branches.insert(make_pair(v, 1));
+        }
+    }
+
+
+
+    // Recursive merge.
+    vector<vertex_descriptor> neighbors;
+    while(not branches.empty()) {
+        const auto it = branches.begin();
+        const vertex_descriptor v0 = it->first;
+        const uint64_t direction = it->second;
+        branches.erase(it);
+
+        if(debug) {
+            cout << "Working on branch " << v0 << " " << direction << endl;
+        }
+
+        // Gather the children or parents.
+        neighbors.clear();
+        if(direction == 0) {
+            BGL_FORALL_OUTEDGES(v0, e, graph, Graph) {
+                neighbors.push_back(target(e, graph));
+            }
+        } else if(direction == 1) {
+            BGL_FORALL_INEDGES(v0, e, graph, Graph) {
+                neighbors.push_back(source(e, graph));
+            }
+
+        } else {
+            SHASTA_ASSERT(0);
+        }
+        if(debug) {
+            cout << neighbors.size() << " neighbors:";
+            for(const vertex_descriptor v: neighbors) {
+                cout << " " << v;
+            }
+            cout << endl;
+        }
+        SHASTA_ASSERT(neighbors.size() > 1);
+
+        // Find a pair of neighbors with the same segmentId.
+        vertex_descriptor v1, v2;
+        bool found = false;
+        for(uint64_t i1=0; i1<neighbors.size()-1; i1++) {
+            v1 = neighbors[i1];
+            for(uint64_t i2=i1+1; i2<neighbors.size(); i2++) {
+                v2 = neighbors[i2];
+                if(graph[v1].segmentId == graph[v2].segmentId) {
+                    found = true;
+                    break;
+                }
+            }
+            if(found) {
+                break;
+            }
+        }
+
+        // If we did not find a pair of neighbors with the same segmentId,
+        // there is nothing to do. We already removed this branch, so we
+        // are done.
+        if(not found) {
+            if(debug) {
+                cout << "No pair can be merged for this branch." << endl;
+            }
+            continue;
+        }
+        if(debug) {
+            cout << "Merging " << v1 << " " << v2 << endl;
+        }
+
+        // Merge v1 and v2, and update the branches.
+        merge(v1, v2, branches, debug);
+
+    }
+
+    if(debug) {
+        cout << "ExpandedJaccardGraph::merge ends." << endl;
+    }
+}
+
+
+
+// Merge v1 and v2 while updating the set of branches.
+void ExpandedJaccardGraph::merge(
+    vertex_descriptor v1,
+    vertex_descriptor v2,
+    std::set<Branch>& branches,
+    bool debug)
+{
+    using Graph = ExpandedJaccardGraph;
+    Graph& graph = *this;
+
+    const ExpandedJaccardGraphVertex& vertex1 = graph[v1];
+    const ExpandedJaccardGraphVertex& vertex2 = graph[v2];
+
+    // Check the segmentId.
+    const uint64_t segmentId = vertex1.segmentId;
+    SHASTA_ASSERT(segmentId == vertex2.segmentId);
+
+    // Find the children of v1 and v2.
+    // These will be the children of the merged vertex v3.
+    vector<vertex_descriptor> children;
+    BGL_FORALL_OUTEDGES(v1, e, graph, Graph) {
+        children.push_back(target(e, graph));
+    }
+    BGL_FORALL_OUTEDGES(v2, e, graph, Graph) {
+        children.push_back(target(e, graph));
+    }
+    deduplicate(children);
+
+    // Find the parents of v1 and v2.
+    // These will be the parents of the merged vertex v3.
+    vector<vertex_descriptor> parents;
+    BGL_FORALL_INEDGES(v1, e, graph, Graph) {
+        parents.push_back(source(e, graph));
+    }
+    BGL_FORALL_INEDGES(v2, e, graph, Graph) {
+        parents.push_back(source(e, graph));
+    }
+    deduplicate(parents);
+
+    if(debug) {
+        cout << "Merging " << v1 << " " << v2 << endl;
+        cout << "Children:";
+        for(const vertex_descriptor v: children) {
+            cout << " " << v;
+        }
+        cout << endl;
+        cout << "Parents:";
+        for(const vertex_descriptor v: parents) {
+            cout << " " << v;
+        }
+        cout << endl;
+    }
+
+    // Remove the branches that will be affected by the merge.
+    // We will add branches back as necessary.
+    for(const vertex_descriptor v: children) {
+        branches.erase(make_pair(v, 1));
+    }
+    for(const vertex_descriptor v: parents) {
+        branches.erase(make_pair(v, 0));
+    }
+    branches.erase(make_pair(v1, 0));
+    branches.erase(make_pair(v1, 1));
+    branches.erase(make_pair(v2, 0));
+    branches.erase(make_pair(v2, 1));
+
+    // Create the merged vertex.
+    ExpandedJaccardGraphVertex vertex3;
+    vertex3.segmentId = segmentId;
+    vertex3.totalCount = vertex1.totalCount + vertex2.totalCount;
+    vertex3.primaryCount = vertex1.primaryCount + vertex2.primaryCount;
+    const vertex_descriptor v3 = add_vertex(vertex3, graph);
+    if(debug) {
+        cout << "Created merged vertex " << v3 << endl;
+    }
+
+    // Remove the vertices that were merged, v1 and v2.
+    clear_vertex(v1, graph);
+    clear_vertex(v2, graph);
+    remove_vertex(v1, graph);
+    remove_vertex(v2, graph);
+    if(debug) {
+        cout << "Removed the merged vertices " << v1 << " " << v2 << endl;
+    }
+
+    // Add the edges to/from the merged vertex.
+    for(const vertex_descriptor v: children) {
+        add_edge(v3, v, graph);
+        if(debug) {
+            cout << "Added edge " << v3 << " " << v << endl;
+        }
+    }
+    for(const vertex_descriptor v: parents) {
+        add_edge(v, v3, graph);
+        if(debug) {
+            cout << "Added edge " << v << " " << v3 << endl;
+        }
+    }
+
+    // Add back any necessary branches.
+    if(out_degree(v3, graph) > 1) {
+        branches.insert(make_pair(v3, 0));
+        if(debug) {
+            cout << "Added branch " << v3 << " " << 0 << endl;
+        }
+    }
+    if(in_degree(v3, graph) > 1) {
+        branches.insert(make_pair(v3, 1));
+        if(debug) {
+            cout << "Added branch " << v3 << " " << 1 << endl;
+        }
+    }
+    for(const vertex_descriptor v: children) {
+        if(in_degree(v, graph) > 1) {
+            branches.insert(make_pair(v, 1));
+            if(debug) {
+                cout << "Added branch " << v << " " << 1 << endl;
+            }
+        }
+    }
+    for(const vertex_descriptor v: parents) {
+        if(out_degree(v, graph) > 1) {
+            branches.insert(make_pair(v, 0));
+            if(debug) {
+                cout << "Added branch " << v << " " << 0 << endl;
+            }
+        }
+    }
 }
 

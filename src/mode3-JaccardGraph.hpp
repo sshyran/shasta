@@ -35,6 +35,7 @@ For the edge to be created, we also require one of the following:
 #include <map>
 #include "string.hpp"
 #include "tuple.hpp"
+#include "utility.hpp"
 #include "vector.hpp"
 
 
@@ -53,7 +54,7 @@ namespace shasta {
         class ExpandedJaccardGraph;
         class ExpandedJaccardGraphVertex;
         using ExpandedJaccardGraphBaseClass = boost::adjacency_list<
-            boost::listS, boost::listS, boost::bidirectionalS,
+            boost::setS, boost::listS, boost::bidirectionalS,
             ExpandedJaccardGraphVertex>;
 
     }
@@ -191,6 +192,7 @@ public:
     uint64_t primaryCount;
 
     // Construction
+    ExpandedJaccardGraphVertex() {}
     ExpandedJaccardGraphVertex(
         uint64_t segmentId,
         bool isPrimary) :
@@ -218,6 +220,21 @@ public:
     // Write in graphviz format.
     void writeGraphviz(const string& fileName) const;
     void writeGraphviz(ostream&) const;
+
+    // Recursively merge pairs of vertices that have a common parent or child
+    // and that refer to the same segmentId.
+    void merge();
+private:
+
+    // Each Branch represents a pair (vertex_descriptor, direction)
+    // where direction can be:
+    //   - 0 (forward). In this case the vertex has out_degree>1.
+    // or
+    //   - 1 (backward). In this case the vertex has in_degree>1.
+    using Branch = pair<vertex_descriptor, uint64_t>;
+
+    // Merge v1 and v2 while updating the set of branches.
+    void merge(vertex_descriptor v1, vertex_descriptor v2, std::set<Branch>&, bool debug);
 };
 
 
