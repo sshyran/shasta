@@ -154,6 +154,9 @@ public:
     // Remove all weak vertices.
     void removeWeakVertices();
 
+    // Remove all edges to/from weak vertices.
+    void clearWeakVertices();
+
     // Write the JaccardGraph in graphviz format.
     void writeGraphviz(
         const string& fileName,

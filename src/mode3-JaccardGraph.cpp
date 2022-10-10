@@ -43,20 +43,19 @@ void AssemblyGraph::createJaccardGraph(
     setupLoadBalancing(segmentCount, batchSize);
     runThreads(&AssemblyGraph::createJaccardGraphThreadFunction, threadCount);
     jaccardGraph.storeEdges();
-    jaccardGraph.writeGraphviz("JaccardGraph.dot", false, false);
-    jaccardGraph.writeGraphviz("JaccardGraph-Labeled.dot", false, true);
-    jaccardGraph.writeEdgesCsv("JaccardGraphEdges.csv");
-    cout << "The Jaccard graph has " << num_vertices(jaccardGraph) <<
+    jaccardGraph.writeGraphviz("JaccardGraph0.dot", false, false);
+    jaccardGraph.writeGraphviz("JaccardGraph0-Labeled.dot", false, true);
+    jaccardGraph.writeEdgesCsv("JaccardGraph0Edges.csv");
+    cout << "The initial Jaccard graph has " << num_vertices(jaccardGraph) <<
         " vertices (segments) and " << num_edges(jaccardGraph) << " edges." << endl;
 
-#if 0
-    // Remove all weak vertices.
-    jaccardGraph.removeWeakVertices();
-    cout << "After removing weak vertices, the Jaccard graph has " << num_vertices(jaccardGraph) <<
+    // Clear all weak vertices.
+    jaccardGraph.clearWeakVertices();
+    cout << "After clearing weak vertices, the Jaccard graph has " << num_vertices(jaccardGraph) <<
         " vertices (segments) and " << num_edges(jaccardGraph) << " edges." << endl;
     jaccardGraph.writeGraphviz("JaccardGraph1.dot", false, false);
     jaccardGraph.writeGraphviz("JaccardGraph1-Labeled.dot", false, true);
-#endif
+    jaccardGraph.writeEdgesCsv("JaccardGraph1Edges.csv");
 
     // Store the cluster id of each segment.
     // Each connected component of the Jaccard graph with sufficient size
@@ -280,6 +279,26 @@ void JaccardGraph::removeWeakVertices()
     // Remove the vertices we flagged.
     for(const vertex_descriptor v: verticesToBeRemoved) {
         removeVertex(v);
+    }
+
+}
+
+
+
+// Remove all edges to/from weak vertices.
+void JaccardGraph::clearWeakVertices()
+{
+    JaccardGraph& jaccardGraph = *this;
+
+    vector<vertex_descriptor> verticesToBeCleared;
+    BGL_FORALL_VERTICES(v, jaccardGraph, JaccardGraph) {
+        if(not isStrongVertex(v)) {
+            verticesToBeCleared.push_back(v);
+        }
+    }
+
+    for(const vertex_descriptor v: verticesToBeCleared) {
+        clear_vertex(v, jaccardGraph);
     }
 
 }
