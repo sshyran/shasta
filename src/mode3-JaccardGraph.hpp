@@ -171,10 +171,16 @@ public:
     void writeEdgesCsv(const string& fileName) const;
     void writeEdgesCsv(ostream&) const;
 
+    // Compute all connected components of size at least minComponentSize.
+    // They are stored in order of decreasing size.
+    // The vectors contain segmentIds. Use the vertexMap
+    // to convert to file decriptors.
+    void computeConnectedComponents(uint64_t minComponentSize);
+    vector< vector<uint64_t> > components;
+
     // Compute connected component and store the component
     // (define as a cluster) that each segment belongs to.
     void findClusters(
-        uint64_t segmentCount,
         MemoryMapped::Vector<uint64_t>& clusterIds);
 };
 

@@ -29,6 +29,9 @@ void AssemblyGraph::createJaccardGraph(
     size_t threadCount
     )
 {
+    // EXPOSE WHEN CODE STABILIZES.
+    const uint64_t minComponentSize = 5;
+
     cout << timestamp << "createJaccardGraph begins." << endl;
 
     // Create the JaccardGraph and its vertices.
@@ -57,11 +60,14 @@ void AssemblyGraph::createJaccardGraph(
     jaccardGraph.writeGraphviz("JaccardGraph1-Labeled.dot", false, true);
     jaccardGraph.writeEdgesCsv("JaccardGraph1Edges.csv");
 
+    // Compute all connected components of size at least minComponentSize.
+    jaccardGraph.computeConnectedComponents(minComponentSize);
+
     // Store the cluster id of each segment.
     // Each connected component of the Jaccard graph with sufficient size
     // generates a cluster.
     createNew(clusterIds, "Mode3-ClusterIds");
-    jaccardGraph.findClusters(segmentCount, clusterIds);
+    jaccardGraph.findClusters(clusterIds);
 
     // Create the ExpandedJaccardGraph.
     ExpandedJaccardGraph expandedJaccardGraph(jaccardGraph);
@@ -422,19 +428,14 @@ void JaccardGraph::writeEdgesCsv(ostream& csv) const
 
 
 
-// Compute connected component and store the component
-// (define as a cluster) that each segment belongs to.
-void JaccardGraph::findClusters(
-    uint64_t segmentCount,
-    MemoryMapped::Vector<uint64_t>& clusterIds)
+// Compute all connected components of size at least minComponentSize.
+// They are stored in order of decreasing size.
+void JaccardGraph::computeConnectedComponents(uint64_t minComponentSize)
 {
-    // EXPOSE WHEN CODE STABILIZES.
-    const uint64_t minClusterSize = 5;
-
     const JaccardGraph& jaccardGraph = *this;
 
     // This must be called without removing any vertices.
-    SHASTA_ASSERT(num_vertices(jaccardGraph) == segmentCount);
+    const uint64_t segmentCount = num_vertices(jaccardGraph);
 
     // Compute connected components.
     vector<uint64_t> rank(segmentCount);
@@ -452,34 +453,77 @@ void JaccardGraph::findClusters(
     }
 
     // Gather the segments in each connected component.
-    vector< vector<uint64_t> > components(segmentCount);
+    vector< vector<uint64_t> > allComponents(segmentCount);
     for(uint64_t segmentId=0; segmentId<segmentCount; segmentId++) {
         const uint64_t componentId = disjointSets.find_set(segmentId);
-        components[componentId].push_back(segmentId);
+        allComponents[componentId].push_back(segmentId);
     }
 
-    // Sort the components by decreasing size.
+    // Create a table of the components of size at least minComponentSize,
+    // sorted by decreasing size.
     vector< pair<uint64_t, uint64_t> > componentTable; // pair(componentId, componentSize)
     for(uint64_t componentId=0; componentId<segmentCount; componentId++) {
-        const uint64_t componentSize = components[componentId].size();
-        if(componentSize >= minClusterSize) {
+        const uint64_t componentSize = allComponents[componentId].size();
+        if(componentSize >= minComponentSize) {
             componentTable.push_back(make_pair(componentId, componentSize));
         }
     }
     sort(componentTable.begin(), componentTable.end(),
         OrderPairsBySecondOnlyGreater<uint64_t, uint64_t>());
 
-    // Store the cluster ids.
-    clusterIds.resize(segmentCount);
-    fill(clusterIds.begin(), clusterIds.end(), invalid<uint64_t>);
+    // Store the connected components of size at least minComponentSize.
+    components.clear();
     for(uint64_t newComponentId=0; newComponentId<componentTable.size(); newComponentId++) {
         const auto& p = componentTable[newComponentId];
         const uint64_t oldComponentId = p.first;
         const uint64_t componentSize = p.second;
-        const vector<uint64_t>& component = components[oldComponentId];
+        const vector<uint64_t>& component = allComponents[oldComponentId];
         SHASTA_ASSERT(component.size() == componentSize);
+        components.push_back(component);
+    }
+
+
+    // Write a histogram of component sizes.
+    vector<uint64_t> histogram;
+    for(const auto& p: componentTable) {
+        const uint64_t componentSize = p.second;
+        if(componentSize >= histogram.size()) {
+            histogram.resize(componentSize + 1, 0);
+        }
+        ++histogram[componentSize];
+    }
+    ofstream csv("JaccardGraphComponentSizeHistogram.csv");
+    csv << "Size,Frequency,Vertices,\n";
+    for(uint64_t componentSize=1; componentSize<histogram.size(); componentSize++) {
+        const uint64_t frequency = histogram[componentSize];
+        if(frequency > 0) {
+            csv << componentSize << ",";
+            csv << frequency << ",";
+            csv << frequency * componentSize << ",";
+            csv << "\n";
+        }
+    }
+
+}
+
+
+
+// Compute connected component and store the component
+// (define as a cluster) that each segment belongs to.
+void JaccardGraph::findClusters(
+    MemoryMapped::Vector<uint64_t>& clusterIds)
+{
+    const JaccardGraph& jaccardGraph = *this;
+
+    // This must be called without removing any vertices.
+    const uint64_t segmentCount = num_vertices(jaccardGraph);
+
+    clusterIds.resize(segmentCount);
+    fill(clusterIds.begin(), clusterIds.end(), invalid<uint64_t>);
+    for(uint64_t componentId=0; componentId<components.size(); componentId++) {
+        const vector<uint64_t>& component = components[componentId];
         for(const uint64_t segmentId: component) {
-            clusterIds[segmentId] = newComponentId;
+            clusterIds[segmentId] = componentId;
         }
     }
 
