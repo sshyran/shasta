@@ -9,6 +9,7 @@ using namespace mode3;
 
 // Boost libraries.
 #include <boost/pending/disjoint_sets.hpp>
+#include <boost/graph/topological_sort.hpp>
 
 // Standard library.
 #include "fstream.hpp"
@@ -30,7 +31,7 @@ void AssemblyGraph::createJaccardGraph(
     )
 {
     // EXPOSE WHEN CODE STABILIZES.
-    const uint64_t minComponentSize = 5;
+    const uint64_t minComponentSize = 100; //Likely needs to be decreased. Keep high for debugging.
 
     cout << timestamp << "createJaccardGraph begins." << endl;
 
@@ -68,6 +69,9 @@ void AssemblyGraph::createJaccardGraph(
     // generates a cluster.
     createNew(clusterIds, "Mode3-ClusterIds");
     jaccardGraph.findClusters(clusterIds);
+
+    // Compute assembly paths.
+    jaccardGraph.computeAssemblyPaths();
 
     // Create the ExpandedJaccardGraph.
     ExpandedJaccardGraph expandedJaccardGraph(jaccardGraph);
@@ -847,3 +851,103 @@ void ExpandedJaccardGraph::merge(
     }
 }
 
+
+
+// Compute assembly paths.
+void JaccardGraph::computeAssemblyPaths()
+{
+    for(uint64_t componentId=0; componentId<components.size(); componentId++) {
+        computeAssemblyPaths(componentId);
+    }
+}
+void JaccardGraph::computeAssemblyPaths(uint64_t componentId)
+{
+    const JaccardGraph& jaccardGraph = *this;
+
+    const bool debug = true;
+    const vector<uint64_t>& component = components[componentId];
+    if(debug) {
+        cout << "Computing assembly paths for component " << componentId <<
+            " of size " << component.size() << endl;
+    }
+
+    // Create a Graph to represent just this component.
+    // Each vertex of the Graph stores the corresponding
+    // vertex descriptor in the JaccardGraph.
+    using Graph = boost::adjacency_list<
+            boost::listS, boost::vecS, boost::bidirectionalS,
+            JaccardGraph::vertex_descriptor>;
+    Graph graph;
+    std::map<JaccardGraph::vertex_descriptor, Graph::vertex_descriptor> vertexMap;
+    for(uint64_t segmentId: component) {
+        const JaccardGraph::vertex_descriptor jv = vertexTable[segmentId];
+        const Graph::vertex_descriptor gv = add_vertex(jv, graph);
+        vertexMap.insert(make_pair(jv, gv));
+    }
+    BGL_FORALL_VERTICES(gv0, graph, Graph) {
+        const JaccardGraph::vertex_descriptor jv0 = graph[gv0];
+        BGL_FORALL_OUTEDGES(jv0, e, jaccardGraph, JaccardGraph) {
+            const JaccardGraph::vertex_descriptor jv1 = target(e, jaccardGraph);
+            add_edge(vertexMap[jv0], vertexMap[jv1], graph);
+        }
+    }
+    if(debug) {
+        cout << "This component has " << num_vertices(graph) <<
+            " vertices and " << num_edges(graph) << " edges." << endl;
+    }
+
+    // Topological sort of this connected component.
+    vector<Graph::vertex_descriptor> reverseTopologicalSort;
+    try {
+        boost::topological_sort(graph, back_inserter(reverseTopologicalSort));
+    } catch (boost::not_a_dag&) {
+        if(debug) {
+            cout << "Topological sort for this connected component failed." << endl;
+            cout << "Computation of assembly path will skip this connected component." << endl;
+        }
+        return;
+    }
+
+
+
+    // Find the longest path in this component.
+    // See https://en.wikipedia.org/wiki/Longest_path_problem#Acyclic_graphs
+    vector<uint64_t> pathLength(component.size(), 0);
+    vector<Graph::vertex_descriptor> successor(component.size(), Graph::null_vertex());
+
+    // Process vertices in reverse topological order.
+    for(const Graph::vertex_descriptor gv0: reverseTopologicalSort) {
+        BGL_FORALL_OUTEDGES(gv0, e, graph, Graph) {
+            const Graph::vertex_descriptor gv1 = target(e, graph);
+            if(pathLength[gv1] + 1 > pathLength[gv0]) {
+                pathLength[gv0] = pathLength[gv1] + 1;
+                successor[gv0] = gv1;
+            }
+        }
+    }
+
+    // Find the vertex with the longest pathLength.
+    // This will be the first vertex of the longest path.
+    Graph::vertex_descriptor gv0 =
+            std::max_element(pathLength.begin(), pathLength.end()) - pathLength.begin();
+
+    // Find the longest path by following the successors.
+    vector<uint64_t> longestPath;
+    longestPath.push_back(jaccardGraph[graph[gv0]].segmentId);
+    while(true) {
+        const Graph::vertex_descriptor gv1 = successor[gv0];
+        if(gv1 == Graph::null_vertex()) {
+            break;
+        }
+        longestPath.push_back(jaccardGraph[graph[gv1]].segmentId);
+        gv0 = gv1;
+    }
+
+    if(debug) {
+        cout << "Longest path has " << longestPath.size() << " segments:" << endl;
+        for(const uint64_t segmentId: longestPath) {
+            cout << segmentId << " ";
+        }
+        cout << endl;
+    }
+}

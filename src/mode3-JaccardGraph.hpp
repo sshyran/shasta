@@ -178,10 +178,14 @@ public:
     void computeConnectedComponents(uint64_t minComponentSize);
     vector< vector<uint64_t> > components;
 
-    // Compute connected component and store the component
-    // (define as a cluster) that each segment belongs to.
+    // Each stored connected component generates a cluster.
     void findClusters(
         MemoryMapped::Vector<uint64_t>& clusterIds);
+
+    // Compute assembly paths.
+    void computeAssemblyPaths();
+    void computeAssemblyPaths(uint64_t componentId);
+
 };
 
 
