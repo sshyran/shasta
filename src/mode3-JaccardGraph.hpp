@@ -185,6 +185,7 @@ public:
     // Compute assembly paths.
     void computeAssemblyPaths();
     void computeAssemblyPaths(uint64_t componentId);
+    vector< vector<uint64_t> > assemblyPaths;
 
 };
 

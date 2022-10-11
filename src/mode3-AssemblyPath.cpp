@@ -28,7 +28,7 @@ using namespace mode3;
 void AssemblyPath::assemble(const AssemblyGraph& assemblyGraph)
 {
     const bool debug = false;
-    if(true) {
+    if(debug) {
         cout << timestamp << "AssemblyPath::assemble begins." << endl;
     }
 
@@ -46,7 +46,7 @@ void AssemblyPath::assemble(const AssemblyGraph& assemblyGraph)
 
     assemble();
 
-    if(true) {
+    if(debug) {
         cout << timestamp << "AssemblyPath::assemble ends." << endl;
     }
 }
@@ -898,15 +898,13 @@ void AssemblyPath::assemble()
     }
     SHASTA_ASSERT(rleSequence.size() == repeatCounts.size());
 
-    if(true) {
-        cout << timestamp << "AssemblyPath::assemble begins." << endl;
-    }
-
+#if 0
     // For now, write it out.
     ofstream fasta("PathSequence.fasta");
     fasta << ">Path" << endl;
     copy(rawSequence, ostream_iterator<Base>(fasta));
     fasta << "\n";
+#endif
 }
 
 

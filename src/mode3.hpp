@@ -658,6 +658,10 @@ public:
         uint64_t segmentId,
         uint64_t direction,
         vector<JaccardGraphEdgeInfo>& edges);
+
+    // Assemble the assembly paths stored in the JaccardGraph.
+    void assembleJaccardGraphPaths();
+    void assembleJaccardGraphPaths(const vector<uint64_t>& primarySegments);
 };
 
 

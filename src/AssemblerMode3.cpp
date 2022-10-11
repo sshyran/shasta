@@ -32,6 +32,7 @@ void Assembler::mode3Assembly(
     assemblyGraph3.writeGfa("AssemblyGraph");
     // assemblyGraph3.clusterSegments(threadCount, minClusterSize);
     assemblyGraph3.createJaccardGraph(threadCount);
+    assemblyGraph3.assembleJaccardGraphPaths();
 
 }
 

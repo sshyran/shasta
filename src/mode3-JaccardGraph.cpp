@@ -856,6 +856,7 @@ void ExpandedJaccardGraph::merge(
 // Compute assembly paths.
 void JaccardGraph::computeAssemblyPaths()
 {
+    assemblyPaths.clear();
     for(uint64_t componentId=0; componentId<components.size(); componentId++) {
         computeAssemblyPaths(componentId);
     }
@@ -942,6 +943,9 @@ void JaccardGraph::computeAssemblyPaths(uint64_t componentId)
         longestPath.push_back(jaccardGraph[graph[gv1]].segmentId);
         gv0 = gv1;
     }
+
+    // Store the longest path.
+    assemblyPaths.push_back(longestPath);
 
     if(debug) {
         cout << "Longest path has " << longestPath.size() << " segments:" << endl;

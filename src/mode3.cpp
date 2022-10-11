@@ -6,6 +6,7 @@
 #include "html.hpp"
 #include "MarkerGraph.hpp"
 #include "mode3-AssemblyPath.hpp"
+#include "mode3-JaccardGraph.hpp"
 #include "orderPairs.hpp"
 #include "Reads.hpp"
 #include "ReadFlags.hpp"
@@ -2499,4 +2500,71 @@ void AssemblyGraph::targetedBfs(
     }
 
 }
+
+
+// Assemble the assembly paths stored in the JaccardGraph.
+void AssemblyGraph::assembleJaccardGraphPaths()
+{
+    const JaccardGraph& jaccardGraph = *jaccardGraphPointer;
+
+    for(const vector<uint64_t>& primarySegments: jaccardGraph.assemblyPaths) {
+        assembleJaccardGraphPaths(primarySegments);
+    }
+}
+
+
+void AssemblyGraph::assembleJaccardGraphPaths(
+    const vector<uint64_t>& primarySegments)
+{
+    SHASTA_ASSERT(primarySegments.size() >= 2);
+
+    const JaccardGraph& jaccardGraph = *jaccardGraphPointer;
+
+    // Initialize the path and add the first primary segment.
+    AssemblyPath assemblyPath;
+    assemblyPath.segments.push_back(AssemblyPathSegment(primarySegments.front(), true));
+
+    // Add the remaining primary and secondary segments.
+    for(uint64_t i=1; i<primarySegments.size(); i++) {
+        const uint64_t primarySegment0 = primarySegments[i-1];
+        const uint64_t primarySegment1 = primarySegments[i];
+
+        // Get the JaccardGraph vertices corresponding to these primary segments.
+        const JaccardGraph::vertex_descriptor v0 = jaccardGraph.vertexTable[primarySegment0];
+        const JaccardGraph::vertex_descriptor v1 = jaccardGraph.vertexTable[primarySegment1];
+
+        // Get the JaccardGraph edge between these two vertices.
+        JaccardGraph::edge_descriptor e;
+        bool edgeWasFound = false;
+        tie(e, edgeWasFound) = edge(v0, v1, jaccardGraph);
+        SHASTA_ASSERT(edgeWasFound);
+        const JaccardGraphEdge& edge = jaccardGraph[e];
+
+        // Access the secondary segments on this edge.
+        const vector<uint64_t>& secondarySegmentIds = edge.segmentIds;
+
+        // Add the secondary segments between these two primary segments.
+        for(const uint64_t segmentId: secondarySegmentIds) {
+            AssemblyPathSegment assemblyPathSegment(segmentId, false);
+            assemblyPathSegment.previousPrimarySegmentId = primarySegment0;
+            assemblyPathSegment.nextPrimarySegmentId = primarySegment1;
+            assemblyPath.segments.push_back(assemblyPathSegment);
+
+        }
+
+        // Add the next primary segment.
+        assemblyPath.segments.push_back(AssemblyPathSegment(primarySegment1, true));
+    }
+
+    cout << "Assembling a Jaccard graph path with " <<
+        assemblyPath.segments.size() << " segments of which " << primarySegments.size() <<
+        " are primary." << endl;
+
+    // Assemble sequence for this path.
+    assemblyPath.assemble(*this);
+    cout << "Assembled " << assemblyPath.rawSequence.size() << " bases." << endl;
+
+}
+
+
 

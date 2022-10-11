@@ -16,6 +16,7 @@ config = GetConfig.getConfig()
 shasta.openPerformanceLog('Mode3Assembly.log')
 
 a = shasta.Assembler()
+a.setupConsensusCaller(config['Assembly']['consensusCaller'])
 a.accessMarkers()
 a.accessMarkerGraphVertices()
 a.accessMarkerGraphReverseComplementVertex()
