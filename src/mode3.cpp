@@ -2506,22 +2506,36 @@ void AssemblyGraph::targetedBfs(
 void AssemblyGraph::assembleJaccardGraphPaths()
 {
     const JaccardGraph& jaccardGraph = *jaccardGraphPointer;
+    ofstream fasta("JaccardGraphPaths.fasta");
 
-    for(const vector<uint64_t>& primarySegments: jaccardGraph.assemblyPaths) {
-        assembleJaccardGraphPaths(primarySegments);
+    uint64_t totalSequenceAssembled = 0;
+    for(uint64_t clusterId=0; clusterId<jaccardGraph.assemblyPaths.size(); clusterId++) {
+        const vector<uint64_t>& primarySegments = jaccardGraph.assemblyPaths[clusterId];
+        AssemblyPath assemblyPath;
+        assembleJaccardGraphPath(primarySegments, assemblyPath);
+
+        const auto& sequence = assemblyPath.rawSequence;
+        totalSequenceAssembled += sequence.size();
+        fasta << ">" << clusterId << " " << sequence.size() << "\n";
+        copy(sequence.begin(), sequence.end(), ostream_iterator<Base>(fasta));
+        fasta << "\n";
     }
+    cout << "Assembled a total " << totalSequenceAssembled << " bases." << endl;
 }
 
 
-void AssemblyGraph::assembleJaccardGraphPaths(
-    const vector<uint64_t>& primarySegments)
+
+void AssemblyGraph::assembleJaccardGraphPath(
+    const vector<uint64_t>& primarySegments,
+    AssemblyPath& assemblyPath)
 {
     SHASTA_ASSERT(primarySegments.size() >= 2);
 
     const JaccardGraph& jaccardGraph = *jaccardGraphPointer;
 
     // Initialize the path and add the first primary segment.
-    AssemblyPath assemblyPath;
+    assemblyPath.segments.clear();
+    assemblyPath.links.clear();
     assemblyPath.segments.push_back(AssemblyPathSegment(primarySegments.front(), true));
 
     // Add the remaining primary and secondary segments.
@@ -2556,13 +2570,8 @@ void AssemblyGraph::assembleJaccardGraphPaths(
         assemblyPath.segments.push_back(AssemblyPathSegment(primarySegment1, true));
     }
 
-    cout << "Assembling a Jaccard graph path with " <<
-        assemblyPath.segments.size() << " segments of which " << primarySegments.size() <<
-        " are primary." << endl;
-
     // Assemble sequence for this path.
     assemblyPath.assemble(*this);
-    cout << "Assembled " << assemblyPath.rawSequence.size() << " bases." << endl;
 
 }
 

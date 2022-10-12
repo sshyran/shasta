@@ -661,7 +661,7 @@ public:
 
     // Assemble the assembly paths stored in the JaccardGraph.
     void assembleJaccardGraphPaths();
-    void assembleJaccardGraphPaths(const vector<uint64_t>& primarySegments);
+    void assembleJaccardGraphPath(const vector<uint64_t>& primarySegments, AssemblyPath&);
 };
 
 
