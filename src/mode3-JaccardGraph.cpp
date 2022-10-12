@@ -31,7 +31,7 @@ void AssemblyGraph::createJaccardGraph(
     )
 {
     // EXPOSE WHEN CODE STABILIZES.
-    const uint64_t minComponentSize = 100; //Likely needs to be decreased. Keep high for debugging.
+    const uint64_t minComponentSize = 10; // Likely needs to be decreased. Keep high for debugging.
 
     cout << timestamp << "createJaccardGraph begins." << endl;
 
