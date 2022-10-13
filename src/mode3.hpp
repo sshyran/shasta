@@ -662,6 +662,11 @@ public:
     // Assemble the assembly paths stored in the JaccardGraph.
     void assembleJaccardGraphPaths();
     void assembleJaccardGraphPath(const vector<uint64_t>& primarySegments, AssemblyPath&);
+
+    // De Bruijn graph of the assembly graph journeys of all oriented reads.
+    // Each assembly graph journey is interpreted as a sequence of segment ids.
+    void createDeBruijnGraph() const;
+    template<uint64_t K> void createDeBruijnGraphTemplated() const;
 };
 
 

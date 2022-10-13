@@ -2577,3 +2577,106 @@ void AssemblyGraph::assembleJaccardGraphPath(
 
 
 
+// De Bruijn graph of the assembly graph journeys of all oriented reads.
+// Each assembly graph journey is interpreted as a sequence of segment ids.
+// Each vertex represents a sequence of K segment ids.
+template<uint64_t K> void AssemblyGraph::createDeBruijnGraphTemplated() const
+{
+    // EXPOSE WHEN CODE STABILIZES.
+    const uint64_t minCoverage = 2;
+
+    // Type used to store the sequence of a vertex (K segment ids).
+    using VertexSequence = array<uint64_t, K>;
+
+    // Loop over all oriented reads to gather vertex sequences.
+    vector<VertexSequence> vertexSequences;
+    for(uint64_t i=0; i<assemblyGraphJourneys.size(); i++) {
+
+        // Get the asembly graph journey for this oriented read.
+        const span<const AssemblyGraphJourneyEntry>& journey = assemblyGraphJourneys[i];
+        const uint64_t journeyLength = journey.size();
+
+        // If too short, skip.
+        if(journeyLength < K) {
+            continue;
+        }
+
+        // Extract sequences of length K from the journey.
+        // Loop over starting positions.
+        for(uint64_t j=0; j<=journeyLength-K; j++) {
+
+            // Fill in the seqyence of length K starting here.
+            VertexSequence vertexSequence;
+            for(uint64_t k=0; k<K; k++) {
+                vertexSequence[k] = journey[j+k].segmentId;
+            }
+            // Store it.
+            vertexSequences.push_back(vertexSequence);
+        }
+    }
+
+    // Count how many times each sequence was found.
+    vector<uint64_t> coverage;
+    deduplicateAndCount(vertexSequences, coverage);
+    SHASTA_ASSERT(vertexSequences.size() == coverage.size());
+
+    // Each sequence with sufficient coverage generates a vertex.
+    using Vertex = pair<VertexSequence, uint64_t>;  // Stores sequence and coverage.
+    using Graph = boost::adjacency_list<boost::listS, boost::listS, boost::bidirectionalS, Vertex>;
+    using vertex_descriptor = Graph::vertex_descriptor;
+    Graph graph;
+
+    for(uint64_t i=0; i<vertexSequences.size(); i++) {
+        const uint64_t c = coverage[i];
+        if(c >= minCoverage) {
+            add_vertex(Vertex(vertexSequences[i], c), graph);
+        }
+    }
+
+    // To generate edges, index the vertices by their (K-1)-prefix.
+    using Prefix = array<uint64_t, K-1>;
+    std::map<Prefix, vector<vertex_descriptor> > vertexMap;
+    BGL_FORALL_VERTICES_T(v, graph, Graph) {
+        const VertexSequence& sequence = graph[v].first;
+        Prefix prefix;
+        copy(sequence.begin(), sequence.begin()+K-1, prefix.begin());
+        vertexMap[prefix].push_back(v);
+    }
+
+    // Now we can generate the edges.
+    using Suffix = Prefix;
+    BGL_FORALL_VERTICES_T(v0, graph, Graph) {
+        const VertexSequence& sequence = graph[v0].first;
+        Suffix suffix;
+        copy(sequence.begin()+1, sequence.end(), suffix.begin());
+        auto it = vertexMap.find(suffix);
+        if(it == vertexMap.end()) {
+            continue;
+        }
+        for(const vertex_descriptor v1: it->second) {
+            add_edge(v0, v1, graph);
+        }
+    }
+    cout << "The DeBruijn graph has " << num_vertices(graph) << " vertices and " <<
+        num_edges(graph) << " edges." << endl;
+
+    // Write it out.
+    ofstream dot("DeBruijnGraph.dot");
+    dot << "digraph DeBruijnGraph {\n";
+    BGL_FORALL_VERTICES_T(v, graph, Graph) {
+        dot << "\"" << v << "\" [tooltip=" << graph[v].second << "];\n";
+    }
+    BGL_FORALL_EDGES_T(e, graph, Graph) {
+        const vertex_descriptor v0 = source(e, graph);
+        const vertex_descriptor v1 = target(e, graph);
+        dot << "\"" << v0 << "\"->\"" << v1 << "\";\n";
+    }
+    dot << "}\n";
+}
+
+
+
+void AssemblyGraph::createDeBruijnGraph() const
+{
+    createDeBruijnGraphTemplated<3>();
+}

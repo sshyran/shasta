@@ -31,8 +31,9 @@ void Assembler::mode3Assembly(
     auto& assemblyGraph3 = *assemblyGraph3Pointer;
     assemblyGraph3.writeGfa("AssemblyGraph");
     // assemblyGraph3.clusterSegments(threadCount, minClusterSize);
-    assemblyGraph3.createJaccardGraph(threadCount);
-    assemblyGraph3.assembleJaccardGraphPaths();
+    // assemblyGraph3.createJaccardGraph(threadCount);
+    // assemblyGraph3.assembleJaccardGraphPaths();
+    // assemblyGraph3.createDeBruijnGraph();
 
 }
 
