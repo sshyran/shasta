@@ -144,7 +144,7 @@ public:
     uint64_t id;
 
     // The partition this vertex was assigned to.
-    uint64_t subgraphId = std::numeric_limits<uint64_t>::max();
+    uint64_t subgraphId = invalid<uint64_t>;
 
     // Distance from the start vertex of the BFS.
     // Only used during the BFS.

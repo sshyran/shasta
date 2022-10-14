@@ -35,58 +35,56 @@ PathGraph::PathGraph(const AssemblyGraph& assemblyGraph) :
     const uint64_t partitionMaxDistance = 10;
     const uint64_t minSubgraphSize = 8;
 
+    // Create initial vertices from the AssemblyGraph.
     PathGraph& pathGraph = *this;
-
     createVertices();
-    createEdges(minCoverage);
-    cout << "The initial path graph has " << num_vertices(pathGraph) <<
-        " vertices and " << num_edges(pathGraph) << " edges." << endl;
-
-    computeJourneys();
-    writeJourneys("PathGraphJourneys.csv");
-
-    // Partition the PathGraph into subgraphs.
-    partition(partitionMaxDistance, minSubgraphSize);
-    writeGfa("PathGraph");
-    writeCsvDetailed("PathGraphDetailed.csv");
-
-    // Interactive local detangling, without modifying the PathGraph.
-    while(true) {
-        int64_t subgraphId;
-        cout << "Enter a subgraph to detangle interactively, -1 to quit, or -2 to continue with detangle:" << endl;
-        cin >> subgraphId;
-        if(not cin) {
-            return;
-        }
-        if(subgraphId == -1) {
-            return;
-        }
-        if(subgraphId == -2) {
-            break;
-        }
-        vector<PathGraphVertex> newVertices;
-        detangleSubgraph(uint64_t(subgraphId), newVertices, true);
-        cout << "Detangling subgraph " << subgraphId <<
-            " generated " << newVertices.size() << " new vertices." << endl;
-    }
 
     // Detangle iteration.
-    vector<PathGraphVertex> newVertices;
-    detangle(newVertices);
-    cout << "Detangle iteration created " << newVertices.size() << " new vertices." << endl;
-    clear();
-    createVertices(newVertices);
-    createEdges(minCoverage);
-    cout << "After one detangle iteration, the path graph has " << num_vertices(pathGraph) <<
-        " vertices and " << num_edges(pathGraph) << " edges." << endl;
+    // At the beginning of each iteration we only have vertices.
+    for(uint64_t iteration=0; iteration<6; iteration++) {
 
-    computeJourneys();
-    writeJourneys("PathGraphJourneys-1.csv");
+        createEdges(minCoverage);
+        cout << "The path graph at iteration " << iteration << " has " << num_vertices(pathGraph) <<
+            " vertices and " << num_edges(pathGraph) << " edges." << endl;
 
-    // Partition the PathGraph into subgraphs.
-    // partition(partitionMaxDistance, minSubgraphSize);
-    writeGfa("PathGraph-1");
-    writeCsvDetailed("PathGraphDetailed-1.csv");
+        // Compute oriented read journeys.
+        computeJourneys();
+        // writeJourneys("PathGraphJourneys.csv");
+
+        // Partition the PathGraph into subgraphs.
+        partition(partitionMaxDistance, minSubgraphSize);
+        writeGfa("PathGraph-" + to_string(iteration));
+        writeCsvDetailed("PathGraphDetailed-" + to_string(iteration) + ".csv");
+
+        // Interactive local detangling, without modifying the PathGraph.
+        // Turn this on for debugging.
+        while(false) {
+            int64_t subgraphId;
+            cout << "Enter a subgraph to detangle interactively, -1 to quit, or -2 to continue with detangle:" << endl;
+            cin >> subgraphId;
+            if(not cin) {
+                return;
+            }
+            if(subgraphId == -1) {
+                return;
+            }
+            if(subgraphId == -2) {
+                break;
+            }
+            vector<PathGraphVertex> newVertices;
+            detangleSubgraph(uint64_t(subgraphId), newVertices, true);
+            cout << "Detangling subgraph " << subgraphId <<
+                " generated " << newVertices.size() << " new vertices." << endl;
+        }
+
+        // Detangle.
+        vector<PathGraphVertex> newVertices;
+        detangle(newVertices);
+
+        // Recreate the vertices.
+        clear();
+        createVertices(newVertices);
+    }
 }
 
 
@@ -376,6 +374,9 @@ void PathGraph::partition(
                     }
                 }
             }
+            if(adjacentSubgraphsTable.empty()) {
+                continue;
+            }
             sort(adjacentSubgraphsTable.begin(), adjacentSubgraphsTable.end());
 
             // Merge it with the smallest adjacent subgraph.
@@ -597,7 +598,12 @@ void PathGraph::writeCsvDetailed(const string& fileName) const
 
         // Write the AssemblyGraph path corresponding to this vertex.
         for(const uint64_t segmentId: vertex.path) {
-            csv << vertex.id << "," << vertex.subgraphId << "," << segmentId << "\n";
+            csv << vertex.id << ",";
+            if(vertex.subgraphId != invalid<uint64_t>) {
+                csv << vertex.subgraphId;
+            }
+            csv << ",";
+            csv << segmentId << "\n";
         }
     }
 }
