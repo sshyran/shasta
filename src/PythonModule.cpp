@@ -663,6 +663,8 @@ PYBIND11_MODULE(shasta, shastaModule)
             &Assembler::analyzeMode3Subgraph)
         .def("createMode3PathGraph",
             &Assembler::createMode3PathGraph)
+        .def("createMode3Detangler",
+            &Assembler::createMode3Detangler)
 
 
 

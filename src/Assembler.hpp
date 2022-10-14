@@ -2422,6 +2422,7 @@ public:
     void accessMode3AssemblyGraph();
     void analyzeMode3Subgraph(const vector<uint64_t>& segmentIds);
     void createMode3PathGraph();
+    void createMode3Detangler();
 
 
 

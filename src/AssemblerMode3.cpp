@@ -1,5 +1,6 @@
 #include "Assembler.hpp"
 #include "mode3.hpp"
+#include "mode3-Detangler.hpp"
 #include "mode3-PathGraph.hpp"
 #include "Reads.hpp"
 using namespace shasta;
@@ -65,6 +66,17 @@ void Assembler::createMode3PathGraph()
     const mode3::AssemblyGraph& assemblyGraph = *assemblyGraph3Pointer;
 
     mode3::PathGraph pathGraph(assemblyGraph);
+
+}
+
+
+
+void Assembler::createMode3Detangler()
+{
+    SHASTA_ASSERT(assemblyGraph3Pointer);
+    const mode3::AssemblyGraph& assemblyGraph = *assemblyGraph3Pointer;
+
+    mode3::Detangler detangler(assemblyGraph);
 
 }
 
