@@ -5,6 +5,7 @@
 #include "ReadId.hpp"
 
 // Standard library.
+#include <list>
 #include <map>
 #include "vector.hpp"
 
@@ -56,10 +57,13 @@ public:
     public:
         uint64_t segmentId;
         vector<JourneyEntryId> journeyEntryIds;
+        Cluster(uint64_t segmentId) :
+            segmentId(segmentId) {}
     };
 
     // Store the clusters keyed by segmentId.
-    std::map<uint64_t, vector<Cluster> > clusters;
+    // Use a list so we can easily remove clusters that are being split.
+    std::map<uint64_t, std::list<Cluster> > clusters;
 
     // The clusterTable gives the cluster that each journey entry corresponds to.
     // It changes during detangling.

@@ -59,7 +59,8 @@ void Detangler::createInitialClusters()
                 // creating it if necessary.
                 auto it = clusters.find(segmentId);
                 if(it == clusters.end()) {
-                    tie(it, ignore) = clusters.insert(make_pair(segmentId, vector<Cluster>(1)));
+                    tie(it, ignore) = clusters.insert(make_pair(segmentId, std::list<Cluster>()));
+                    it->second.push_back(Cluster(segmentId));
                 }
                 SHASTA_ASSERT(it->second.size() == 1);
 
