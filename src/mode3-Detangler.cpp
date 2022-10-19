@@ -27,49 +27,52 @@ void Detangler::createJourneys(const AssemblyGraph& assemblyGraph)
         Journey& journey = journeys[i];
 
         for(const AssemblyGraphJourneyEntry& assemblyGraphJourneyEntry: assemblyGraphJourney) {
-            journey.push_back(assemblyGraphJourneyEntry.segmentId);
+            journey.push_back(Step(assemblyGraphJourneyEntry.segmentId));
         }
     }
 }
 
 
 
+// Initially, we create a Cluster for each segmentId.
 void Detangler::createInitialClusters()
 {
-    const ReadId readCount = ReadId(journeys.size() / 2);
-    clusterTable.resize(journeys.size());
 
     // Loop over all oriented reads.
+    const ReadId readCount = ReadId(journeys.size() / 2);
     for(ReadId readId=0; readId<readCount; readId++) {
         for(Strand strand=0; strand<2; strand++) {
             const OrientedReadId orientedReadId(readId, strand);
 
             // Get the Journey for this oriented read.
-            const Journey& journey = journeys[orientedReadId.getValue()];
+            Journey& journey = journeys[orientedReadId.getValue()];
 
-            // Loop over entries in this Journey.
-            JourneyEntryId journeyEntryId;
-            journeyEntryId.orientedReadId = orientedReadId;
-            clusterTable[orientedReadId.getValue()].resize(journey.size());
+            // Loop over Step(s) in this Journey.
+            StepInfo stepInfo;
+            stepInfo.orientedReadId = orientedReadId;
             for(uint64_t position=0; position<journey.size(); position++) {
-                journeyEntryId.position = position;
-                const uint64_t segmentId = journey[position];
+                stepInfo.position = position;
+                Step& step = journey[position];
+                const uint64_t segmentId = step.segmentId;
 
                 // Locate the Cluster corresponding to this segment,
                 // creating it if necessary.
-                auto it = clusters.find(segmentId);
+                ClusterContainer::iterator it = clusters.find(segmentId);
                 if(it == clusters.end()) {
                     tie(it, ignore) = clusters.insert(make_pair(segmentId, std::list<Cluster>()));
                     it->second.push_back(Cluster(segmentId));
                 }
-                SHASTA_ASSERT(it->second.size() == 1);
+                std::list<Cluster>& segmentClusters = it->second;
 
-                // Add this journey entry to the cluster.
-                Cluster& cluster = it->second.front();
-                cluster.journeyEntryIds.push_back(journeyEntryId);
+                // Sanity check: this segmentId must correspond to exactly one Cluster.
+                SHASTA_ASSERT(segmentClusters.size() == 1);
+                Cluster& cluster = segmentClusters.front();
 
-                clusterTable[orientedReadId.getValue()][position] = &cluster;
+                // Add this Step to the Cluster.
+                cluster.steps.push_back(stepInfo);
+                step.cluster = &cluster;
             }
         }
     }
 }
+
