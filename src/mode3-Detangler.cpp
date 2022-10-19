@@ -76,3 +76,56 @@ void Detangler::createInitialClusters()
     }
 }
 
+
+
+// Find the next cluster reached by each oriented read in a given cluster.
+void Detangler::findNextClusters(
+    const Cluster* cluster,
+    vector< pair<const Cluster*, vector<OrientedReadId> > >& nextClusters
+    ) const
+{
+    // For each read, go forward one step.
+    // This can be done faster.
+    std::map<const Cluster*, vector<OrientedReadId> > nextClustersMap;
+    for(const StepInfo& stepInfo: cluster->steps) {
+        const OrientedReadId orientedReadId = stepInfo.orientedReadId;
+        const uint64_t position = stepInfo.position;
+        const Journey& journey = journeys[orientedReadId.getValue()];
+        const uint64_t nextPosition = position + 1;
+        if(nextPosition < journey.size()) {
+            const Step& nextStep = journey[nextPosition];
+            nextClustersMap[nextStep.cluster].push_back(orientedReadId);
+        }
+    };
+
+    nextClusters.clear();
+    copy(nextClustersMap.begin(), nextClustersMap.end(), back_inserter(nextClusters));
+
+}
+
+
+
+// Find the previous cluster reached by each oriented read in a given cluster.
+void Detangler::findPreviousClusters(
+    const Cluster* cluster,
+    vector< pair<const Cluster*, vector<OrientedReadId> > >& previousClusters
+    ) const
+{
+    // For each read, go backward one step.
+    // This can be done faster.
+    std::map<const Cluster*, vector<OrientedReadId> > previousClustersMap;
+    for(const StepInfo& stepInfo: cluster->steps) {
+        const OrientedReadId orientedReadId = stepInfo.orientedReadId;
+        const uint64_t position = stepInfo.position;
+        const Journey& journey = journeys[orientedReadId.getValue()];
+        if(position > 0) {
+            const uint64_t previousPosition = position - 1;
+            const Step& previousStep = journey[previousPosition];
+            previousClustersMap[previousStep.cluster].push_back(orientedReadId);
+        }
+    };
+
+    previousClusters.clear();
+    copy(previousClustersMap.begin(), previousClustersMap.end(), back_inserter(previousClusters));
+
+}

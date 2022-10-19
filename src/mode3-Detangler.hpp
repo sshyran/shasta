@@ -7,6 +7,7 @@
 // Standard library.
 #include <list>
 #include <map>
+#include "utility.hpp"
 #include "vector.hpp"
 
 /*******************************************************************************
@@ -98,6 +99,16 @@ public:
 private:
     void createJourneys(const AssemblyGraph&);
     void createInitialClusters();
+
+    // Find the next/previous cluster reached by each oriented read in a given cluster.
+    void findNextClusters(
+        const Cluster*,
+        vector< pair<const Cluster*, vector<OrientedReadId> > >&
+        ) const;
+    void findPreviousClusters(
+        const Cluster*,
+        vector< pair<const Cluster*, vector<OrientedReadId> > >&
+        ) const;
 };
 
 
