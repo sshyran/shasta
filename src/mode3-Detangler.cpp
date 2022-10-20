@@ -10,6 +10,12 @@ Detangler::Detangler(const AssemblyGraph& assemblyGraph)
     createJourneys(assemblyGraph);
     createInitialClusters();
     cout << "The initial Detangler has " << clusters.size() << " clusters." << endl;
+
+    for(const auto& p: clusters) {
+        for(const Cluster& cluster: p.second) {
+            simpleDetangle(&cluster);
+        }
+    }
 }
 
 
@@ -127,5 +133,75 @@ void Detangler::findPreviousClusters(
 
     previousClusters.clear();
     copy(previousClustersMap.begin(), previousClustersMap.end(), back_inserter(previousClusters));
+
+}
+
+
+
+// Simple, classical detangling of a single cluster.
+void Detangler::simpleDetangle(const Cluster* cluster)
+{
+    std::map< pair<const Cluster*, const Cluster*>, uint64_t> tangleMatrix;
+
+    // Loop over the Step(s) in this Cluster.
+    for(const StepInfo& stepInfo: cluster->steps) {
+        const OrientedReadId orientedReadId = stepInfo.orientedReadId;
+        const uint64_t position = stepInfo.position;
+        const Journey& journey = journeys[orientedReadId.getValue()];
+
+        // If at the beginning or end of the journey, we cannot use it.
+        if(position == 0) {
+            continue;
+        }
+        if(position == journey.size()-1) {
+            continue;
+        }
+
+        // Access the previous and previous Step.
+        const Step& previousStep = journey[position - 1];
+        const Step& nextStep = journey[position + 1];
+
+        // Get the previous and next Cluster.
+        const Cluster* previousCluster = previousStep.cluster;
+        const Cluster* nextCluster = nextStep.cluster;
+
+        // Increment the tangle matrix for this pair.
+        const auto p = make_pair(previousCluster, nextCluster);
+        auto it = tangleMatrix.find(p);
+        if(it == tangleMatrix.end()) {
+            tangleMatrix.insert(make_pair(p, 1));
+        } else {
+            ++(it->second);
+        }
+
+    };
+
+    // For now, just write out the detangle matrix.
+    {
+        std::set<const Cluster*> previousClusters;
+        std::set<const Cluster*> nextClusters;
+        for(const auto& p: tangleMatrix) {
+            previousClusters.insert(p.first.first);
+            nextClusters.insert(p.first.second);
+        }
+
+        cout << previousClusters.size() << " by " << nextClusters.size() <<
+            " detangle matrix for Cluster " <<
+            cluster->stringId()  << " "
+            "\n";
+        for(const Cluster* previousCluster: previousClusters) {
+            for(const Cluster* nextCluster: nextClusters) {
+                cout << previousCluster->stringId()  << " ";
+                cout << nextCluster->stringId()   << " ";
+                auto it = tangleMatrix.find(make_pair(previousCluster, nextCluster));
+                if(it == tangleMatrix.end()) {
+                    cout << "0";
+                } else {
+                    cout << it->second;
+                }
+                cout << "\n";
+            }
+        }
+    }
 
 }

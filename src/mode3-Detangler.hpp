@@ -84,9 +84,14 @@ public:
     class Cluster {
     public:
         uint64_t segmentId;
-        vector<StepInfo> steps;
+        uint64_t id = 0;        // Within that segmentId.
+        vector<StepInfo> steps; // Sorted by orientedReadId.
         Cluster(uint64_t segmentId) :
             segmentId(segmentId) {}
+        string stringId() const
+        {
+            return to_string(segmentId) + "/" + to_string(id);
+        }
     };
 
     // Store the clusters keyed by segmentId.
@@ -109,6 +114,9 @@ private:
         const Cluster*,
         vector< pair<const Cluster*, vector<OrientedReadId> > >&
         ) const;
+
+    // Simple, classical detangling of a single cluster.
+    void simpleDetangle(const Cluster*);
 };
 
 
