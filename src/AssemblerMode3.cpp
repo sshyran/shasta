@@ -34,7 +34,7 @@ void Assembler::mode3Assembly(
     // assemblyGraph3.clusterSegments(threadCount, minClusterSize);
     // assemblyGraph3.createJaccardGraph(threadCount);
     // assemblyGraph3.assembleJaccardGraphPaths();
-    // assemblyGraph3.createDeBruijnGraph();
+    assemblyGraph3.createDeBruijnGraph();
 
 }
 

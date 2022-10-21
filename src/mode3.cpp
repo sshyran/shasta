@@ -2583,7 +2583,7 @@ void AssemblyGraph::assembleJaccardGraphPath(
 template<uint64_t K> void AssemblyGraph::createDeBruijnGraphTemplated() const
 {
     // EXPOSE WHEN CODE STABILIZES.
-    const uint64_t minCoverage = 2;
+    const uint64_t minCoverage = 8;
 
     // Type used to store the sequence of a vertex (K segment ids).
     using VertexSequence = array<uint64_t, K>;
@@ -2592,7 +2592,7 @@ template<uint64_t K> void AssemblyGraph::createDeBruijnGraphTemplated() const
     vector<VertexSequence> vertexSequences;
     for(uint64_t i=0; i<assemblyGraphJourneys.size(); i++) {
 
-        // Get the asembly graph journey for this oriented read.
+        // Get the assembly graph journey for this oriented read.
         const span<const AssemblyGraphJourneyEntry>& journey = assemblyGraphJourneys[i];
         const uint64_t journeyLength = journey.size();
 
@@ -2664,7 +2664,11 @@ template<uint64_t K> void AssemblyGraph::createDeBruijnGraphTemplated() const
     ofstream dot("DeBruijnGraph.dot");
     dot << "digraph DeBruijnGraph {\n";
     BGL_FORALL_VERTICES_T(v, graph, Graph) {
-        dot << "\"" << v << "\" [tooltip=" << graph[v].second << "];\n";
+        const uint64_t coverage = graph[v].second;
+        dot << "\"" << v << "\" ["
+            "tooltip=\"" << coverage << "\" "
+            "width=" << 0.001*double(coverage) <<
+            "];\n";
     }
     BGL_FORALL_EDGES_T(e, graph, Graph) {
         const vertex_descriptor v0 = source(e, graph);
