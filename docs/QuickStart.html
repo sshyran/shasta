@@ -21,7 +21,7 @@ See below for more information.
 You can use the following commands to download the executable from the latest release and run an assembly:
 <pre>
 # Download the executable for the latest release.
-curl -O -L https://github.com/paoloshasta/shasta/releases/download/0.10.0/shasta-Linux-0.10.0
+curl -O -L https://github.com/chanzuckerberg/shasta/releases/download/0.10.0/shasta-Linux-0.10.0
 
 # Grant execute permissions.
 chmod ugo+x shasta-Linux-0.10.0
@@ -29,6 +29,16 @@ chmod ugo+x shasta-Linux-0.10.0
 # Run an assembly.
 ./shasta-Linux-0.10.0 --input input.fasta --config Nanopore-May2022
 </pre>
+
+<p>
+<b>The above is valid for releases up to 0.10.0. Newer releases will appear in the <code>paoloshasta/shasta</code>
+repository instead, so the download command would be:</b>
+
+<pre>
+curl -O -L https://github.com/paoloshasta/shasta/releases/download/x.y.z/shasta-Linux-x.y.z
+</pre>
+
+(Replace <code>x.y.z</code> with the identifier for the release you want to use).
 
 <p>
 You can specify multiple input FASTA files, if necessary.
