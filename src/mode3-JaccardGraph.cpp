@@ -197,7 +197,7 @@ void AssemblyGraph::createJaccardGraphEdges(
         // If the Jaccard similarity is high, we found the Jaccard graph edge
         // we were looking for.
         if( edge.segmentPairInformation.commonCount >= minCommonForPrimary and
-            edge.segmentPairInformation.rawJaccard() >= minJaccard) {   // ****** USING RAWJACCARD INSTEAD OF JACCARD
+            edge.segmentPairInformation.jaccard() >= minJaccard) {
             if(direction == 0) {
                 edge.segmentId0 = primarySegmentId;
                 edge.segmentId1 = segmentId1;

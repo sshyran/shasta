@@ -2033,7 +2033,7 @@ void AssemblyGraph::createAssemblyPath(
         }
 
         // If the Jaccard similarity is high, this becomes the new reference segment.
-        if(info.commonCount >= minCommonForReference and info.rawJaccard() >= minJaccard) { // ****** USING RAWJACCARD INSTEAD OF JACCARD
+        if(info.commonCount >= minCommonForReference and info.jaccard() >= minJaccard) {
             referenceSegmentId = segmentId1;
             getOrientedReadsOnSegment(referenceSegmentId, infoReference);
             const uint64_t lastPrimarySegmentId = path.segments.back().id;
