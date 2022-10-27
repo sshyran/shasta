@@ -948,6 +948,7 @@ void Assembler::exploreReadRaw(
     const auto sequence = reads->getRead(readId);
     const auto readName = reads->getReadName(readId);
     const auto metaData = reads->getReadMetaData(readId);
+    const span<const CompressedMarker> orientedReadMarkers = markers[orientedReadId.getValue()];
 
     // Adjust the position range, if necessary.
     if(!beginPositionIsPresent) {
@@ -994,13 +995,23 @@ void Assembler::exploreReadRaw(
     html << "</table>";
 
 
-
-    // Sequence.
-    html << "<p><pre style='font-family:monospace;margin:0'>";
-    for(uint64_t position=beginPosition; position!=endPosition; position++) {
-        html << sequence[position];
+    // Position scale labels.
+    html << "<p>For precise alignment of the following section, use Firefox to display this page.\n";
+    html << "<div style='font-family:Courier New;font-size:10pt;margin:0'>";
+    for(size_t position=beginPosition; position<endPosition; ) {
+        if((position%10)==0) {
+            const string label = to_string(position);
+            html << label;
+            for(size_t i=0; i<10-label.size(); i++) {
+                html << "&nbsp;";
+            }
+            position += 10;
+        } else {
+            html << "&nbsp;";
+            ++position;
+        }
     }
-    html<< "\n";
+    html<< "<br>";
 
     // Position scale
     for(size_t position=beginPosition; position<endPosition; position++) {
@@ -1012,24 +1023,113 @@ void Assembler::exploreReadRaw(
             html << ".";
         }
     }
-    html<< "\n";
+    html<< "<br>";
 
-    // Position scale labels.
-    for(size_t position=beginPosition; position<endPosition; ) {
-        if((position%10)==0) {
-            const string label = to_string(position);
-            html << label;
-            for(size_t i=0; i<10-label.size(); i++) {
-                html << " ";
+    // Sequence.
+    for(uint64_t position=beginPosition; position!=endPosition; position++) {
+        html << sequence[position];
+    }
+    html<< "<br>";
+
+
+
+    // Display the markers.
+
+    // If here are no markers, there is nothing to do.
+    if(orientedReadMarkers.empty()) {
+        html << "</div><p>This read has no markers.";
+        return;
+    }
+
+    // Because markers can overlap, we have to display them on more than one row.
+    // This vector will contain, for each row, the list of marker ordinals
+    // to be displayed in this row.
+    vector< vector<uint64_t> > markersByRow;
+
+    const uint64_t k = assemblerInfo->k;
+    for(uint64_t ordinal=0; ordinal<orientedReadMarkers.size(); ordinal++) {
+        const uint64_t position = orientedReadMarkers[ordinal].position;
+
+        // If this marker begins before our beginPosition, it will not be displayed.
+        if(position < beginPosition) {
+            continue;
+        }
+
+        // If this marker ends after our endPosition, it will not be displayed.
+        if(position + k > endPosition) {
+            continue;
+        }
+
+        // Try all rows.
+        for(uint64_t row=0; ; row++) {
+            if(row >= markersByRow.size()) {
+                markersByRow.resize(row + 1);
             }
-            position += 10;
-        } else {
-            html << " ";
-            ++position;
+            vector<uint64_t>& markersOnThisRow = markersByRow[row];
+            if(markersOnThisRow.empty() or position > orientedReadMarkers[markersOnThisRow.back()].position + k) {
+                markersOnThisRow.push_back(ordinal);
+                break;
+            }
         }
     }
-    html<< "\n";
-    html << "</pre>";
+
+    // Display the markers on each row.
+    for(const vector<uint64_t>&markersOnThisRow: markersByRow) {
+
+        // Loop over the markers on this row.
+        uint64_t oldPosition = 0;
+        for(const uint64_t ordinal: markersOnThisRow) {
+            const CompressedMarker& marker = orientedReadMarkers[ordinal];
+            const uint64_t position = marker.position - beginPosition;
+            const Kmer kmer(marker.kmerId, k);
+
+            // Write the required number of spaces.
+            SHASTA_ASSERT(position > oldPosition);  // There must be at least a blank.
+            for(uint64_t i=oldPosition; i<position; i++) {
+                html << "&nbsp;";
+            }
+            oldPosition = position + k;
+
+            // See if this marker is contained in a vertex of the marker graph.
+            const MarkerGraph::VertexId vertexId =
+                getGlobalMarkerGraphVertex(orientedReadId, uint32_t(ordinal));
+            const bool hasMarkerGraphVertex =
+                (vertexId != MarkerGraph::invalidCompressedVertexId);
+
+            if(hasMarkerGraphVertex) {
+
+                // There is a marker graph vertex.
+                // Write the marker as a link to that vertex.
+                const string url = "exploreMarkerGraph?vertexId=" + to_string(vertexId) +
+                    "&maxDistance=6&detailed=on&sizePixels=600&timeout=30";
+                html << "<a href='" << url << "' title='Marker " << ordinal <<
+                    ", position " << marker.position <<
+                    ", coverage " << markerGraph.vertexCoverage(vertexId) <<
+                    "'>";
+
+                // Write the k-mer.
+                for(uint64_t i=0; i<k; i++) {
+                    html << kmer[i];
+                }
+                html << "</a>";
+
+            } else {
+
+                // There is no marker graph vertex.
+                // Write this marker as text.
+                html << "<span title='Marker " << ordinal <<
+                    ", position " << marker.position <<
+                    "'>";
+                for(uint64_t i=0; i<k; i++) {
+                    html << kmer[i];
+                }
+                html << "</span>";
+            }
+        }
+        html << "<br>";
+    }
+
+    html << "</div>";
 
 }
 
