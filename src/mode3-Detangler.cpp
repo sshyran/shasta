@@ -143,11 +143,34 @@ void Detangler::simpleDetangle(const Cluster* cluster)
 {
     std::map< pair<const Cluster*, const Cluster*>, uint64_t> tangleMatrix;
 
+    std::map<const Cluster*, uint64_t> previousCount;
+    std::map<const Cluster*, uint64_t> nextCount;
+
     // Loop over the Step(s) in this Cluster.
     for(const StepInfo& stepInfo: cluster->steps) {
         const OrientedReadId orientedReadId = stepInfo.orientedReadId;
         const uint64_t position = stepInfo.position;
         const Journey& journey = journeys[orientedReadId.getValue()];
+
+        // Increment counts.
+        if(position != 0) {
+            const Cluster* previousCluster = journey[position - 1].cluster;
+            auto it = previousCount.find(previousCluster);
+            if(it == previousCount.end()) {
+                previousCount.insert(make_pair(previousCluster, 1));
+            } else {
+                ++(it->second);
+            }
+        }
+        if(position != journey.size()-1) {
+            const Cluster* nextCluster = journey[position + 1].cluster;
+            auto it = nextCount.find(nextCluster);
+            if(it == nextCount.end()) {
+                nextCount.insert(make_pair(nextCluster, 1));
+            } else {
+                ++(it->second);
+            }
+        }
 
         // If at the beginning or end of the journey, we cannot use it.
         if(position == 0) {
@@ -178,19 +201,23 @@ void Detangler::simpleDetangle(const Cluster* cluster)
 
     // For now, just write out the detangle matrix.
     {
-        std::set<const Cluster*> previousClusters;
-        std::set<const Cluster*> nextClusters;
-        for(const auto& p: tangleMatrix) {
-            previousClusters.insert(p.first.first);
-            nextClusters.insert(p.first.second);
+
+        cout << "Detangling Cluster " << cluster->stringId()  << "\n";
+
+        cout << "Coverage for links from previous clusters:\n";
+        for(const auto& p: previousCount) {
+            cout << p.first->stringId() << " " << p.second << "\n";
+        }
+        cout << "Coverage for links to next clusters:\n";
+        for(const auto& p: nextCount) {
+            cout << p.first->stringId() << " " << p.second << "\n";
         }
 
-        cout << previousClusters.size() << " by " << nextClusters.size() <<
-            " detangle matrix for Cluster " <<
-            cluster->stringId()  << " "
-            "\n";
-        for(const Cluster* previousCluster: previousClusters) {
-            for(const Cluster* nextCluster: nextClusters) {
+        cout << "Tangle matrix:\n";
+        for(const auto& previous: previousCount) {
+            const Cluster* previousCluster = previous.first;
+            for(const auto& next: nextCount) {
+                const Cluster* nextCluster = next.first;
                 cout << previousCluster->stringId()  << " ";
                 cout << nextCluster->stringId()   << " ";
                 auto it = tangleMatrix.find(make_pair(previousCluster, nextCluster));
