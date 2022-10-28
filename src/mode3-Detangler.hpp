@@ -105,14 +105,19 @@ private:
     void createJourneys(const AssemblyGraph&);
     void createInitialClusters();
 
-    // Find the next/previous cluster reached by each oriented read in a given cluster.
+    // Find the next/previous cluster for each of the steps in a given cluster.
+    // The output vector has size equal to the number of steps in this cluster,
+    // and the corresponding OrientedReadId(s) are the same
+    // as the ones in the steps vector for the given cluster.
+    // Some of the pointers returned can be zero. This can happen if this
+    // cluster is the first or last cluster in the journey of an oriented read.
     void findNextClusters(
         const Cluster*,
-        vector< pair<const Cluster*, vector<OrientedReadId> > >&
+        vector<const Cluster*>&
         ) const;
     void findPreviousClusters(
         const Cluster*,
-        vector< pair<const Cluster*, vector<OrientedReadId> > >&
+        vector<const Cluster*>&
         ) const;
 
     // Simple, classical detangling of a single cluster.

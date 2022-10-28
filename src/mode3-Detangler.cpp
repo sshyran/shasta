@@ -84,55 +84,66 @@ void Detangler::createInitialClusters()
 
 
 
-// Find the next cluster reached by each oriented read in a given cluster.
+// Find the next/previous cluster for each of the steps in a given cluster.
+// The output vector has size equal to the number of steps in this cluster,
+// and the corresponding OrientedReadId(s) are the same
+// as the ones in the steps vector for the given cluster.
+// Some of the pointers returned can be zero. This can happen if this
+// cluster is the first or last cluster in the journey of an oriented read.
 void Detangler::findNextClusters(
-    const Cluster* cluster,
-    vector< pair<const Cluster*, vector<OrientedReadId> > >& nextClusters
+    const Cluster* cluster0,
+    vector<const Cluster*>& nextClusters
     ) const
 {
-    // For each read, go forward one step.
-    // This can be done faster.
-    std::map<const Cluster*, vector<OrientedReadId> > nextClustersMap;
-    for(const StepInfo& stepInfo: cluster->steps) {
+    nextClusters.clear();
+
+    // Loop over the steps of this cluster.
+    for(const StepInfo& stepInfo: cluster0->steps) {
         const OrientedReadId orientedReadId = stepInfo.orientedReadId;
         const uint64_t position = stepInfo.position;
+
+        // Get journey for this oriented read.
         const Journey& journey = journeys[orientedReadId.getValue()];
+
+        // Locate the cluster at the next position in the journey.
+        // There is none if we are at the end of the journey.
+        const Cluster* cluster1 = 0;
         const uint64_t nextPosition = position + 1;
         if(nextPosition < journey.size()) {
-            const Step& nextStep = journey[nextPosition];
-            nextClustersMap[nextStep.cluster].push_back(orientedReadId);
+            cluster1 = journey[nextPosition].cluster;
         }
-    };
 
-    nextClusters.clear();
-    copy(nextClustersMap.begin(), nextClustersMap.end(), back_inserter(nextClusters));
+        // Store it in the output vector.
+        nextClusters.push_back(cluster1);
+    };
 
 }
-
-
-
-// Find the previous cluster reached by each oriented read in a given cluster.
 void Detangler::findPreviousClusters(
-    const Cluster* cluster,
-    vector< pair<const Cluster*, vector<OrientedReadId> > >& previousClusters
+    const Cluster* cluster0,
+    vector<const Cluster*>& previousClusters
     ) const
 {
-    // For each read, go backward one step.
-    // This can be done faster.
-    std::map<const Cluster*, vector<OrientedReadId> > previousClustersMap;
-    for(const StepInfo& stepInfo: cluster->steps) {
+    previousClusters.clear();
+
+    // Loop over the steps of this cluster.
+    for(const StepInfo& stepInfo: cluster0->steps) {
         const OrientedReadId orientedReadId = stepInfo.orientedReadId;
         const uint64_t position = stepInfo.position;
+
+        // Get the journey for this oriented read.
         const Journey& journey = journeys[orientedReadId.getValue()];
+
+        // Locate the cluster at the previous position in the journey.
+        // There is none if we are at the end of the journey.
+        const Cluster* cluster1 = 0;
         if(position > 0) {
             const uint64_t previousPosition = position - 1;
-            const Step& previousStep = journey[previousPosition];
-            previousClustersMap[previousStep.cluster].push_back(orientedReadId);
+            cluster1 = journey[previousPosition].cluster;
         }
-    };
 
-    previousClusters.clear();
-    copy(previousClustersMap.begin(), previousClustersMap.end(), back_inserter(previousClusters));
+        // Store it in the output vector.
+        previousClusters.push_back(cluster1);
+    };
 
 }
 
@@ -295,7 +306,7 @@ void Detangler::simpleDetangle(const Cluster* cluster)
     }
 
 
-    {
+    if(true) {
         cout << "Detangling Cluster " << cluster->stringId()  << "\n";
 
         cout << "Coverage for links from previous clusters:\n";
