@@ -141,6 +141,9 @@ void Detangler::findPreviousClusters(
 // Simple, classical detangling of a single cluster.
 void Detangler::simpleDetangle(const Cluster* cluster)
 {
+    // ****** EXPOSE WHEN CODE STABILIZES
+    const uint64_t minLinkCoverage = 6;
+
     std::map< pair<const Cluster*, const Cluster*>, uint64_t> tangleMatrix;
 
     std::map<const Cluster*, uint64_t> previousCount;
@@ -199,9 +202,100 @@ void Detangler::simpleDetangle(const Cluster* cluster)
 
     };
 
-    // For now, just write out the detangle matrix.
+
+    if(previousCount.size() < 2 or nextCount.size() < 2) {
+        return;
+    }
+
+#if 0
+    // Write out the complete detangle matrix.
     {
 
+        cout << "Coverage for links from previous clusters:\n";
+        for(const auto& p: previousCount) {
+            cout << p.first->stringId() << " " << p.second << "\n";
+        }
+        cout << "Coverage for links to next clusters:\n";
+        for(const auto& p: nextCount) {
+            cout << p.first->stringId() << " " << p.second << "\n";
+        }
+
+
+        cout << "Tangle matrix:\n";
+        for(const auto& previous: previousCount) {
+            const Cluster* previousCluster = previous.first;
+            for(const auto& next: nextCount) {
+                const Cluster* nextCluster = next.first;
+                cout << previousCluster->stringId()  << " ";
+                cout << nextCluster->stringId()   << " ";
+                auto it = tangleMatrix.find(make_pair(previousCluster, nextCluster));
+                if(it == tangleMatrix.end()) {
+                    cout << "0";
+                } else {
+                    cout << it->second;
+                }
+                cout << "\n";
+            }
+        }
+    }
+#endif
+
+
+    // For detangling, ignore incoming/outgoing links
+    // with coverage less than minLinkCoverage.
+    for(auto it=previousCount.begin(); /* Later */ ; /* Later */) {
+
+        // Save an incremented iterator for later.
+        // We need to do this because it may be invalidated by
+        // the next erase.
+        auto itNext = it;
+        ++itNext;
+
+        // If low coverage, erase.
+        if(it->second < minLinkCoverage) {
+            previousCount.erase(it);
+        }
+
+        // Increment the iterator and check if done.
+        it = itNext;
+        if(it == previousCount.end()) {
+            break;
+        }
+    }
+    for(auto it=nextCount.begin(); /* Later */ ; /* Later */) {
+
+        // Save an incremented iterator for later.
+        // We need to do this because it may be invalidated by
+        // the next erase.
+        auto itNext = it;
+        ++itNext;
+
+        // If low coverage, erase.
+        if(it->second < minLinkCoverage) {
+            nextCount.erase(it);
+        }
+
+        // Increment the iterator and check if done.
+        it = itNext;
+        if(it == nextCount.end()) {
+            break;
+        }
+    }
+
+
+    // Only detangle if we still have at least two incoming and
+    // two outgoing links.
+    if(previousCount.size() < 2 or nextCount.size() < 2) {
+        return;
+    }
+
+    // For now, only detangle the 2 by 2 case.
+    if(not(previousCount.size() == 2 and nextCount.size() ==2)) {
+        return;
+    }
+
+
+    {
         cout << "Detangling Cluster " << cluster->stringId()  << "\n";
 
         cout << "Coverage for links from previous clusters:\n";
