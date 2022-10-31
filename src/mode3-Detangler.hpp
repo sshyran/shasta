@@ -130,7 +130,10 @@ private:
         ) const;
 
     // Simple, classical detangling of a single cluster.
-    bool simpleDetangle(Cluster*);
+    bool simpleDetangle(Cluster*, uint64_t minLinkCoverage);
+
+    void writeGfa(const string& fileName, uint64_t minLinkCoverage) const;
+    void writeGfa(ostream&, uint64_t minLinkCoverage) const;
 };
 
 

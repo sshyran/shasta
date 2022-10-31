@@ -4,10 +4,15 @@
 using namespace shasta;
 using namespace mode3;
 
+#include "fstream.hpp"
+
 
 
 Detangler::Detangler(const AssemblyGraph& assemblyGraph)
 {
+    // ****** EXPOSE WHEN CODE STABILIZES
+    const uint64_t minLinkCoverage = 6;
+
     createJourneys(assemblyGraph);
     createInitialClusters();
     cout << "The initial Detangler has " << clusters.size() << " clusters." << endl;
@@ -15,12 +20,14 @@ Detangler::Detangler(const AssemblyGraph& assemblyGraph)
     uint64_t count = 0;
     for(auto& p: clusters) {
         for(Cluster& cluster: p.second) {
-            if(simpleDetangle(&cluster)) {
+            if(simpleDetangle(&cluster, minLinkCoverage)) {
                 ++count;
             }
         }
     }
     cout << "Detangled " << count << " clusters out of " << clusters.size() << endl;
+
+    writeGfa("Detangler.gfa", minLinkCoverage);
 }
 
 
@@ -155,10 +162,9 @@ void Detangler::findPreviousClusters(
 
 
 // Simple, classical detangling of a single cluster.
-bool Detangler::simpleDetangle(Cluster* cluster0)
+bool Detangler::simpleDetangle(Cluster* cluster0, uint64_t minLinkCoverage)
 {
     // ****** EXPOSE WHEN CODE STABILIZES
-    const uint64_t minLinkCoverage = 6;
     const uint64_t maxDiscordantCount = 2;
     const uint64_t minConcordantCount = 8;
 
@@ -343,4 +349,54 @@ bool Detangler::simpleDetangle(Cluster* cluster0)
 
     return true;
 }
+
+
+
+void Detangler::writeGfa(const string& fileName, uint64_t minLinkCoverage) const
+{
+    ofstream gfa(fileName);
+    writeGfa(gfa, minLinkCoverage);
+}
+void Detangler::writeGfa(ostream& gfa, uint64_t minLinkCoverage) const
+{
+    // Write the header line.
+    gfa << "H\tVN:Z:1.0\n";
+
+    // Write one segment for each cluster.
+    for(const auto& p: clusters) {
+        for(const Cluster& cluster: p.second) {
+            gfa << "S\t" << cluster.stringId() << "\t*\n";
+        }
+    }
+
+    // Write the links.
+    for(const auto& p: clusters) {
+        for(const Cluster& cluster0: p.second) {
+
+            // Find the next clusters for each of the steps in this cluster.
+            vector<const Cluster*> nextClusters;
+            findNextClusters(&cluster0, nextClusters);
+            SHASTA_ASSERT(nextClusters.size() == cluster0.steps.size());
+
+            // Count the distinct previous clusters.
+            // They are stored sorted.
+            vector<const Cluster*> distinctNextClusters = nextClusters;
+            vector<uint64_t > distinctNextClustersCoverage;
+            deduplicateAndCount(distinctNextClusters, distinctNextClustersCoverage);
+            SHASTA_ASSERT(distinctNextClusters.size() == distinctNextClustersCoverage.size());
+
+            for(uint64_t i=0; i<distinctNextClusters.size(); i++) {
+                const Cluster* cluster1 = distinctNextClusters[i];
+                if(cluster1) {
+                    const uint64_t coverage = distinctNextClustersCoverage[i];
+                    if(coverage >= minLinkCoverage) {
+                        gfa << "L\t" << cluster0.stringId() << "\t+\t" << cluster1->stringId() << "\t+\t*\n";
+                    }
+                }
+            }
+        }
+    }
+
+}
+
 
