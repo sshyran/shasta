@@ -13,8 +13,8 @@ Detangler::Detangler(const AssemblyGraph& assemblyGraph)
     cout << "The initial Detangler has " << clusters.size() << " clusters." << endl;
 
     uint64_t count = 0;
-    for(const auto& p: clusters) {
-        for(const Cluster& cluster: p.second) {
+    for(auto& p: clusters) {
+        for(Cluster& cluster: p.second) {
             if(simpleDetangle(&cluster)) {
                 ++count;
             }
@@ -71,7 +71,7 @@ void Detangler::createInitialClusters()
                 ClusterContainer::iterator it = clusters.find(segmentId);
                 if(it == clusters.end()) {
                     tie(it, ignore) = clusters.insert(make_pair(segmentId, std::list<Cluster>()));
-                    it->second.push_back(Cluster(segmentId));
+                    it->second.push_back(Cluster(segmentId, 0));
                 }
                 std::list<Cluster>& segmentClusters = it->second;
 
@@ -155,7 +155,7 @@ void Detangler::findPreviousClusters(
 
 
 // Simple, classical detangling of a single cluster.
-bool Detangler::simpleDetangle(const Cluster* cluster0)
+bool Detangler::simpleDetangle(Cluster* cluster0)
 {
     // ****** EXPOSE WHEN CODE STABILIZES
     const uint64_t minLinkCoverage = 6;
@@ -173,7 +173,7 @@ bool Detangler::simpleDetangle(const Cluster* cluster0)
     // Find the next clusters for each of the steps in this cluster.
     vector<const Cluster*> nextClusters;
     findNextClusters(cluster0, nextClusters);
-    SHASTA_ASSERT(previousClusters.size() == cluster0->steps.size());
+    SHASTA_ASSERT(nextClusters.size() == cluster0->steps.size());
 
     // Count the distinct previous clusters.
     // They are stored sorted.
@@ -248,6 +248,13 @@ bool Detangler::simpleDetangle(const Cluster* cluster0)
     const uint64_t diagonalSum = tangleMatrix[0][0] + tangleMatrix[1][1];
     const uint64_t offDiagonalSum = tangleMatrix[0][1] + tangleMatrix[1][0];
 
+    // Check if the criteria for detangle are satisfied.
+    const uint64_t concordantCount = max(diagonalSum, offDiagonalSum);
+    const uint64_t discordantCount = min(diagonalSum, offDiagonalSum);
+    if(concordantCount < minConcordantCount or discordantCount > maxDiscordantCount) {
+        return false;
+    }
+
     if(debug) {
         cout << "Detangling " << cluster0->stringId() << "\n";
         cout << "Previous:\n";
@@ -268,21 +275,71 @@ bool Detangler::simpleDetangle(const Cluster* cluster0)
                 cout << tangleMatrix[i][j] << "\n";
             }
         }
-        cout << "Diagonal " << diagonalSum << ",";
-        cout << "off-diagonal " << offDiagonalSum << "\n";
+        cout << "Diagonal " << diagonalSum << "\n";
+        cout << "Off-diagonal " << offDiagonalSum << "\n";
 
     }
 
-    // Check if the criteria for detangle are satisfied.
-    const uint64_t concordantCount = max(diagonalSum, offDiagonalSum);
-    const uint64_t discordantCount = min(diagonalSum, offDiagonalSum);
-    if(concordantCount < minConcordantCount or discordantCount > maxDiscordantCount) {
-        return false;
-    }
+
 
     // If getting here, we can detangle this cluster.
     // This generates two new clusters for this segment.
-    // const bool inPhase = diagonalSum > offDiagonalSum;
+    const bool inPhase = diagonalSum > offDiagonalSum;
+
+    // The new steps for cluster0.
+    vector<StepInfo> newSteps0;
+
+    // Create the two new clusters.
+    const uint64_t segmentId = cluster0->segmentId;
+    std::list<Cluster>& segmentClusters = clusters[segmentId];
+    segmentClusters.push_back(Cluster(segmentId, segmentClusters.size()));
+    Cluster& cluster1 = segmentClusters.back();
+    segmentClusters.push_back(Cluster(segmentId, segmentClusters.size()));
+    Cluster& cluster2 = segmentClusters.back();
+
+    // Do the detangling. The steps that correspond to the dominant portion of the
+    // tangle matrix are moved to the new clusters.
+    for(uint64_t k=0; k<previousClusters.size(); k++) {
+        const StepInfo& step = cluster0->steps[k];
+        const OrientedReadId orientedReadId = step.orientedReadId;
+        Journey& journey = journeys[orientedReadId.getValue()];
+        const uint64_t position = step.position;
+        const Cluster* previousCluster = previousClusters[k];
+        const Cluster* nextCluster = nextClusters[k];
+        if(inPhase) {
+            if(previousCluster == previousWithCoverage[0].first and nextCluster == nextWithCoverage[0].first) {
+                // Add it to the steps of cluster1.
+                cluster1.steps.push_back(StepInfo(orientedReadId, position));
+                journey[position].cluster = &cluster1;
+            } else if(previousCluster == previousWithCoverage[1].first and nextCluster == nextWithCoverage[1].first) {
+                // Add it to the steps of cluster2.
+                cluster2.steps.push_back(StepInfo(orientedReadId, position));
+                journey[position].cluster = &cluster2;
+            } else {
+                // Leave it in cluster0.
+                newSteps0.push_back(StepInfo(orientedReadId, position));
+            }
+        } else {
+            if(previousCluster == previousWithCoverage[0].first and nextCluster == nextWithCoverage[1].first) {
+                // Add it to the steps of cluster1.
+                cluster1.steps.push_back(StepInfo(orientedReadId, position));
+                journey[position].cluster = &cluster1;
+            } else if(previousCluster == previousWithCoverage[1].first and nextCluster == nextWithCoverage[0].first) {
+                // Add it to the steps of cluster2.
+                cluster2.steps.push_back(StepInfo(orientedReadId, position));
+                journey[position].cluster = &cluster2;
+            } else {
+                // Leave it in cluster0.
+                newSteps0.push_back(StepInfo(orientedReadId, position));
+            }
+        }
+   }
+
+
+
+
+    // Update the steps of the cluster we just detangled.
+    cluster0->steps.swap(newSteps0);
 
     return true;
 }

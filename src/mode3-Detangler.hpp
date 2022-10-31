@@ -77,6 +77,11 @@ public:
 
         // The position of this entry in the journey of this oriented read.
         uint64_t position;
+
+        StepInfo() {}
+        StepInfo(OrientedReadId orientedReadId, uint64_t position) :
+            orientedReadId(orientedReadId),
+            position(position) {}
     };
 
     // A cluster is a set of Step(s) all corresponding to the same
@@ -86,8 +91,8 @@ public:
         uint64_t segmentId;
         uint64_t id = 0;        // Within that segmentId.
         vector<StepInfo> steps; // Sorted by orientedReadId.
-        Cluster(uint64_t segmentId) :
-            segmentId(segmentId) {}
+        Cluster(uint64_t segmentId, uint64_t id) :
+            segmentId(segmentId), id(id) {}
         string stringId() const
         {
             return to_string(segmentId) + "." + to_string(id);
@@ -95,7 +100,11 @@ public:
     };
 
     // Store the clusters keyed by segmentId.
-    // Use a list so we can easily remove clusters that are being split.
+    // Clusters are never removed.
+    // However, during detangling, the steps of a cluster
+    // can be moved to other clusters for the same segmentId.
+    // We use a list so pointers to Cluster(s) are not invalidated
+    // when elements are added.
     using ClusterContainer = std::map<uint64_t, std::list<Cluster> >;
     ClusterContainer clusters;
 
@@ -121,7 +130,7 @@ private:
         ) const;
 
     // Simple, classical detangling of a single cluster.
-    bool simpleDetangle(const Cluster*);
+    bool simpleDetangle(Cluster*);
 };
 
 
