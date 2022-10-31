@@ -90,7 +90,7 @@ public:
             segmentId(segmentId) {}
         string stringId() const
         {
-            return to_string(segmentId) + "/" + to_string(id);
+            return to_string(segmentId) + "." + to_string(id);
         }
     };
 
@@ -121,7 +121,7 @@ private:
         ) const;
 
     // Simple, classical detangling of a single cluster.
-    void simpleDetangle(const Cluster*);
+    bool simpleDetangle(const Cluster*);
 };
 
 

@@ -1,4 +1,5 @@
 #include "mode3-Detangler.hpp"
+#include "deduplicate.hpp"
 #include "mode3.hpp"
 using namespace shasta;
 using namespace mode3;
@@ -11,11 +12,15 @@ Detangler::Detangler(const AssemblyGraph& assemblyGraph)
     createInitialClusters();
     cout << "The initial Detangler has " << clusters.size() << " clusters." << endl;
 
+    uint64_t count = 0;
     for(const auto& p: clusters) {
         for(const Cluster& cluster: p.second) {
-            simpleDetangle(&cluster);
+            if(simpleDetangle(&cluster)) {
+                ++count;
+            }
         }
     }
+    cout << "Detangled " << count << " clusters out of " << clusters.size() << endl;
 }
 
 
@@ -150,190 +155,135 @@ void Detangler::findPreviousClusters(
 
 
 // Simple, classical detangling of a single cluster.
-void Detangler::simpleDetangle(const Cluster* cluster)
+bool Detangler::simpleDetangle(const Cluster* cluster0)
 {
     // ****** EXPOSE WHEN CODE STABILIZES
     const uint64_t minLinkCoverage = 6;
+    const uint64_t maxDiscordantCount = 2;
+    const uint64_t minConcordantCount = 8;
 
-    std::map< pair<const Cluster*, const Cluster*>, uint64_t> tangleMatrix;
+    const bool debug = true;
 
-    std::map<const Cluster*, uint64_t> previousCount;
-    std::map<const Cluster*, uint64_t> nextCount;
-
-    // Loop over the Step(s) in this Cluster.
-    for(const StepInfo& stepInfo: cluster->steps) {
-        const OrientedReadId orientedReadId = stepInfo.orientedReadId;
-        const uint64_t position = stepInfo.position;
-        const Journey& journey = journeys[orientedReadId.getValue()];
-
-        // Increment counts.
-        if(position != 0) {
-            const Cluster* previousCluster = journey[position - 1].cluster;
-            auto it = previousCount.find(previousCluster);
-            if(it == previousCount.end()) {
-                previousCount.insert(make_pair(previousCluster, 1));
-            } else {
-                ++(it->second);
-            }
-        }
-        if(position != journey.size()-1) {
-            const Cluster* nextCluster = journey[position + 1].cluster;
-            auto it = nextCount.find(nextCluster);
-            if(it == nextCount.end()) {
-                nextCount.insert(make_pair(nextCluster, 1));
-            } else {
-                ++(it->second);
-            }
-        }
-
-        // If at the beginning or end of the journey, we cannot use it.
-        if(position == 0) {
-            continue;
-        }
-        if(position == journey.size()-1) {
-            continue;
-        }
-
-        // Access the previous and previous Step.
-        const Step& previousStep = journey[position - 1];
-        const Step& nextStep = journey[position + 1];
-
-        // Get the previous and next Cluster.
-        const Cluster* previousCluster = previousStep.cluster;
-        const Cluster* nextCluster = nextStep.cluster;
-
-        // Increment the tangle matrix for this pair.
-        const auto p = make_pair(previousCluster, nextCluster);
-        auto it = tangleMatrix.find(p);
-        if(it == tangleMatrix.end()) {
-            tangleMatrix.insert(make_pair(p, 1));
-        } else {
-            ++(it->second);
-        }
-
-    };
+    // Find the previous clusters for each of the steps in this cluster.
+    vector<const Cluster*> previousClusters;
+    findPreviousClusters(cluster0, previousClusters);
+    SHASTA_ASSERT(previousClusters.size() == cluster0->steps.size());
 
 
-    if(previousCount.size() < 2 or nextCount.size() < 2) {
-        return;
+    // Find the next clusters for each of the steps in this cluster.
+    vector<const Cluster*> nextClusters;
+    findNextClusters(cluster0, nextClusters);
+    SHASTA_ASSERT(previousClusters.size() == cluster0->steps.size());
+
+    // Count the distinct previous clusters.
+    // They are stored sorted.
+    vector<const Cluster*> distinctPreviousClusters = previousClusters;
+    vector<uint64_t > distinctPreviousClustersCoverage;
+    deduplicateAndCount(distinctPreviousClusters, distinctPreviousClustersCoverage);
+    SHASTA_ASSERT(distinctPreviousClusters.size() == distinctPreviousClustersCoverage.size());
+
+    // If less than two, do nothing.
+    if(distinctPreviousClusters.size() < 2) {
+        return false;
     }
 
-#if 0
-    // Write out the complete detangle matrix.
-    {
+    // Count the distinct previous clusters.
+    // They are stored sorted.
+    vector<const Cluster*> distinctNextClusters = nextClusters;
+    vector<uint64_t > distinctNextClustersCoverage;
+    deduplicateAndCount(distinctNextClusters, distinctNextClustersCoverage);
+    SHASTA_ASSERT(distinctNextClusters.size() == distinctNextClustersCoverage.size());
 
-        cout << "Coverage for links from previous clusters:\n";
-        for(const auto& p: previousCount) {
-            cout << p.first->stringId() << " " << p.second << "\n";
+    // If less than two, do nothing.
+    if(distinctPreviousClusters.size() < 2) {
+        return false;
+    }
+
+    // Only keep the previous clusters that have sufficient coverage and are not null.
+    vector< pair<const Cluster*, uint64_t> > previousWithCoverage;
+    for(uint64_t i=0; i<distinctPreviousClusters.size(); i++) {
+        const Cluster* cluster1 = distinctPreviousClusters[i];
+        if(cluster1) {
+            const uint64_t coverage = distinctPreviousClustersCoverage[i];
+            if(coverage >= minLinkCoverage) {
+                previousWithCoverage.push_back(make_pair(cluster1, coverage));
+            }
         }
-        cout << "Coverage for links to next clusters:\n";
-        for(const auto& p: nextCount) {
-            cout << p.first->stringId() << " " << p.second << "\n";
+    }
+
+    // Only keep the next clusters that have sufficient coverage and are not null.
+    vector< pair<const Cluster*, uint64_t> > nextWithCoverage;
+    for(uint64_t i=0; i<distinctNextClusters.size(); i++) {
+        const Cluster* cluster1 = distinctNextClusters[i];
+        if(cluster1) {
+            const uint64_t coverage = distinctNextClustersCoverage[i];
+            if(coverage >= minLinkCoverage) {
+                nextWithCoverage.push_back(make_pair(cluster1, coverage));
+            }
         }
+    }
 
-
-        cout << "Tangle matrix:\n";
-        for(const auto& previous: previousCount) {
-            const Cluster* previousCluster = previous.first;
-            for(const auto& next: nextCount) {
-                const Cluster* nextCluster = next.first;
-                cout << previousCluster->stringId()  << " ";
-                cout << nextCluster->stringId()   << " ";
-                auto it = tangleMatrix.find(make_pair(previousCluster, nextCluster));
-                if(it == tangleMatrix.end()) {
-                    cout << "0";
-                } else {
-                    cout << it->second;
+    // Compute the tangle matrix.
+    // tangleMatrix[i][j] contains the number of oriented reads
+    // that come from the i-th previous cluster and go to the j-th previous cluster.
+    vector< vector<uint64_t> > tangleMatrix(previousWithCoverage.size(), vector<uint64_t>(nextWithCoverage.size(), 0));
+    for(uint64_t i=0; i<previousWithCoverage.size(); i++) {
+        const Cluster* previousCluster = previousWithCoverage[i].first;
+        for(uint64_t j=0; j<nextWithCoverage.size(); j++) {
+            const Cluster* nextCluster = nextWithCoverage[j].first;
+            for(uint64_t k=0; k<previousClusters.size(); k++) {
+                if((previousClusters[k] == previousCluster) and (nextClusters[k] == nextCluster)) {
+                    ++tangleMatrix[i][j];
                 }
-                cout << "\n";
             }
         }
     }
-#endif
 
-
-    // For detangling, ignore incoming/outgoing links
-    // with coverage less than minLinkCoverage.
-    for(auto it=previousCount.begin(); /* Later */ ; /* Later */) {
-
-        // Save an incremented iterator for later.
-        // We need to do this because it may be invalidated by
-        // the next erase.
-        auto itNext = it;
-        ++itNext;
-
-        // If low coverage, erase.
-        if(it->second < minLinkCoverage) {
-            previousCount.erase(it);
-        }
-
-        // Increment the iterator and check if done.
-        it = itNext;
-        if(it == previousCount.end()) {
-            break;
-        }
-    }
-    for(auto it=nextCount.begin(); /* Later */ ; /* Later */) {
-
-        // Save an incremented iterator for later.
-        // We need to do this because it may be invalidated by
-        // the next erase.
-        auto itNext = it;
-        ++itNext;
-
-        // If low coverage, erase.
-        if(it->second < minLinkCoverage) {
-            nextCount.erase(it);
-        }
-
-        // Increment the iterator and check if done.
-        it = itNext;
-        if(it == nextCount.end()) {
-            break;
-        }
+    // For now, only handle the 2 by 2 case.
+    if(not(previousWithCoverage.size() == 2 and nextWithCoverage.size() == 2)) {
+        return false;
     }
 
+    // Compute the sum of diagonal and off-diagonal terms.
+    const uint64_t diagonalSum = tangleMatrix[0][0] + tangleMatrix[1][1];
+    const uint64_t offDiagonalSum = tangleMatrix[0][1] + tangleMatrix[1][0];
 
-    // Only detangle if we still have at least two incoming and
-    // two outgoing links.
-    if(previousCount.size() < 2 or nextCount.size() < 2) {
-        return;
-    }
-
-    // For now, only detangle the 2 by 2 case.
-    if(not(previousCount.size() == 2 and nextCount.size() ==2)) {
-        return;
-    }
-
-
-    if(true) {
-        cout << "Detangling Cluster " << cluster->stringId()  << "\n";
-
-        cout << "Coverage for links from previous clusters:\n";
-        for(const auto& p: previousCount) {
+    if(debug) {
+        cout << "Detangling " << cluster0->stringId() << "\n";
+        cout << "Previous:\n";
+        for(const auto& p: previousWithCoverage) {
             cout << p.first->stringId() << " " << p.second << "\n";
         }
-        cout << "Coverage for links to next clusters:\n";
-        for(const auto& p: nextCount) {
+        cout << "Next:\n";
+        for(const auto& p: nextWithCoverage) {
             cout << p.first->stringId() << " " << p.second << "\n";
         }
-
         cout << "Tangle matrix:\n";
-        for(const auto& previous: previousCount) {
-            const Cluster* previousCluster = previous.first;
-            for(const auto& next: nextCount) {
-                const Cluster* nextCluster = next.first;
-                cout << previousCluster->stringId()  << " ";
-                cout << nextCluster->stringId()   << " ";
-                auto it = tangleMatrix.find(make_pair(previousCluster, nextCluster));
-                if(it == tangleMatrix.end()) {
-                    cout << "0";
-                } else {
-                    cout << it->second;
-                }
-                cout << "\n";
+        for(uint64_t i=0; i<previousWithCoverage.size(); i++) {
+            const Cluster* previousCluster = previousWithCoverage[i].first;
+            for(uint64_t j=0; j<nextWithCoverage.size(); j++) {
+                const Cluster* nextCluster = nextWithCoverage[j].first;
+                cout << previousCluster->stringId() << " ";
+                cout << nextCluster->stringId() << " ";
+                cout << tangleMatrix[i][j] << "\n";
             }
         }
+        cout << "Diagonal " << diagonalSum << ",";
+        cout << "off-diagonal " << offDiagonalSum << "\n";
+
     }
 
+    // Check if the criteria for detangle are satisfied.
+    const uint64_t concordantCount = max(diagonalSum, offDiagonalSum);
+    const uint64_t discordantCount = min(diagonalSum, offDiagonalSum);
+    if(concordantCount < minConcordantCount or discordantCount > maxDiscordantCount) {
+        return false;
+    }
+
+    // If getting here, we can detangle this cluster.
+    // This generates two new clusters for this segment.
+    // const bool inPhase = diagonalSum > offDiagonalSum;
+
+    return true;
 }
+
