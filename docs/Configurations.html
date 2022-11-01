@@ -98,8 +98,6 @@ list of built-in configurations:
 <pre>
 Nanopore-Dec2019
 Nanopore-UL-Dec2019
-Nanopore-Jun2020
-Nanopore-UL-Jun2020
 Nanopore-Sep2020
 Nanopore-UL-Sep2020
 Nanopore-UL-iterative-Sep2020
@@ -117,40 +115,51 @@ Nanopore-UL-May2022
 Nanopore-UL-Phased-May2022
 Nanopore-Human-SingleFlowcell-May2022
 Nanopore-Human-SingleFlowcell-Phased-May2022
-
+Nanopore-UL-Phased-Nov2022
+Nanopore-R10-Fast-Nov2022
+Nanopore-R10-Slow-Nov2022
+Nanopore-Phased-R10-Fast-Nov2022
+Nanopore-Phased-R10-Slow-Nov2022
 </pre>
 
 <p>
 The following table summarizes configurations 
-recommended at the time of writing (May 2022)
+recommended at the time of writing (November 2022, Shasta 0.11.0)
 under the following conditions:
 <ul>
 <li>Human assemblies
 <li>Oxford Nanopore reads.
-<li>Guppy 5.0.7 with "super" accuracy.
+<li>Guppy 5 or 6 basecaller with "super" accuracy.
 </ul>
 
-These configurations will first be available in 
-Shasta release 0.10.0.
 
 <p>
 <table>
-<tr><th>Read type<th>Coverage<th>Haploid assembly<th>Phased assembly
+<tr><th>ONT chemistry<th>Read length<th>Coverage<th>Haploid assembly<th>Phased assembly
 
-<tr><th>Standard reads<th>40x to 80x
+<tr><th>R9<th>Standard<th>40x to 80x
 <td class=centered><code>Nanopore-May2022</code>
 <td class=centered><code>Nanopore-Phased-May2022</code>
 
-<tr><th class=centered>Ultra-Long (UL) reads
-<br>(N<sub>50</sub> &#x2273; 60 Kb)
+<tr><th>R9<th class=centered>Ultra-Long (UL)
 <th>40x to 80x
 <td class=centered><code>Nanopore-UL-May2022</code>
-<td class=centered><code>Nanopore-UL-Phased-May2022</code>
+<td class=centered><code>Nanopore-UL-Phased-Nov2022</code>
 
-<tr><th>Standard reads<th>Human genome with a single flowcell
-(low coverage, around 30x)
+<tr><th>R9<th>Standard<th>Human genome with a single flowcell
+(about 30x)
 <td class=centered><code>Nanopore-Human-SingleFlowcell-May2022</code>
 <td class=centered><code>Nanopore-Human-SingleFlowcell-Phased-May2022</code>
+
+<tr><th>R10, fast mode<th>Standard<th>Human genome with a single flowcell
+(about 30x)
+<td class=centered><code>Nanopore-R10-Fast-Nov2022</code>
+<td class=centered><code>Nanopore-Phased-R10-Fast-Nov2022</code>
+
+<tr><th>R10, slow mode<th>Standard<th>Human genome with two flowcells
+(about 45x)
+<td class=centered><code>Nanopore-R10-Slow-Nov2022</code>
+<td class=centered><code>Nanopore-Phased-R10-Slow-Nov2022</code>
 
 
 </table>
