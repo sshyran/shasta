@@ -46,6 +46,11 @@ configurations = [
     'Nanopore-UL-Phased-May2022',
     'Nanopore-Human-SingleFlowcell-May2022',
     'Nanopore-Human-SingleFlowcell-Phased-May2022',
+    'Nanopore-UL-Phased-Nov2022',
+    'Nanopore-R10-Fast-Nov2022',
+    'Nanopore-R10-Slow-Nov2022',
+    'Nanopore-Phased-R10-Fast-Nov2022',
+    'Nanopore-Phased-R10-Slow-Nov2022',
     ]
 
 

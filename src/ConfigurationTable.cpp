@@ -1268,6 +1268,347 @@ mode2.bubbleRemoval.minConcordantReadCount = 2
 
 
 
+)zzz"},
+    {"Nanopore-UL-Phased-Nov2022", R"zzz(
+# Configuration file that uses assembly mode 2
+# to create a phased diploid assembly using 
+# Nanopore Ultra-Long (UL) reads.
+
+# This is known to work at least under the following conditions:
+# - Oxford Nanopore Ultra-Long (UL) reads with read N50 50 Kb or more.
+# - Guppy 5 or 6 base caller with "super" accuracy.
+# - Human genome.
+# - Coverage 60x to 80x. If you have more coverage, 
+#   adjust --Reads.minReadLength or --Reads.desiredCoverage
+#   to bring coverage down to this range.
+#   For a human genome you can set --Reads.desiredCoverage 200G. 
+# Compared to the Nanopore-UL-Phased-May2022 configuration,
+# this provides better phasing accuracy without significantly decreasing
+# the size of phased bubbles.
+
+
+
+[Reads]
+# Read length cutoff for UL reads, adjust as necessary,
+# or use desiredCoverage option to get coverage 
+# around 40x to 80x.
+minReadLength = 50000
+noCache = True
+
+
+
+[MinHash]
+minBucketSize = 10
+maxBucketSize = 50
+minFrequency = 5
+
+
+
+[Align]
+alignMethod = 3
+downsamplingFactor = 0.05
+matchScore = 6
+sameChannelReadAlignment.suppressDeltaThreshold = 30
+
+# Permissive alignment criteria as required for read graph creation method 2.
+maxSkip = 100
+maxDrift = 100
+maxTrim = 100
+minAlignedMarkerCount = 10
+minAlignedFraction = 0.1
+
+
+
+[ReadGraph]
+
+# Automatic adjustment of alignment criteria.
+creationMethod = 2
+
+# Strict strand separation is required for Mode 2 (phased) assembly.
+strandSeparationMethod = 2
+
+maxAlignmentCount = 12
+
+
+
+[MarkerGraph]
+minCoverage = 6
+minCoveragePerStrand = 1
+minEdgeCoverage = 6
+minEdgeCoveragePerStrand = 1
+
+
+
+[Assembly]
+mode = 2
+consensusCaller = Bayesian:guppy-5.0.7-b
+pruneLength = 100
+mode2.bubbleRemoval.minConcordantReadCount = 2
+mode2.phasing.minLogP = 50
+
+
+
+
+
+)zzz"},
+    {"Nanopore-R10-Fast-Nov2022", R"zzz(# This Shasta assembly configuration was tested under the following conditions:
+#  - ONT R10 chemistry, fast mode, chimera rate around 2%.
+#  - Guppy 6 basecaller with "super" accuracy.
+#  - Human genome at low coverage (one flowcell, coverage around 35x).
+#  - Haploid assembly.
+# Under these conditions it produced a haploid assembly with N50 around 20 Mb
+# and with base level accuracy limited mostly by heterozygosity 
+# of the human genome.  
+# This configuration might also be usable for other genomes and at higher coverage,
+# but that was not tested.
+
+[Reads]
+representation = 0
+minReadLength = 10000
+noCache = True
+
+[Kmers]
+k = 14
+
+[MinHash]
+minHashIterationCount = 100
+minBucketSize = 10
+maxBucketSize = 40
+minFrequency = 5
+
+[Align]
+alignMethod = 3
+downsamplingFactor = 0.05
+matchScore = 6
+sameChannelReadAlignment.suppressDeltaThreshold = 30
+minAlignedMarkerCount = 1000
+minAlignedFraction = 0.85
+maxSkip = 20
+maxDrift = 10
+maxTrim = 20
+
+[ReadGraph]
+creationMethod = 0
+maxAlignmentCount = 15
+
+[MarkerGraph]
+simplifyMaxLength = 10,100,1000,10000,100000
+crossEdgeCoverageThreshold = 3
+
+# Adaptive estimation of coverage threshold to generate marker graph vertices.
+minCoverage = 0
+
+[Assembly]
+consensusCaller = Modal
+detangleMethod = 2
+
+
+)zzz"},
+    {"Nanopore-R10-Slow-Nov2022", R"zzz(# This Shasta assembly configuration was tested under the following conditions:
+#  - ONT R10 chemistry, slow mode, chimera rate around 2%.
+#  - Guppy 6 basecaller with "super" accuracy.
+#  - Human genome at medium coverage (two flowcells, coverage around 45x).
+#  - Haploid assembly.
+# Under these conditions it produced a haploid assembly with N50 around 30 Mb
+# and with base level accuracy limited mostly by heterozygosity 
+# of the human genome.  
+# This configuration might also be usable for other genomes 
+# and at higher or lower  coverage, but that was not tested.
+
+[Reads]
+representation = 0
+minReadLength = 10000
+noCache = True
+
+[Kmers]
+k = 14
+
+[MinHash]
+minHashIterationCount = 100
+minBucketSize = 20
+maxBucketSize = 60
+minFrequency = 5
+
+[Align]
+alignMethod = 3
+downsamplingFactor = 0.05
+matchScore = 6
+sameChannelReadAlignment.suppressDeltaThreshold = 30
+minAlignedMarkerCount = 1200
+minAlignedFraction = 0.9
+maxSkip = 12
+maxDrift = 8
+maxTrim = 10
+
+[ReadGraph]
+creationMethod = 0
+maxAlignmentCount = 15
+
+[MarkerGraph]
+simplifyMaxLength = 10,100,1000,10000,100000
+crossEdgeCoverageThreshold = 3
+
+# Adaptive estimation of coverage threshold to generate marker graph vertices.
+minCoverage = 0
+
+[Assembly]
+consensusCaller = Modal
+detangleMethod = 2
+
+
+)zzz"},
+    {"Nanopore-Phased-R10-Fast-Nov2022", R"zzz(# This Shasta assembly configuration for phased diploid assembly
+# was tested under the following conditions:
+
+#  - ONT R10 chemistry, fast mode, chimera rate around 2%.
+#  - Guppy 6 basecaller with "super" accuracy.
+#  - Human genome at low coverage (HG002, one flowcell, coverage around 35x).
+#  - Phased diploid assembly.
+
+# Under these conditions, a test run for HG002 produced an assembly 
+# consisting of about 2.7 Gb in bubble chains and 0.3 Gb outside bubble chains.
+# Of the 2.7 Gb in bubble chains, about 2.0 Gb were assembled diploid and phased. 
+
+# The N50 for bubble chains was about 5 Mb, and the N50 for phased bubbles was about 0.5 Mb.
+# This is longer than most genes, which means that for many genes 
+# the assembly contains both haplotypes, entirely phased.
+
+# When mapping each branch of a phased bubble against the correct reference haplotype
+# for HG002, base level quality was around Q = 47 dB for mismatches,
+# and around Q = 40 dB for indels.
+
+# The fraction assembled diploid and phased can be improved with the use of 
+# Ultra-Long reads (e. g. 2.7 Gb were assembled diploid and phased with R9, 
+# Ultra-Long reads at high coverage). A separate assembly configuration
+# for phased diploid assembly using R10 Ultra-Long reads will
+# be provided when possible. 
+
+# This configuration might also be usable under different conditions,
+# but that was not tested.
+
+
+
+[Reads]
+representation = 0
+minReadLength = 10000
+noCache = True
+
+[Kmers]
+k = 14
+
+[MinHash]
+minHashIterationCount = 100
+minBucketSize = 10
+maxBucketSize = 40
+minFrequency = 5
+
+[Align]
+alignMethod = 3
+downsamplingFactor = 0.05
+matchScore = 6
+sameChannelReadAlignment.suppressDeltaThreshold = 30
+minAlignedMarkerCount = 1000
+minAlignedFraction = 0.85
+maxSkip = 20
+maxDrift = 10
+maxTrim = 20
+
+[ReadGraph]
+creationMethod = 0
+maxAlignmentCount = 15
+strandSeparationMethod = 2
+
+[MarkerGraph]
+minCoverage = 6
+minCoveragePerStrand = 1
+minEdgeCoverage = 6
+minEdgeCoveragePerStrand = 1
+
+[Assembly]
+mode = 2
+consensusCaller = Modal
+pruneLength = 100
+mode2.bubbleRemoval.minConcordantReadCount = 2
+
+
+
+
+)zzz"},
+    {"Nanopore-Phased-R10-Slow-Nov2022", R"zzz(# This Shasta assembly configuration for phased diploid assembly
+# was tested under the following conditions:
+
+#  - ONT R10 chemistry, slow mode, chimera rate around 2%.
+#  - Guppy 6 basecaller with "super" accuracy.
+#  - Human genome at medium coverage (HG002, two flowcells, coverage around 45x).
+#  - Phased diploid assembly.
+
+# Under these conditions, a test run for HG002 produced an assembly 
+# consisting of about 2.7 Gb in bubble chains and 0.3 Gb outside bubble chains.
+# Of the 2.7 Gb in bubble chains, about 2.2 Gb were assembled diploid and phased. 
+
+# The N50 for bubble chains and the N50 for phased bubbles was about 10 Mb.
+
+
+# When mapping each branch of a phased bubble against the correct reference haplotype
+# for HG002, base level quality was around Q = 50 dB for mismatches,
+# and around Q = 40 dB for indels.
+
+# The fraction assembled diploid and phased can be improved with the use of 
+# Ultra-Long reads (e. g. 2.7 Gb were assembled diploid and phased with R9, 
+# Ultra-Long reads at high coverage). A separate assembly configuration
+# for phased diploid assembly using R10 Ultra-Long reads will
+# be provided when possible. 
+
+# This configuration might also be usable under different conditions,
+# but that was not tested.
+
+
+
+[Reads]
+representation = 0
+minReadLength = 10000
+noCache = True
+
+[Kmers]
+k = 14
+
+[MinHash]
+minHashIterationCount = 100
+minBucketSize = 20
+maxBucketSize = 60
+minFrequency = 5
+
+[Align]
+alignMethod = 3
+downsamplingFactor = 0.05
+matchScore = 6
+sameChannelReadAlignment.suppressDeltaThreshold = 30
+minAlignedMarkerCount = 1200
+minAlignedFraction = 0.9
+maxSkip = 12
+maxDrift = 8
+maxTrim = 10
+
+[ReadGraph]
+creationMethod = 0
+strandSeparationMethod = 2
+maxAlignmentCount = 15
+
+[MarkerGraph]
+minCoverage = 6
+minCoveragePerStrand = 1
+minEdgeCoverage = 6
+minEdgeCoveragePerStrand = 1
+
+
+[Assembly]
+mode = 2
+consensusCaller = Modal
+pruneLength = 100
+mode2.bubbleRemoval.minConcordantReadCount = 2
+
+
+
 )zzz"}
     };
 }
