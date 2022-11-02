@@ -32,7 +32,7 @@ with the release number you picked.
 <li>In 
 <code>shasta/.github/workflows/Build.yml</code>,
 change <code>BUILD_ID</code> to <code>Shasta Release X.Y.Z</code>
-in all <code>cmake</code> commands (3 instances at the time of last update of this documentation).
+in all <code>cmake</code> commands (2 instances at the time of last update of this documentation).
 <li>Commit and push this change to trigger a new build on GitHub Actions.
 Wait for that build to complete.
 <li>Download the 3 artifacts. Unzip them and rename them to the following:
@@ -41,16 +41,19 @@ Wait for that build to complete.
 <li><code>shasta-Ubuntu-20.04-X.Y.Z.tar</code>
 <li><code>shasta-docs-X.Y.Z.tar</code>
 </ul>
+<li>Make sure <code>shasta-Linux-X.Y.Z</code> is executable.
 <li>Build Shasta for 64-bit ARM (<code>aarch64</code>). Github Actions currently does not support ARM. So the easiest way to do this is on a Graviton2 ec2 instance in AWS as follows:
 <ul>
-<li><code>git clone git@github.com:paoloshasta/shasta.git
+<li><code>git clone https://github.com/paoloshasta/shasta.git
 sudo ./shasta/scripts/InstallPrerequisites-Ubuntu.sh
-mkdir -p shasta-build
-cd shasta-build
+mkdir -p shastaBuild
+cd shastaBuild
 cmake ../shasta -DBUILD_ID="Shasta Release X.Y.Z for 64 bit ARM"
-make install -j
+make install/strip -j
 </code></li>
-<li>Download the <code>aarch64</code> Shasta binary (using <code>scp</code>) and rename it to <code>shasta-Linux-ARM-X.Y.Z</code>. </li>
+<li>Download the <code>aarch64</code> Shasta binary (using <code>scp</code>) and 
+rename it to <code>shasta-Linux-ARM-X.Y.Z</code>,
+then make sure it is executable. </li>
 </ul>
 </li>
 
@@ -67,10 +70,11 @@ You can find this by running the `file` command (`file /path/to/shasta-*-X.Y.Z`)
 
 <li>Create the release on GitHub and paste the release notes.
 The release name should be just/simply <code>X.Y.Z</code>
-(no additional characters).
+(no additional characters). Specify the tag to be created, also
+<code>X.Y.Z</code> without any additional characters.
 The release will not be visible to users until it gets published
 two steps below.
-<li>Upload the unzipped and renamed artifacts (7) to the new release as assets.
+<li>Upload the unzipped and renamed artifacts (4) to the new release as assets.
 
 <li>Publish the release on GitHub.
 <li>After the release has been published it should not be modified or deleted.
@@ -79,7 +83,7 @@ two steps below.
 change <code>BUILD_ID</code> to 
 <code>Shasta unreleased test build newer than release X.Y.Z</code>
 in all <code>cmake</code> commands for future GitHub Actions builds
-(4 instances at the time of last update of this documentation).
+(2 instances at the time of last update of this documentation).
 </ul>
 
 
