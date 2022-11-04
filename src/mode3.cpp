@@ -896,17 +896,20 @@ void AssemblyGraph::writeGfa(const string& baseName) const
 
     // Write the headers.
     gfa << "H\tVN:Z:1.0\n";
-    csv << "Segment,Length,Average coverage,Read count\n";
+    csv << "Segment,Path Length,Sequence Length,Average coverage,Read count\n";
 
     // Write the segments.
     for(uint64_t segmentId=0; segmentId<markerGraphPaths.size(); segmentId++) {
-        const auto path = markerGraphPaths[segmentId];
-        gfa <<
-            "S\t" << segmentId << "\t" <<
-            "*\tLN:i:" << path.size() << "\n";
 
+        const auto sequence = segmentSequences[segmentId];
+        gfa <<"S\t" << segmentId << "\t";
+        copy(sequence.begin(), sequence.end(), ostream_iterator<Base>(gfa));
+        gfa << "\n";
+
+        const auto path = markerGraphPaths[segmentId];
         csv << segmentId << ",";
         csv << path.size() << ",";
+        csv << sequence.size() << ",";
         csv << segmentCoverage[segmentId] << ",";
         csv << assemblyGraphJourneyInfos[segmentId].size() << "\n";
     }
