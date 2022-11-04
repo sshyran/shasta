@@ -664,6 +664,12 @@ AssemblyGraph::AssemblyGraph(
     markerGraph(markerGraph),
     consensusCaller(consensusCaller)
 {
+    // K must be even.
+    SHASTA_ASSERT((k % 2) == 0);
+
+    // This assumes RLE is not used.
+    SHASTA_ASSERT(reads.representation == 0);
+
     // Minimum number of transitions (oriented reads) to create a link.
     // If this equals 1, then the sequence of segments visited by every
     // oriented read is a path in the graph.
@@ -735,6 +741,7 @@ AssemblyGraph::AssemblyGraph(
     accessExistingReadOnly(markerGraphPaths, "Mode3-MarkerGraphPaths");
     accessExistingReadOnly(segmentCoverage, "Mode3-SegmentCoverage");
     accessExistingReadOnly(segmentSequences, "Mode3-SegmentSequences");
+    accessExistingReadOnly(segmentVertexOffsets, "Mode3-SegmentVertexOffsets");
     accessExistingReadOnly(markerGraphEdgeTable, "Mode3-MarkerGraphEdgeTable");
     accessExistingReadOnly(assemblyGraphJourneys, "Mode3-AssemblyGraphJourneys");
     accessExistingReadOnly(assemblyGraphJourneyInfos, "Mode3-AssemblyGraphJourneyInfos");
@@ -903,7 +910,7 @@ void AssemblyGraph::writeGfa(const string& baseName) const
 
         const auto sequence = segmentSequences[segmentId];
         gfa <<"S\t" << segmentId << "\t";
-        copy(sequence.begin(), sequence.end(), ostream_iterator<Base>(gfa));
+        copy(sequence.begin()+k/2, sequence.end()-k/2, ostream_iterator<Base>(gfa));
         gfa << "\n";
 
         const auto path = markerGraphPaths[segmentId];
@@ -914,11 +921,24 @@ void AssemblyGraph::writeGfa(const string& baseName) const
         csv << assemblyGraphJourneyInfos[segmentId].size() << "\n";
     }
 
-    // Write the liks.
+    // Write the links.
     for(const Link& link: links) {
-        gfa << "L\t" <<
-            link.segmentId0 << "\t+\t" <<
-            link.segmentId1 << "\t+\t0M\n";
+        if(true /*link.segmentsAreAdjacent*/) {
+            gfa << "L\t" <<
+                link.segmentId0 << "\t+\t" <<
+                link.segmentId1 << "\t+\t0M\n";
+        } else {
+            // This writes non-adjacent links as Jumps (GFA 1.2).
+            // The original Bandage does not display them.
+            // BandageNG does, but they are not taken into account during graph
+            // creation, so it i not useful to write them like this.
+            // For this reason, the if condition above was set to true,
+            // so this branch is never reached.
+            // Leaveing the code in place for possible future use.
+            gfa << "J\t" <<
+                link.segmentId0 << "\t+\t" <<
+                link.segmentId1 << "\t+\t" << k * link.separation << "\n";
+        }
     }
 
 }
@@ -2698,6 +2718,7 @@ void AssemblyGraph::createDeBruijnGraph() const
 void AssemblyGraph::assembleSegments()
 {
     createNew(segmentSequences, "Mode3-SegmentSequences");
+    createNew(segmentVertexOffsets, "Mode3-SegmentVertexOffsets");
     for(uint64_t segmentId=0; segmentId<markerGraphPaths.size(); segmentId++) {
         assembleSegment(segmentId);
     }
@@ -2715,7 +2736,266 @@ void AssemblyGraph::assembleSegment(uint64_t segmentId)
         false,
         assembledSegment);
 
-    // Store assembled sequence.
+    // Store assembled sequence and vertex offsets.
     segmentSequences.appendVector(assembledSegment.rawSequence);
+    segmentVertexOffsets.appendVector(assembledSegment.vertexOffsets);
 
+}
+
+
+
+// Assemble a link, given a set of allowed OrientedReadId(s).
+// The returned sequence overrides:
+// - The trim0 last bases of the preceding segment.
+// - The trim1 first bases of the following segment.
+void AssemblyGraph::assembleLink(
+    uint64_t linkId,
+    const vector<OrientedReadId>& allowedOrientedReadIds,
+    vector<Base>& sequence, // The entire MSA sequence
+    uint64_t& leftTrim,     // The number of MSA sequence to be trimmed on the left for assembly
+    uint64_t& rightTrim,    // The number of MSA sequence to be trimmed on the left for assembly
+    uint64_t& trim0,        // The number of bases at the end of segment0 to be trimmed for assembly
+    uint64_t& trim1,        // The number of bases at the beginning of segment1 to be trimmed for assembly
+    ostream& html
+) const
+{
+    const bool debug = false;
+    const Link& link = links[linkId];
+
+    SHASTA_ASSERT(std::is_sorted(allowedOrientedReadIds.begin(), allowedOrientedReadIds.end()));
+
+    // If the preceding and last segment are adjacent,
+    // assembling the link is trivial.
+    // We return an empty sequence which overrides
+    // the last k/2 bases of the preceding segment
+    // and the first k/2 bases of the following segment.
+    // This was the resulting segment sequences are exactly adjacent.
+    if(link.segmentsAreAdjacent) {
+        sequence.clear();
+        leftTrim = 0;
+        rightTrim = 0;
+        trim0 = k / 2;
+        trim1 = k / 2;
+        return;
+    }
+
+    // If getting here, the two segments of this link are not adjacent.
+    // Get some infomation we are going to need below.
+    const uint64_t segmentId0 = link.segmentId0;
+    const uint64_t segmentId1 = link.segmentId1;
+    const auto sequence0 = segmentSequences[segmentId0];
+    const auto sequence1 = segmentSequences[segmentId1];
+    SHASTA_ASSERT(not sequence0.empty());
+    SHASTA_ASSERT(not sequence1.empty());
+    const auto vertexOffsets0 = segmentVertexOffsets[segmentId0];
+    const auto vertexOffsets1 = segmentVertexOffsets[segmentId1];
+
+
+    // First, find:
+    // - The position in segmentId0 of the leftmost transition.
+    // - The position in segmentId1 of the rightmost transition.
+    uint64_t minEdgePosition0 = markerGraphPaths[segmentId0].size();
+    uint64_t maxEdgePosition1 = 0;
+    for(const auto &p : transitions[linkId]) {
+        const OrientedReadId orientedReadId = p.first;
+
+        // If not one of the allowed OrientedReadId(s), skip it.
+        if(not binary_search(allowedOrientedReadIds.begin(), allowedOrientedReadIds.end(), orientedReadId)) {
+            continue;
+        }
+
+        // Access the transition from segmentId0 to segmentId1 for this oriented read.
+        const Transition &transition = p.second;
+
+        minEdgePosition0 = min(minEdgePosition0,
+            uint64_t(transition[0].position));
+        maxEdgePosition1 = max(maxEdgePosition1,
+            uint64_t(transition[1].position));
+    }
+
+    // When getting here:
+    // - minEdgePosition0 is the leftmost position of the transitions in path0.
+    // - maxEdgePosition1 is the rightmost position of the transitions in path1.
+    // These positions are edge positions in markerGraphPath0 and markerGraphPath1.
+    // We will do a multiple sequence alignment of the oriented reads,
+    // using the sequence of segmentId0 to extend to the left all reads to minEdgePosition0,
+    // and using the sequence of segmentId1 to extend to the right all reads to maxEdgePosition1,
+
+    // Get the corresponding vertex positions in segmentId0 and segmentId1.
+    const uint64_t minVertexPosition0 = minEdgePosition0 + 1;
+    const uint64_t maxVertexPosition1 = maxEdgePosition1;
+
+    // To compute an MSA anchored at both sides,we will extend the
+    // sequence of each read to the left/right using the sequence of
+    // adjacent segments.
+
+
+   // Now extract the portion of each oriented read sequence that
+    // will be used to assemble this link.
+    vector<OrientedReadId> orientedReadIdsForAssembly;
+    vector<vector<Base> > orientedReadsSequencesForAssembly;
+    for(const auto &p : transitions[linkId]) {
+        const OrientedReadId orientedReadId = p.first;
+
+        // If not one of the allowed OrientedReadId(s), skip it.
+        if(not binary_search(allowedOrientedReadIds.begin(), allowedOrientedReadIds.end(), orientedReadId)) {
+            continue;
+        }
+
+        // Access the transition from segmentId0 to segmentId1 for this oriented read.
+        const Transition &transition = p.second;
+
+        // Get the ordinals of the last appearance of this oriented
+        // read on segmentId0 and the first on segmentId1,
+        // and the corresponding markers.
+        const uint32_t ordinal0 = transition[0].ordinals[1];
+        const uint32_t ordinal1 = transition[1].ordinals[0];
+        const CompressedMarker &marker0 = markers[orientedReadId.getValue()][ordinal0];
+        const CompressedMarker &marker1 = markers[orientedReadId.getValue()][ordinal1];
+
+        // Get the positions of these markers on the oriented read.
+        // If using RLE, these are RLE positions.
+        const uint32_t position0 = marker0.position;
+        const uint32_t position1 = marker1.position;
+
+        // Extract the sequence between these markers (including the markers).
+        vector<Base> orientedReadSequence;
+        for(uint64_t position = position0;
+            position < position1 + k; position++) {
+            const Base b = reads.getOrientedReadBase(orientedReadId, uint32_t(position));
+            orientedReadSequence.push_back(b);
+        }
+
+        // We need to extend the sequence of this read to the left,
+        // using segmentId0 sequence, up to minVertexPosition0,
+        // so the portions of all reads we will be using for the MSA
+        // all begin in the same place.
+        vector<Base> leftSequence;
+        vector<uint32_t> leftRepeatCounts;
+        const uint64_t vertexPosition0 = transition[0].position + 1; // Add 1 to get vertex position.
+        const uint64_t begin0 =
+            vertexOffsets0[minVertexPosition0];
+        const uint64_t end0 = vertexOffsets0[vertexPosition0];
+        for(uint64_t position = begin0; position != end0; position++) {
+            leftSequence.push_back(sequence0[position]);
+        }
+
+        vector<Base> rightSequence;
+        const uint64_t vertexPosition1 = transition[1].position;
+        const uint64_t begin1 = vertexOffsets1[vertexPosition1] + k;
+        const uint64_t end1 = vertexOffsets1[maxVertexPosition1] + k;
+        for(uint64_t position = begin1; position != end1; position++) {
+            rightSequence.push_back(sequence1[position]);
+       }
+
+        // Construct the extended sequence for this oriented read,
+        // to be used in the MSA.
+        vector<Base> orientedReadExtendedSequence;
+        const auto addToExtendedSequence = back_inserter(orientedReadExtendedSequence);
+        copy(leftSequence, addToExtendedSequence);
+        copy(orientedReadSequence, addToExtendedSequence);
+        copy(rightSequence, addToExtendedSequence);
+
+        orientedReadIdsForAssembly.push_back(orientedReadId);
+        orientedReadsSequencesForAssembly.push_back(orientedReadExtendedSequence);
+
+        if(debug) {
+            copy(orientedReadExtendedSequence, ostream_iterator<Base>(cout));
+            cout << " " << orientedReadId << endl;
+        }
+    }
+
+
+
+   // Compute the consensus sequence for the link.
+   if(html) {
+       html << "<h2>Link " << linkId << "</h2>\n";
+   }
+   vector<Base> msaRleSequence;
+   computeLinkConsensusUsingSpoa(
+       orientedReadIdsForAssembly,
+       orientedReadsSequencesForAssembly,
+       consensusCaller,
+       debug,
+       html,
+       msaRleSequence);
+
+   if(debug) {
+       cout << "Consensus RLE sequence length before trimming " << msaRleSequence.size() << endl;
+       cout << "Portion of segment on left involved in the MSA begins at position " <<
+           vertexOffsets0[minVertexPosition0] << endl;
+       cout << "Portion of segment on right involved in the MSA ends at position " <<
+           vertexOffsets1[maxVertexPosition1] + k << endl;
+   }
+
+   // Count the number of identical (RLE) bases at the beginning of the
+   // link consensus sequence and of the segmentId0 sequence portion
+   // involved in assembling this link.
+   uint64_t identicalOnLeft = 0;
+   const uint64_t begin0 = vertexOffsets0[minVertexPosition0];
+   const uint64_t end0 = sequence0.size();
+   for(uint64_t i=begin0; (i!=end0 and (i-begin0)<msaRleSequence.size()); i++) {
+       if(msaRleSequence[i-begin0] == sequence0[i]) {
+           // cout << "*** " << begin0 << " " << end0 << " " << i << endl;
+           ++identicalOnLeft;
+       } else {
+           break;
+       }
+   }
+   if(debug) {
+       cout << "Identical on left: " << identicalOnLeft << endl;
+   }
+
+   // Count the number of identical (RLE) bases at the end of the
+   // link consensus sequence and the beginning of segmentId1 .
+   uint64_t identicalOnRight = 0;
+   const uint64_t end1 = vertexOffsets1[maxVertexPosition1] + k;
+   for(uint64_t i=end1-1; ; i--) {
+       const uint64_t j = msaRleSequence.size() - (end1 - i);
+       if(msaRleSequence[j] == sequence1[i]) {
+           // cout << "*** " << i << " " << assembledSegment1.runLengthSequence[i] << " " <<
+           //     j << " " << consensusRleSequence[j] << endl;
+           ++identicalOnRight;
+       } else {
+           break;
+       }
+       if(i == 0) {
+           break;
+       }
+       if(j == 0) {
+           break;
+       }
+   }
+   identicalOnRight = min(identicalOnRight, msaRleSequence.size()-identicalOnLeft);
+   if(debug) {
+       cout << "Identical on right: " << identicalOnRight << endl;
+   }
+
+   // Trim these identical bases from the link consensus sequence.
+   leftTrim = identicalOnLeft;
+   rightTrim = identicalOnRight;
+
+   // Compute and store the number of bases to be trimmed at the end of segmentId0
+   // and at the beginning of segmentId1.
+   trim0 =
+       sequence0.size() -
+       vertexOffsets0[minVertexPosition0] -
+       identicalOnLeft;
+   trim1 =
+       vertexOffsets1[maxVertexPosition1] + k
+       - identicalOnRight;
+}
+
+
+
+void AssemblyGraph::computeLinkConsensusUsingSpoa(
+    const vector<OrientedReadId> orientedReadIds,
+    const vector< vector<Base> > rleSequences,
+    const ConsensusCaller&,
+    bool debug,
+    ostream& html,
+    vector<Base>& consensusRleSequence
+    )
+{
+    SHASTA_ASSERT(0);
 }

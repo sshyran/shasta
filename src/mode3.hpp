@@ -221,7 +221,11 @@ public:
     void computeSegmentCoverage();
 
     // Assembled sequence for each segment.
+    // For each segment we store the entire sequance, including
+    // the complete sequences of the first and last vertex.
+    // When writing to gfa, we skip the first and last k/2 bases.
     MemoryMapped::VectorOfVectors<Base, uint64_t> segmentSequences;
+    MemoryMapped::VectorOfVectors<uint32_t, uint64_t> segmentVertexOffsets; // Filed in by assembleSegment.
     void assembleSegments();
     void assembleSegment(uint64_t segmentId);
 
@@ -323,6 +327,31 @@ public:
     {
         return transitions.size(linkId);
     }
+
+    // Assemble a link, given a set of allowed OrientedReadId(s).
+    // The returned sequence overrides:
+    // - The trim0 last bases of the preceding segment.
+    // - The trim1 first bases of the following segment.
+    void assembleLink(
+        uint64_t linkId,
+        const vector<OrientedReadId>& allowedOrientedReadIds,
+        vector<Base>& sequence, // The entire MSA sequence
+        uint64_t& leftTrim,     // The number of MSA sequence to be trimmed on the left for assembly
+        uint64_t& rightTrim,    // The number of MSA sequence to be trimmed on the left for assembly
+        uint64_t& trim0,        // The number of bases at the end of segment0 to be trimmed for assembly
+        uint64_t& trim1,        // The number of bases at the beginning of segment1 to be trimmed for assembly
+        ostream& html
+    ) const;
+
+    // Use spoa to compute consensus sequence for a link.
+    static void computeLinkConsensusUsingSpoa(
+        const vector<OrientedReadId> orientedReadIds,
+        const vector< vector<Base> > rleSequences,
+        const ConsensusCaller&,
+        bool debug,
+        ostream& html,
+        vector<Base>& consensusRleSequence
+        );
 
     // The links for each source or target segments.
     // Indexed by segment id.

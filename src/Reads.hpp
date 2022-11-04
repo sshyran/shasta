@@ -258,8 +258,8 @@ public:
 
     void remove();
 
-private:
     uint64_t representation; // 0 = raw sequence, 1 = RLE sequence
+private:
     LongBaseSequences reads;
     MemoryMapped::VectorOfVectors<uint8_t, uint64_t> readRepeatCounts;
 
