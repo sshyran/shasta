@@ -216,9 +216,14 @@ public:
     MemoryMapped::VectorOfVectors<MarkerGraphEdgeId, uint64_t> markerGraphPaths;
     void createSegmentPaths();
 
-    // Average marker graph edge coverage for all segments.
+    // Average marker graph edge coverage for each segment.
     MemoryMapped::Vector<float> segmentCoverage;
     void computeSegmentCoverage();
+
+    // Assembled sequence for each segment.
+    MemoryMapped::VectorOfVectors<Base, uint64_t> segmentSequences;
+    void assembleSegments();
+    void assembleSegment(uint64_t segmentId);
 
     // Keep track of the segment and position each marker graph edge corresponds to.
     // For each marker graph edge, store in the marker graph edge table

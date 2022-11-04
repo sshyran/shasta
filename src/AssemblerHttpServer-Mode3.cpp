@@ -323,6 +323,13 @@ void Assembler::exploreMode3AssemblyGraphSegment(
             false,
             assembledSegment);
 
+        // Check that the sequence we have is the same as the stored sequence
+        // for this segment.
+        SHASTA_ASSERT(std::equal(
+            assembledSegment.rawSequence.begin(), assembledSegment.rawSequence.end(),
+            assemblyGraph3.segmentSequences.begin(segmentId), assemblyGraph3.segmentSequences.end(segmentId)
+            ));
+
         // Write the sequence.
         assembledSegment.writeHtml(html, showSequence, showSequenceDetails,
             0, uint32_t(assembledSegment.rawSequence.size()));

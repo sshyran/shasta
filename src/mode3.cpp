@@ -1,6 +1,7 @@
 
 // Shasta
 #include "mode3.hpp"
+#include "assembleMarkerGraphPath.hpp"
 #include "deduplicate.hpp"
 #include "findMarkerId.hpp"
 #include "html.hpp"
@@ -673,6 +674,9 @@ AssemblyGraph::AssemblyGraph(
     createSegmentPaths();
     computeSegmentCoverage();
 
+    // Assembled sequence for each segment.
+    assembleSegments();
+
     // Keep track of the segment and position each marker graph edge corresponds to.
     computeMarkerGraphEdgeTable(threadCount);
 
@@ -730,6 +734,7 @@ AssemblyGraph::AssemblyGraph(
 {
     accessExistingReadOnly(markerGraphPaths, "Mode3-MarkerGraphPaths");
     accessExistingReadOnly(segmentCoverage, "Mode3-SegmentCoverage");
+    accessExistingReadOnly(segmentSequences, "Mode3-SegmentSequences");
     accessExistingReadOnly(markerGraphEdgeTable, "Mode3-MarkerGraphEdgeTable");
     accessExistingReadOnly(assemblyGraphJourneys, "Mode3-AssemblyGraphJourneys");
     accessExistingReadOnly(assemblyGraphJourneyInfos, "Mode3-AssemblyGraphJourneyInfos");
@@ -2683,4 +2688,31 @@ template<uint64_t K> void AssemblyGraph::createDeBruijnGraphTemplated() const
 void AssemblyGraph::createDeBruijnGraph() const
 {
     createDeBruijnGraphTemplated<3>();
+}
+
+
+
+void AssemblyGraph::assembleSegments()
+{
+    createNew(segmentSequences, "Mode3-SegmentSequences");
+    for(uint64_t segmentId=0; segmentId<markerGraphPaths.size(); segmentId++) {
+        assembleSegment(segmentId);
+    }
+}
+void AssemblyGraph::assembleSegment(uint64_t segmentId)
+{
+    // Assemble it.
+    AssembledSegment assembledSegment;
+    assembleMarkerGraphPath(
+        readRepresentation,
+        k,
+        markers,
+        markerGraph,
+        markerGraphPaths[segmentId],
+        false,
+        assembledSegment);
+
+    // Store assembled sequence.
+    segmentSequences.appendVector(assembledSegment.rawSequence);
+
 }
