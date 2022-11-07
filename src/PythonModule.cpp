@@ -767,6 +767,9 @@ PYBIND11_MODULE(shasta, shastaModule)
     shastaModule.def("mappedCopy",
         mappedCopy
         );
+    shastaModule.def("testLongBaseSequence",
+        testLongBaseSequence
+        );
     shastaModule.def("testAlignmentCompression",
         testAlignmentCompression
         );

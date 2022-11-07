@@ -1,4 +1,6 @@
 #include "LongBaseSequence.hpp"
+#include "extractKmer.hpp"
+#include "ShortBaseSequence.hpp"
 using namespace shasta;
 
 #include "vector.hpp"
@@ -106,7 +108,7 @@ void shasta::testLongBaseSequence()
 {
 
 
-
+#if 0
     // Test class LongBaseSequenceView.
     {
         vector<uint64_t> v(4, 0);
@@ -181,4 +183,23 @@ void shasta::testLongBaseSequence()
             cout << sequence << endl;
         }
     }
+#endif
+
+
+
+    // Test extractKmer.
+    LongBaseSequence sequence(84);
+    for(uint64_t i=0; i<84; i++) {
+        sequence.set(i, Base::fromInteger(i%4));
+    }
+    LongBaseSequenceView view(sequence);
+    ShortBaseSequence16 s16;
+    extractKmer(view, 20, 8, s16);
+    cout << s16 << endl;
+    extractKmer(view, 60, 8, s16);
+    cout << s16 << endl;
+    extractKmer(view, 64, 8, s16);
+    cout << s16 << endl;
+    extractKmer(view, 72, 8, s16);
+    cout << s16 << endl;
 }
