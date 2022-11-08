@@ -37,10 +37,13 @@ changes, but the Cluster it points to can change during the detangling process.
 *******************************************************************************/
 
 namespace shasta {
+    class Base;
     namespace mode3 {
         class Detangler;
-
         class AssemblyGraph;
+    }
+    namespace MemoryMapped {
+        template<class T, class Int> class VectorOfVectors;
     }
 }
 
@@ -132,8 +135,16 @@ private:
     // Simple, classical detangling of a single cluster.
     bool simpleDetangle(Cluster*, uint64_t minLinkCoverage);
 
-    void writeGfa(const string& fileName, uint64_t minLinkCoverage) const;
-    void writeGfa(ostream&, uint64_t minLinkCoverage) const;
+    void writeGfa(
+        const string& fileName,
+        uint64_t minLinkCoverage,
+        const MemoryMapped::VectorOfVectors<Base, uint64_t>& segmentSequences,
+        uint64_t k) const;
+    void writeGfa(
+        ostream&,
+        uint64_t minLinkCoverage,
+        const MemoryMapped::VectorOfVectors<Base, uint64_t>& segmentSequences,
+        uint64_t k) const;
 };
 
 

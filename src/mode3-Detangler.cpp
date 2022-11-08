@@ -1,4 +1,5 @@
 #include "mode3-Detangler.hpp"
+#include "Base.hpp"
 #include "deduplicate.hpp"
 #include "mode3.hpp"
 using namespace shasta;
@@ -27,7 +28,7 @@ Detangler::Detangler(const AssemblyGraph& assemblyGraph)
     }
     cout << "Detangled " << count << " clusters out of " << clusters.size() << endl;
 
-    writeGfa("Detangler.gfa", minLinkCoverage);
+    writeGfa("Detangler.gfa", minLinkCoverage, assemblyGraph.segmentSequences, assemblyGraph.k);
 }
 
 
@@ -352,20 +353,32 @@ bool Detangler::simpleDetangle(Cluster* cluster0, uint64_t minLinkCoverage)
 
 
 
-void Detangler::writeGfa(const string& fileName, uint64_t minLinkCoverage) const
+void Detangler::writeGfa(
+    const string& fileName,
+    uint64_t minLinkCoverage,
+    const MemoryMapped::VectorOfVectors<Base, uint64_t>& segmentSequences,
+    uint64_t k) const
 {
     ofstream gfa(fileName);
-    writeGfa(gfa, minLinkCoverage);
+    writeGfa(gfa, minLinkCoverage, segmentSequences, k);
 }
-void Detangler::writeGfa(ostream& gfa, uint64_t minLinkCoverage) const
+void Detangler::writeGfa(
+    ostream& gfa,
+    uint64_t minLinkCoverage,
+    const MemoryMapped::VectorOfVectors<Base, uint64_t>& segmentSequences,
+    uint64_t k) const
 {
     // Write the header line.
     gfa << "H\tVN:Z:1.0\n";
 
     // Write one segment for each cluster.
     for(const auto& p: clusters) {
+        const uint64_t segmentId = p.first;
+        const auto sequence = segmentSequences[segmentId];
         for(const Cluster& cluster: p.second) {
-            gfa << "S\t" << cluster.stringId() << "\t*\n";
+            gfa << "S\t" << cluster.stringId() << "\t";
+            copy(sequence.begin()+k/2, sequence.end()-k/2, ostream_iterator<Base>(gfa));
+            gfa << "\n";
         }
     }
 
