@@ -225,7 +225,7 @@ public:
     // the complete sequences of the first and last vertex.
     // When writing to gfa, we skip the first and last k/2 bases.
     MemoryMapped::VectorOfVectors<Base, uint64_t> segmentSequences;
-    MemoryMapped::VectorOfVectors<uint32_t, uint64_t> segmentVertexOffsets; // Filed in by assembleSegment.
+    MemoryMapped::VectorOfVectors<uint32_t, uint64_t> segmentVertexOffsets; // Filled in by assembleSegment.
     void assembleSegments();
     void assembleSegment(uint64_t segmentId);
 
