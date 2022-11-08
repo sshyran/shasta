@@ -450,6 +450,25 @@ void Assembler::exploreMode3AssemblyGraphLink(
 
 
 
+    // If the two segments of this link are not adjacent, assemble a path
+    // consisting of just the two segments and the link.
+    if(not link.segmentsAreAdjacent) {
+
+        html << "<h2>Assembly path consisting of this link plus the two adjacent segments.</h2>";
+
+        // Create the assembly path.
+        AssemblyPath path;
+        path.segments.push_back(AssemblyPathSegment(segmentId0, true));
+        path.segments.push_back(AssemblyPathSegment(segmentId1, true));
+        path.initializeLinks(assemblyGraph3);
+
+        // Assemble sequence for this path.
+        path.assemble(assemblyGraph3);
+
+        // Write path details to html.
+        path.writeHtml(html, assemblyGraph3);
+    }
+
 
 }
 
