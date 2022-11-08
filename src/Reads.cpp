@@ -91,13 +91,16 @@ void Reads::copyDataForReadsLongerThan(
             readNames.appendVector(rhs.readNames.begin(id), rhs.readNames.end(id));
             readMetaData.appendVector(rhs.readMetaData.begin(id), rhs.readMetaData.end(id));
             reads.append(rhs.reads[id]);
-            const uint64_t j = readRepeatCounts.size();
-            readRepeatCounts.appendVector(rhs.readRepeatCounts.size(id));
-            copy(
-                rhs.readRepeatCounts.begin(id),
-                rhs.readRepeatCounts.end(id),
-                readRepeatCounts.begin(j)
-            );
+
+            if(representation == 1) {
+                const uint64_t j = readRepeatCounts.size();
+                readRepeatCounts.appendVector(rhs.readRepeatCounts.size(id));
+                copy(
+                    rhs.readRepeatCounts.begin(id),
+                    rhs.readRepeatCounts.end(id),
+                    readRepeatCounts.begin(j)
+                );
+            }
         } else {
             discardedShortReadCount++;
             discardedShortReadBases += len;
@@ -105,16 +108,21 @@ void Reads::copyDataForReadsLongerThan(
     }
 
     reads.unreserve();
-    readRepeatCounts.unreserve();
+    if(representation == 1) {
+        readRepeatCounts.unreserve();
+    }
     readNames.unreserve();
     readMetaData.unreserve();
     readFlags.reserveAndResize(reads.size());
 }
 
 
+
 void Reads::remove() {
     reads.remove();
-    readRepeatCounts.remove();
+    if(representation == 1) {
+        readRepeatCounts.remove();
+    }
     readNames.remove();
     readMetaData.remove();
     readFlags.remove();
