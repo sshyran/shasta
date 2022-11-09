@@ -172,6 +172,8 @@ void AssemblyGraph::createJaccardGraphEdges(
         // Get the segment at the other side of this link.
         const Link& link = links[linkId];
         const uint64_t segmentId1 = (direction==0) ? link.segmentId1 : link.segmentId0;
+        SHASTA_ASSERT(segmentId1 < linksBySource.size());
+        SHASTA_ASSERT(segmentId1 < linksByTarget.size());
 
         // Check that we haven't been here before.
         if(previousSegments.contains(segmentId1)) {

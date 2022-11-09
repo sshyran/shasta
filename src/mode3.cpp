@@ -674,7 +674,7 @@ AssemblyGraph::AssemblyGraph(
     // If this equals 1, then the sequence of segments visited by every
     // oriented read is a path in the graph.
     // But that is not desirable because of the extra edges it causes.
-    const uint64_t minCoverage = 3; // EXPOSE WHEN CODE STABILIZES
+    const uint64_t minLinkCoverage = 6; // EXPOSE WHEN CODE STABILIZES
 
     // Create a segment for each linear chain of marker graph edges.
     createSegmentPaths();
@@ -699,7 +699,7 @@ AssemblyGraph::AssemblyGraph(
     findTransitions(transitionMap);
 
     // Create a links between pairs of segments with a sufficient number of transitions.
-    createLinks(transitionMap, minCoverage);
+    createLinks(transitionMap, minLinkCoverage);
     createConnectivity();
     flagBackSegments();
 
@@ -760,8 +760,8 @@ void AssemblyGraph::createConnectivity()
     createNew(linksBySource, "Mode3-LinksBySource");
     createNew(linksByTarget, "Mode3-LinksByTarget");
 
-    linksBySource.beginPass1(links.size());
-    linksByTarget.beginPass1(links.size());
+    linksBySource.beginPass1(markerGraphPaths.size());
+    linksByTarget.beginPass1(markerGraphPaths.size());
     for(uint64_t linkId=0; linkId<links.size(); linkId++) {
         const Link& link = links[linkId];
         linksBySource.incrementCount(link.segmentId0);
