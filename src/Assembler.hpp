@@ -7,6 +7,7 @@
 #include "AssemblyGraph2Statistics.hpp"
 #include "HttpServer.hpp"
 #include "Kmer.hpp"
+#include "MappedMemoryOwner.hpp"
 #include "Marker.hpp"
 #include "MarkerGraph.hpp"
 #include "MemoryMappedObject.hpp"
@@ -187,8 +188,9 @@ public:
 
 
 class shasta::Assembler :
-    public MultithreadedObject<Assembler>
-    , public HttpServer {
+    public MultithreadedObject<Assembler>,
+    public MappedMemoryOwner,
+    public HttpServer {
 public:
 
 
@@ -377,23 +379,6 @@ public:
         size_t highCoverageThreshold,
         size_t maxDistance);
 
-
-
-private:
-
-    // Data filled in by the constructor.
-    string largeDataFileNamePrefix;
-    size_t largeDataPageSize;
-
-    // Function to construct names for binary objects.
-    string largeDataName(const string& name) const
-    {
-        if(largeDataFileNamePrefix.empty()) {
-            return "";  // Anonymous;
-        } else {
-            return largeDataFileNamePrefix + name;
-        }
-    }
 
 
 

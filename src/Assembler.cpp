@@ -13,14 +13,13 @@ template class MultithreadedObject<Assembler>;
 
 // Constructor to be called one to create a new run.
 Assembler::Assembler(
-    const string& largeDataFileNamePrefix,
+    const string& largeDataFileNamePrefixArgument,
     bool createNew,
     uint64_t readRepresentation, // 0 = raw sequence, 1 = RLE sequence. Only used if createNew.
     size_t largeDataPageSizeArgument) :
-
-    MultithreadedObject(*this),
-    largeDataFileNamePrefix(largeDataFileNamePrefix)
+    MultithreadedObject(*this)
 {
+    largeDataFileNamePrefix = largeDataFileNamePrefixArgument;
 
     if(createNew) {
 
