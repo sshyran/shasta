@@ -8,6 +8,9 @@
 using namespace shasta;
 using namespace mode3a;
 
+// Boost libraries.
+#include <boost/graph/iteration_macros.hpp>
+
 // Standard library.
 #include "fstream.hpp"
 #include <map>
@@ -33,12 +36,19 @@ Assembler::Assembler(
     SHASTA_ASSERT(reads.representation == 0);
 
     // Create the initial PackedMarkerGraph.
-    const string name0 = "Mode3a-PackedMarkerGraph-initial";
-    PackedMarkerGraph packedMarkerGraph0(name0, k, MappedMemoryOwner(*this), markers, markerGraph);
+    const string name0 = "Mode3a-PackedMarkerGraph-0";
+    PackedMarkerGraph packedMarkerGraph0(name0, k, MappedMemoryOwner(*this), markers, markerGraph, false);
     packedMarkerGraph0.assembleSegmentSequences(name0);
     cout << "The initial PackedMarkerGraph has " << packedMarkerGraph0.segmentSequences.totalSize() << ""
         " bases of assembled sequence." << endl;
     packedMarkerGraph0.writeGfa(name0);
+
+    // Clean up the bubbles causes by errors.
+    BubbleCleaner cleaner(packedMarkerGraph0);
+    cleaner.cleanup();
+    const string name1 = "Mode3a-PackedMarkerGraph-1";
+    PackedMarkerGraph packedMarkerGraph1(name1, k, MappedMemoryOwner(*this), markers, markerGraph, true);
+    cleaner.store(packedMarkerGraph1);
 }
 
 
@@ -49,12 +59,17 @@ PackedMarkerGraph::PackedMarkerGraph(
     uint64_t k,
     const MappedMemoryOwner& mappedMemoryOwner,
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
-    const MarkerGraph& markerGraph) :
+    const MarkerGraph& markerGraph,
+    bool constructEmpty) :
     MappedMemoryOwner(mappedMemoryOwner),
     k(k),
     markers(markers),
     markerGraph(markerGraph)
 {
+    if(constructEmpty) {
+        return;
+    }
+
     createSegmentsFromMarkerGraph(name);
     createLinks(name);
     cout << "The initial PackedMarkerGraph has " << segments.size() << " segments and " <<
@@ -269,3 +284,73 @@ void PackedMarkerGraph::writeGfa(const string& name) const
 
 
 }
+
+
+
+BubbleCleaner::BubbleCleaner(const PackedMarkerGraph& packedMarkerGraph)
+{
+    BubbleCleaner& bubbleCleaner = *this;
+
+    // Construct an edge for each segment of the PackedMarkerGraph.
+    // Add vertices as we go.
+    for(uint64_t segmentId=0; segmentId<packedMarkerGraph.segments.size(); segmentId++) {
+        const uint64_t vertexId0 = packedMarkerGraph.getFirstSegmentVertex(segmentId);
+        const uint64_t vertexId1 = packedMarkerGraph.getLastSegmentVertex(segmentId);
+        const vertex_descriptor v0 = getVertex(vertexId0);
+        const vertex_descriptor v1 = getVertex(vertexId1);
+        add_edge(v0, v1, BubbleCleanerEdge(segmentId), bubbleCleaner);
+    }
+
+}
+
+
+
+// Get the vertex corresponding to a given marker graph vertex,
+// creating if necessary.
+BubbleCleaner::vertex_descriptor BubbleCleaner::getVertex(uint64_t markerGraphVertexId)
+{
+    BubbleCleaner& bubbleCleaner = *this;
+
+    auto it = vertexMap.find(markerGraphVertexId);
+    if(it == vertexMap.end()) {
+        const vertex_descriptor v = add_vertex(BubbleCleanerVertex(markerGraphVertexId), bubbleCleaner);
+        vertexMap.insert(make_pair(markerGraphVertexId, v));
+        return v;
+    } else {
+        return it->second;
+    }
+}
+
+
+// Given the initial PackedMarkerGraph, cleanup the bubbles
+// due to errors and store the result in a new PackedMarkerGraph.
+void BubbleCleaner::cleanup()
+{
+    BubbleCleaner& bubbleCleaner = *this;
+
+    // A bubble is a set of parallel edges. Find them all.
+    std::map<pair<vertex_descriptor, vertex_descriptor>, vector<edge_descriptor> > unprocessedBubbles;
+    BGL_FORALL_EDGES(e, bubbleCleaner, BubbleCleaner) {
+        const vertex_descriptor v0 = source(e, bubbleCleaner);
+        const vertex_descriptor v1 = target(e, bubbleCleaner);
+        unprocessedBubbles[make_pair(v0, v1)].push_back(e);
+    }
+    for(auto it=unprocessedBubbles.begin(); it!=unprocessedBubbles.end(); /* Increment later */) {
+        auto itNext = it;
+        ++itNext;
+        if(it->second.size() < 2) {
+            unprocessedBubbles.erase(it);
+        }
+        it = itNext;
+    }
+    cout << "Found " << unprocessedBubbles.size() << " bubbles." << endl;
+
+}
+
+
+
+void BubbleCleaner::store(PackedMarkerGraph& packedMarkerGraph) const
+{
+    SHASTA_ASSERT(0);
+}
+

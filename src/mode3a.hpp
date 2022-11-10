@@ -43,6 +43,9 @@ Connectivity is created and maintained by "following the reads".
 #include "MappedMemoryOwner.hpp"
 #include "MemoryMappedVectorOfVectors.hpp"
 
+// Boost libraries.
+#include <boost/graph/adjacency_list.hpp>
+
 // Standard library.
 #include "string.hpp"
 
@@ -53,9 +56,15 @@ namespace shasta {
     namespace mode3a {
         class Assembler;
         class PackedMarkerGraph;
-        class BubbleCleaner;
         class TidyMarkerGraph;
         class AssemblyGraph;
+
+        class BubbleCleaner;
+        class BubbleCleanerVertex;
+        class BubbleCleanerEdge;
+        using BubbleCleanerBaseClass = boost::adjacency_list<
+            boost::listS, boost::listS, boost::bidirectionalS,
+            BubbleCleanerVertex, BubbleCleanerEdge>;
     }
 
     // Forward declarations of Shasta classes defined elsewhere.
@@ -96,7 +105,9 @@ public:
         uint64_t k,
         const MappedMemoryOwner&,
         const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
-        const MarkerGraph&);
+        const MarkerGraph&,
+        bool constructEmpty);
+
 
     uint64_t k;
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers;
@@ -143,6 +154,53 @@ public:
 
     void writeGfa(const string& name) const;
 };
+
+
+
+// Each vertex of the BubbleGraph corresponds to marker graph vertex.
+// The part is described as a sequence of segments in the initial
+// PackedMarkerGraph.
+class shasta::mode3a::BubbleCleanerVertex {
+public:
+    uint64_t markerGraphVertexId;
+    BubbleCleanerVertex(uint64_t markerGraphVertexId) :
+        markerGraphVertexId(markerGraphVertexId) {}
+};
+
+
+
+// Each edge of the BubbleCleaner corresponds to a path in the marker graph.
+// The path is described as a sequence of segments in the initial
+// PackedMarkerGraph.
+class shasta::mode3a::BubbleCleanerEdge {
+public:
+    vector<uint64_t> segments;
+    BubbleCleanerEdge(uint64_t segmentId) : segments(1, segmentId) {}
+};
+
+
+
+class shasta::mode3a::BubbleCleaner : public BubbleCleanerBaseClass {
+public:
+
+    // Construct the BubbleCleaner from the initial PackedMarkerGraph.
+    BubbleCleaner(const PackedMarkerGraph&);
+
+    // Clean up the bubbles causes by errors.
+    void cleanup();
+
+    // Store the result.
+    void store(PackedMarkerGraph&) const;
+
+    // Get the vertex corresponding to a given marker graph vertex,
+    // creating if necessary.
+    vertex_descriptor getVertex(uint64_t markerGraphVertexId);
+
+    // Map marker graph vertices to vertex descriptors.
+    std::map<uint64_t, vertex_descriptor> vertexMap;
+};
+
+
 
 #endif
 
