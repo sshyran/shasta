@@ -2,9 +2,9 @@
 #include "mode3.hpp"
 #include "mode3-Detangler.hpp"
 #include "mode3-PathGraph.hpp"
+#include "mode3a.hpp"
 #include "Reads.hpp"
 using namespace shasta;
-using namespace mode3;
 
 
 
@@ -80,3 +80,23 @@ void Assembler::createMode3Detangler()
 
 }
 
+
+
+void Assembler::mode3aAssembly(
+    size_t threadCount)
+{
+
+    // Adjust the numbers of threads, if necessary.
+    if(threadCount == 0) {
+        threadCount = std::thread::hardware_concurrency();
+    }
+
+    // Create the mode3a::Assembler.
+    mode3a::Assembler assembler(
+        threadCount,
+        assemblerInfo->k,
+        MappedMemoryOwner(*this),
+        *reads,
+        markers,
+        markerGraph);
+}

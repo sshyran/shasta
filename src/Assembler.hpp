@@ -2400,7 +2400,7 @@ public:
         bool debug);
 
 
-    // Mode 3 assembly.
+    // Mode 3 assembly (old development code0.
     void mode3Assembly(
         size_t threadCount);
     shared_ptr<mode3::AssemblyGraph> assemblyGraph3Pointer;
@@ -2408,6 +2408,9 @@ public:
     void analyzeMode3Subgraph(const vector<uint64_t>& segmentIds);
     void createMode3PathGraph();
     void createMode3Detangler();
+
+    // The new Mode 3 assembly code is in namespace mode3a.
+    void mode3aAssembly(size_t threadCount);
 
 
 

@@ -31,6 +31,14 @@ public:
     MappedMemoryOwner() {}
     MappedMemoryOwner(const MappedMemoryOwner&) = default;
 
+    template<class T> void createNew(T& t, const string& name)
+    {
+        t.createNew(largeDataName(name), largeDataPageSize);
+    }
+    template<class T> void accessExistingReadOnly(T& t, const string& name)
+    {
+        t.accessExistingReadOnly(largeDataName(name));
+    }
 };
 
 

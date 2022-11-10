@@ -665,6 +665,9 @@ PYBIND11_MODULE(shasta, shastaModule)
             &Assembler::createMode3PathGraph)
         .def("createMode3Detangler",
             &Assembler::createMode3Detangler)
+        .def("mode3aAssembly",
+            &Assembler::mode3aAssembly,
+            arg("threadCount") = 0)
 
 
 
