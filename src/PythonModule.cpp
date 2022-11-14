@@ -481,8 +481,6 @@ PYBIND11_MODULE(shasta, shastaModule)
             arg("pattern2CreateNewVertices"))
         .def("getMarkerGraphMinCoverageUsed",
             &Assembler::getMarkerGraphMinCoverageUsed)
-        .def("vertexCoverageStatisticsByKmerId",
-            &Assembler::vertexCoverageStatisticsByKmerId)
 
         // Edges of the global marker graph.
         .def("createMarkerGraphEdges",
