@@ -2,6 +2,9 @@
 #include "mode3a.hpp"
 #include "assembleMarkerGraphPath.hpp"
 #include "AssembledSegment.hpp"
+#include "copyNumber.hpp"
+#include "deduplicate.hpp"
+#include "invalid.hpp"
 #include "MarkerGraph.hpp"
 #include "Reads.hpp"
 #include "SHASTA_ASSERT.hpp"
@@ -22,7 +25,7 @@ Assembler::Assembler(
     const MappedMemoryOwner& mappedMemoryOwner,
     const Reads& reads,
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
-    const MarkerGraph& markerGraph) :
+    MarkerGraph& markerGraph) :
     MappedMemoryOwner(mappedMemoryOwner),
     reads(reads),
     markers(markers),
@@ -35,20 +38,39 @@ Assembler::Assembler(
     // This does not work with RLE.
     SHASTA_ASSERT(reads.representation == 0);
 
+    // Clear all the superbubble fags in marker graph edges -
+    // just in case we alreayd ran this before.
+    for( MarkerGraph::Edge& edge: markerGraph.edges) {
+        edge.isSuperBubbleEdge = 0;
+    }
+
     // Create the initial PackedMarkerGraph.
     const string name0 = "Mode3a-PackedMarkerGraph-0";
-    PackedMarkerGraph packedMarkerGraph0(name0, k, MappedMemoryOwner(*this), markers, markerGraph, false);
+    PackedMarkerGraph packedMarkerGraph0(name0, k, MappedMemoryOwner(*this), markers, markerGraph);
     packedMarkerGraph0.assembleSegmentSequences(name0);
-    cout << "The initial PackedMarkerGraph has " << packedMarkerGraph0.segmentSequences.totalSize() << ""
+    cout << "The initial PackedMarkerGraph has " <<
+        packedMarkerGraph0.segments.size() << " segments, " <<
+        packedMarkerGraph0.links.size() << " links, and " <<
+        packedMarkerGraph0.segmentSequences.totalSize() <<
         " bases of assembled sequence." << endl;
     packedMarkerGraph0.writeGfa(name0);
 
     // Clean up the bubbles causes by errors.
+    // This keeps one branch of each bubble.
+    // The marker graph edges of the remaining branches are flagged as removed.
     BubbleCleaner cleaner(packedMarkerGraph0);
-    cleaner.cleanup();
+    cleaner.cleanup(markerGraph);
+
+    // Create the cleaned up PackedMarkerGraph.
     const string name1 = "Mode3a-PackedMarkerGraph-1";
-    PackedMarkerGraph packedMarkerGraph1(name1, k, MappedMemoryOwner(*this), markers, markerGraph, true);
-    cleaner.store(packedMarkerGraph1);
+    PackedMarkerGraph packedMarkerGraph1(name1, k, MappedMemoryOwner(*this), markers, markerGraph);
+    packedMarkerGraph1.assembleSegmentSequences(name1);
+    cout << "After bubble cleanup, the PackedMarkerGraph has " <<
+        packedMarkerGraph1.segments.size() << " segments, " <<
+        packedMarkerGraph1.links.size() << " links, and " <<
+        packedMarkerGraph1.segmentSequences.totalSize() <<
+        " bases of assembled sequence." << endl;
+    packedMarkerGraph1.writeGfa(name1);
 }
 
 
@@ -59,21 +81,14 @@ PackedMarkerGraph::PackedMarkerGraph(
     uint64_t k,
     const MappedMemoryOwner& mappedMemoryOwner,
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
-    const MarkerGraph& markerGraph,
-    bool constructEmpty) :
+    const MarkerGraph& markerGraph) :
     MappedMemoryOwner(mappedMemoryOwner),
     k(k),
     markers(markers),
     markerGraph(markerGraph)
 {
-    if(constructEmpty) {
-        return;
-    }
-
     createSegmentsFromMarkerGraph(name);
     createLinks(name);
-    cout << "The initial PackedMarkerGraph has " << segments.size() << " segments and " <<
-        links.size() << " links." << endl;
 }
 
 
@@ -97,6 +112,10 @@ void PackedMarkerGraph::createSegmentsFromMarkerGraph(const string& name)
     // At each iteration we find a new linear path of edges.
     for(uint64_t startEdgeId=0; startEdgeId<edgeCount; startEdgeId++) {
 
+        if(markerGraph.edges[startEdgeId].wasRemoved()) {
+            continue;
+        }
+
         // If we already found this edge, skip it.
         // It is part of a path we already found.
         if(wasFound[startEdgeId]) {
@@ -112,17 +131,16 @@ void PackedMarkerGraph::createSegmentsFromMarkerGraph(const string& name)
         MarkerGraph::EdgeId edgeId = startEdgeId;
         bool isCircular = false;
         while(true) {
-            const MarkerGraph::Edge edge = markerGraph.edges[edgeId];
+            const MarkerGraph::Edge& edge = markerGraph.edges[edgeId];
+            SHASTA_ASSERT(not edge.wasRemoved());
             const MarkerGraph::VertexId v1 = edge.target;
-            const auto outEdges = markerGraph.edgesBySource[v1];
-            if(outEdges.size() != 1) {
+            if(markerGraph.outDegree(v1) != 1) {
                 break;
             }
-            const auto inEdges = markerGraph.edgesByTarget[v1];
-            if(inEdges.size() != 1) {
+            if(markerGraph.inDegree(v1) != 1) {
                 break;
             }
-            edgeId = outEdges[0];
+            edgeId = markerGraph.getFirstNonRemovedOutEdge(v1);
             if(edgeId == startEdgeId) {
                 isCircular = true;
                 break;
@@ -140,16 +158,15 @@ void PackedMarkerGraph::createSegmentsFromMarkerGraph(const string& name)
             edgeId = startEdgeId;
             while(true) {
                 const MarkerGraph::Edge edge = markerGraph.edges[edgeId];
+                SHASTA_ASSERT(not edge.wasRemoved());
                 const MarkerGraph::VertexId v0 = edge.source;
-                const auto outEdges = markerGraph.edgesBySource[v0];
-                if(outEdges.size() != 1) {
+                if(markerGraph.outDegree(v0) != 1) {
                     break;
                 }
-                const auto inEdges = markerGraph.edgesByTarget[v0];
-                if(inEdges.size() != 1) {
+                if(markerGraph.inDegree(v0) != 1) {
                     break;
                 }
-                edgeId = inEdges[0];
+                edgeId = markerGraph.getFirstNonRemovedInEdge(v0);
                 previousEdges.push_back(edgeId);
                 SHASTA_ASSERT(not wasFound[edgeId]);
                 if(debug) {
@@ -179,8 +196,11 @@ void PackedMarkerGraph::createSegmentsFromMarkerGraph(const string& name)
 
 
 
-    // Check that all edges of the marker graph were found.
-    SHASTA_ASSERT(find(wasFound.begin(), wasFound.end(), false) == wasFound.end());
+    // Check that all non-removed edges of the marker graph were found.
+    for(uint64_t edgeId=0; edgeId<markerGraph.edges.size(); edgeId++) {
+        const MarkerGraph::Edge& edge = markerGraph.edges[edgeId];
+        SHASTA_ASSERT(edge.wasRemoved() or wasFound[edgeId]);
+    }
 }
 
 
@@ -250,6 +270,21 @@ void PackedMarkerGraph::assembleSegmentSequences(const string& name)
 
 
 
+// The PackedMarkerGraph::segmentSequences stores, for each segment,
+// the entire sequence from the AssembledSegment.
+// This includes the entire sequence of the first
+// and last vertex of each segment.
+// This returns the clipped sequence of each segment,
+// which excludes the first and last k/2 bases.
+span<const Base> PackedMarkerGraph::clippedSequence(uint64_t segmentId) const
+{
+    const Base* begin = segmentSequences.begin(segmentId);
+    const Base* end = segmentSequences.end(segmentId);
+    return span<const Base>(begin + k / 2, end - k / 2);
+}
+
+
+
 void PackedMarkerGraph::writeGfa(const string& name) const
 {
     ofstream gfa(name + ".gfa");
@@ -287,7 +322,9 @@ void PackedMarkerGraph::writeGfa(const string& name) const
 
 
 
-BubbleCleaner::BubbleCleaner(const PackedMarkerGraph& packedMarkerGraph)
+BubbleCleaner::BubbleCleaner(
+    const PackedMarkerGraph& packedMarkerGraph) :
+    packedMarkerGraph(packedMarkerGraph)
 {
     BubbleCleaner& bubbleCleaner = *this;
 
@@ -302,6 +339,57 @@ BubbleCleaner::BubbleCleaner(const PackedMarkerGraph& packedMarkerGraph)
     }
 
 }
+
+
+
+string BubbleCleanerEdge::representation() const
+{
+    string s;
+    for(uint64_t i=0; i<segments.size(); i++) {
+        if(i != 0) {
+            s += "-";
+        }
+        s += to_string(segments[i]);
+    }
+    return s;
+}
+
+
+
+// Compute average marker graph edge coverage for an edge.
+double BubbleCleaner::averageEdgeCoverage(edge_descriptor e) const
+{
+    const BubbleCleanerEdge& edge = (*this)[e];
+
+    uint64_t sum = 0;
+    uint64_t n = 0;
+    for(const uint64_t segmentId: edge.segments) {
+        const auto segment = packedMarkerGraph.segments[segmentId];
+        for(const uint64_t edgeId: segment) {
+            const MarkerGraph::Edge& edge = packedMarkerGraph.markerGraph.edges[edgeId];
+            sum += edge.coverage;
+            n++;
+        }
+    }
+    return double(sum) / double(n);
+}
+
+
+
+void BubbleCleanerEdge::assembledSequence(
+    const PackedMarkerGraph& packedMarkerGraph,
+    vector<Base>& sequence) const
+{
+    sequence.clear();
+    for(const uint64_t segmentId: segments) {
+        const span<const Base> segmentSequence =
+            packedMarkerGraph.clippedSequence(segmentId);
+        copy(segmentSequence.begin(), segmentSequence.end(), back_inserter(sequence));
+
+    }
+}
+
+
 
 
 
@@ -322,35 +410,173 @@ BubbleCleaner::vertex_descriptor BubbleCleaner::getVertex(uint64_t markerGraphVe
 }
 
 
+
 // Given the initial PackedMarkerGraph, cleanup the bubbles
 // due to errors and store the result in a new PackedMarkerGraph.
-void BubbleCleaner::cleanup()
+void BubbleCleaner::cleanup(MarkerGraph& markerGraph)
 {
+    // The maximum period length that this will cleanup.
+    // EXPOSE AFTER CODE STABILIZES?   ************
+    const uint64_t maxPeriod = 4;
+
+    const bool debug = false;
     BubbleCleaner& bubbleCleaner = *this;
 
     // A bubble is a set of parallel edges. Find them all.
-    std::map<pair<vertex_descriptor, vertex_descriptor>, vector<edge_descriptor> > unprocessedBubbles;
+    std::map<pair<vertex_descriptor, vertex_descriptor>, vector<edge_descriptor> > bubbles;
     BGL_FORALL_EDGES(e, bubbleCleaner, BubbleCleaner) {
         const vertex_descriptor v0 = source(e, bubbleCleaner);
         const vertex_descriptor v1 = target(e, bubbleCleaner);
-        unprocessedBubbles[make_pair(v0, v1)].push_back(e);
+        bubbles[make_pair(v0, v1)].push_back(e);
     }
-    for(auto it=unprocessedBubbles.begin(); it!=unprocessedBubbles.end(); /* Increment later */) {
+    for(auto it=bubbles.begin(); it!=bubbles.end(); /* Increment later */) {
         auto itNext = it;
         ++itNext;
         if(it->second.size() < 2) {
-            unprocessedBubbles.erase(it);
+            bubbles.erase(it);
         }
         it = itNext;
     }
-    cout << "Found " << unprocessedBubbles.size() << " bubbles." << endl;
+
+    if(debug) {
+        cout << "Found " << bubbles.size() << " bubbles." << endl;
+    }
+
+
+
+    // Cleanup the bubbles we found.
+    // For now, this is not recursive.
+    // This means it will only deal with one level of "bubble within a bubble"
+    // situations.
+    for(const auto& p: bubbles) {
+        vertex_descriptor v0;
+        vertex_descriptor v1;
+        tie(v0, v1) = p.first;
+        const vector<edge_descriptor>& bubble = p.second;
+
+        // Get the sequence of the branches.
+        vector< vector<Base> > sequences(bubble.size());
+        for(uint64_t i=0; i<bubble.size(); i++) {
+            const edge_descriptor e = bubble[i];
+            bubbleCleaner[e].assembledSequence(packedMarkerGraph, sequences[i]);
+        }
+
+
+        if(debug) {
+            cout << "Working on a bubble with " << bubble.size() << " branches.\n";
+            cout << "MarkerGraph vertices " <<
+                bubbleCleaner[v0].markerGraphVertexId << " " <<
+                bubbleCleaner[v1].markerGraphVertexId << "\n";
+
+            for(uint64_t i=0; i<bubble.size(); i++) {
+                const edge_descriptor e = bubble[i];
+                copy(sequences[i].begin(), sequences[i].end(), ostream_iterator<Base>(cout));
+                cout << " " << bubbleCleaner[e].representation() << "\n";
+            }
+        }
+
+
+        const uint64_t period = computeCopyNumberDifferencePeriod(sequences, maxPeriod);
+        if(period == 0) {
+            continue;
+        }
+
+        if(period > maxPeriod) {
+            continue;
+        }
+
+        if(debug) {
+            cout << "This bubble describes copy number changes in a repeat of period " << period << "\n";
+        }
+
+        // Compute average edge coverage for the branches of this bubble.
+        vector<double> coverage(bubbles.size());
+        for(uint64_t i=0; i<bubble.size(); i++) {
+            const edge_descriptor e = bubble[i];
+            coverage[i] = averageEdgeCoverage(e);
+            if(debug) {
+                cout << bubbleCleaner[e].representation() <<
+                    " has length " << sequences[i].size() << " and coverage " << coverage[i] << "\n";
+            }
+        }
+
+        // Compute a coverage-weighted average of the lengths.
+        double sum = 0.;
+        double sumCoverage = 0.;
+        for(uint64_t i=0; i<bubble.size(); i++) {
+            sum += coverage[i] * double(sequences[i].size());
+            sumCoverage += coverage[i];
+        }
+        const double weightedAverageLength = double(sum) / double(sumCoverage);
+        if(debug) {
+            cout << "Coverage-weighted average length " << weightedAverageLength << "\n";
+        }
+
+        // Find the index of the branch that is closest to the weighted average.
+        uint64_t iBest = invalid<uint64_t>;
+        double bestDelta = 0.;
+        for(uint64_t i=0; i<bubble.size(); i++) {
+            const double delta = fabs(double(sequences[i].size()) - weightedAverageLength);
+            if(i == 0 or delta < bestDelta) {
+                iBest = i;
+                bestDelta = delta;
+            }
+        }
+        if(debug) {
+            cout << "Best approximation branch is " << bubbleCleaner[bubble[iBest]].representation() << "\n";
+        }
+
+
+        // Flag as removed the marker graph edges of the other branches.
+        for(uint64_t i=0; i<bubble.size(); i++) {
+            if(i == iBest) {
+                continue;
+            }
+            const edge_descriptor e = bubble[i];
+            const BubbleCleanerEdge& edge = bubbleCleaner[e];
+            for(const uint64_t segmentId: edge.segments) {
+                const auto segment = packedMarkerGraph.segments[segmentId];
+                for(const uint64_t edgeId: segment) {
+                    markerGraph.edges[edgeId].isSuperBubbleEdge = 1;
+                }
+            }
+        }
+
+
+    }
 
 }
 
 
 
-void BubbleCleaner::store(PackedMarkerGraph& packedMarkerGraph) const
+// Given assembled sequences of the branches of a bubble,
+// figure out if this is a bubble caused by copy number
+// differences in repeats of period up to maxPeriod.
+// If this is the case, returns the shortest period for which this is true.
+// Otherwise, returns 0.
+uint64_t BubbleCleaner::computeCopyNumberDifferencePeriod(
+    const vector< vector<Base> >& sequences,
+    uint64_t maxPeriod)
 {
-    SHASTA_ASSERT(0);
-}
 
+    // Check all pairs of branches.
+    vector<uint64_t> periods;
+    for(uint64_t i=0; i<sequences.size()-1; i++) {
+        for(uint64_t j=i+1; j<sequences.size(); j++) {
+            const uint64_t pairPeriod =
+                shasta::isCopyNumberDifference(sequences[i], sequences[j], maxPeriod);
+            if(pairPeriod == 0) {
+                return 0;
+            }
+            periods.push_back(pairPeriod);
+        }
+    }
+    deduplicate(periods);
+
+
+    if(periods.size() == 1) {
+        return periods.front();
+    } else {
+        return 0;
+    }
+}

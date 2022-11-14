@@ -20,7 +20,7 @@ a.setupConsensusCaller(config['Assembly']['consensusCaller'])
 a.accessMarkers()
 a.accessMarkerGraphVertices()
 a.accessMarkerGraphReverseComplementVertex()
-a.accessMarkerGraphEdges()
+a.accessMarkerGraphEdges(True)
 a.accessMarkerGraphReverseComplementEdge()
 a.accessMarkerGraphConsensus()
 

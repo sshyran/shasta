@@ -42,21 +42,6 @@ template<class Container> uint64_t shasta::isCopyNumberDifference(
     }
     SHASTA_ASSERT(nx < ny);
 
-    // If the length difference is not a multiple of one of the allowed periods,
-    // return 0.
-    const uint64_t dn = ny - nx;
-    bool found = false;
-    for(uint64_t period=2; period<=maxPeriod; period++) {
-        if((dn % period) == 0) {
-            found = true;
-            break;
-        }
-    }
-    if(not found) {
-        return 0;
-    }
-
-
     const uint64_t prefixLength = commonPrefixLength(x, y);
     const uint64_t suffixLength = commonSuffixLength(x, y);
 
@@ -79,6 +64,7 @@ template<class Container> uint64_t shasta::isCopyNumberDifference(
 
 
     // If getting here, x and y differ by an insertion in iy of range [iy, jy).
+    const uint64_t dn = ny - nx;
     SHASTA_ASSERT(ix == jx);
     SHASTA_ASSERT(jy - iy == dn);
 
@@ -86,7 +72,7 @@ template<class Container> uint64_t shasta::isCopyNumberDifference(
 
     // Check for k base repeat.
     // We kept the entire common prefix, so we can check just to the left of the insertion.
-    for(uint64_t period=2; period<=maxPeriod; period++) {
+    for(uint64_t period=1; period<=maxPeriod; period++) {
         if((dn % period) != 0) {
             continue;
         }

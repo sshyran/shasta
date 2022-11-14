@@ -6,10 +6,10 @@
 Namespace mode3a contains newer code for Mode 3 assembly.
 The code in namespace mode3 will eventually become obsolete.
 
-The top level class is mode3a::Assembler.
+The top level class is Assembler.
 
-Class mode3a::PackedMarkerGraph is used to initially
-construct a "packed" representation of the marker graph.
+Class PackedMarkerGraph is used to
+construct two "packed" representations of the marker graph.
 Here, each segment corresponds to a path in the marker graph
 Connectivity is generated based on marker graph connectivity.
 That is, a link between segments s0 and s1 is created
@@ -18,23 +18,28 @@ marker graph vertex of s1.
 Because connectivity does not "follow the reads", the
 mode3a::PackedMarkerGraph is subject to fragmentation.
 
-We use two mode3a::PackedMarkerGraph(s):
-- An initial one in which each segment corresponds to a linear sequence of marker graph edges
-  without any intervening incoming/outgoing edges.
+We use two instances of PackedMarkerGraph(s).
+In both versions, each segment corresponds to a
+linear sequence of marker graph edges
+without any intervening incoming/outgoing edges in the marker graph.
+- In the first instance, all marker graph edges are used to define
+the segments.
+- In the second instance, only marker graph edges that were not
+flagged by the BubbleCleaner are used.
 
-- A cleaned up version, in which
-  the bubbles dues to errors are removed.
+Class BubbleCleaner takes as input the initial :PackedMarkerGraph
+and flags marker graph edges of branch bubbles that are
+likely to be caused by errors.
 
-Class mode3a::BubbleCleaner takes as input the initial mode3a::PackedMarkerGraph
-and creates the cleaned up one.
-
-Class Mode3::AssemblyGraph is the workhorse class for detangling.
+Class Detangler is the workhorse class for detangling.
 It works iteratively, and so needs to be a dynamic data structure
 that can be updated easily, and for that reason it is represented
 as a boost::graph::adjacency_list.
 Here, each segment represents a sequence (not necessarily a path)
-of mode3a::PackedMarkerGraph segments (the cleaned up version).
+of mode3a::PackedMarkerGraph segments.
 Connectivity is created and maintained by "following the reads".
+This is constructed using as input the PackedMarkerGraph
+after bubble removal.
 
 *******************************************************************************/
 
@@ -56,7 +61,6 @@ namespace shasta {
     namespace mode3a {
         class Assembler;
         class PackedMarkerGraph;
-        class TidyMarkerGraph;
         class AssemblyGraph;
 
         class BubbleCleaner;
@@ -85,12 +89,15 @@ public:
         const MappedMemoryOwner&,
         const Reads&,
         const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
-        const MarkerGraph&);
+        MarkerGraph&);
 
     uint64_t k;
     const Reads& reads;
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers;
-    const MarkerGraph& markerGraph;
+
+    // The MarkerGraph is not const because the Assembler uses the BubbleCleaner
+    // to flag marker graph edges.
+    MarkerGraph& markerGraph;
 };
 
 
@@ -105,8 +112,7 @@ public:
         uint64_t k,
         const MappedMemoryOwner&,
         const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
-        const MarkerGraph&,
-        bool constructEmpty);
+        const MarkerGraph&);
 
 
     uint64_t k;
@@ -114,9 +120,9 @@ public:
     const MarkerGraph& markerGraph;
 
     // For each segment, we store its path in the marker graph.
+    // The path is a sequence of marker graph edge ids.
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> segments;
 
-    // This is used for intial creation from the marker graph.
     void createSegmentsFromMarkerGraph(const string& name);
 
     // Get the first or last marker graph vertex of a segment.
@@ -126,6 +132,14 @@ public:
     // Assembled sequence of each segment.
     MemoryMapped::VectorOfVectors<Base, uint64_t> segmentSequences;
     void assembleSegmentSequences(const string& name);
+
+    // The segmentSequences stores, for each segment,
+    // the entire sequence from the AssembledSegment.
+    // This includes the entire sequence of the first
+    // and last vertex of each segment.
+    // This returns the clipped sequence of each segment,
+    // which excludes the first and last k/2 bases.
+    span<const Base> clippedSequence(uint64_t segmentId) const;
 
     // A link between segments s0 and s1 is created if
     // the last marker graph vertex of s0 coincides with the
@@ -157,9 +171,7 @@ public:
 
 
 
-// Each vertex of the BubbleGraph corresponds to marker graph vertex.
-// The part is described as a sequence of segments in the initial
-// PackedMarkerGraph.
+// Each vertex of the BubbleGraph corresponds to a marker graph vertex.
 class shasta::mode3a::BubbleCleanerVertex {
 public:
     uint64_t markerGraphVertexId;
@@ -170,12 +182,14 @@ public:
 
 
 // Each edge of the BubbleCleaner corresponds to a path in the marker graph.
-// The path is described as a sequence of segments in the initial
-// PackedMarkerGraph.
+// The path is described as a sequence of segments in the PackedMarkerGraph.
 class shasta::mode3a::BubbleCleanerEdge {
 public:
     vector<uint64_t> segments;
     BubbleCleanerEdge(uint64_t segmentId) : segments(1, segmentId) {}
+
+    string representation() const;
+    void assembledSequence(const PackedMarkerGraph&, vector<Base>&) const;
 };
 
 
@@ -183,14 +197,14 @@ public:
 class shasta::mode3a::BubbleCleaner : public BubbleCleanerBaseClass {
 public:
 
-    // Construct the BubbleCleaner from the initial PackedMarkerGraph.
+    // Construct the BubbleCleaner from the PackedMarkerGraph.
     BubbleCleaner(const PackedMarkerGraph&);
+    const PackedMarkerGraph& packedMarkerGraph;
 
     // Clean up the bubbles causes by errors.
-    void cleanup();
-
-    // Store the result.
-    void store(PackedMarkerGraph&) const;
+    // This flags marker graph edges of bubble branches
+    // likely to be errors.
+    void cleanup(MarkerGraph&);
 
     // Get the vertex corresponding to a given marker graph vertex,
     // creating if necessary.
@@ -198,6 +212,21 @@ public:
 
     // Map marker graph vertices to vertex descriptors.
     std::map<uint64_t, vertex_descriptor> vertexMap;
+
+    // Hide BubbleCleanerBaseClass::Base.
+    using Base = shasta::Base;
+
+    // Given assembled sequences of the branches of a bubble,
+    // figure out if this is a bubble caused by copy number
+    // differences in repeats of period up to maxPeriod.
+    // If this is the case, returns the shortest period for which this is true.
+    // Otherwise, returns 0.
+    static uint64_t computeCopyNumberDifferencePeriod(
+        const vector< vector<Base> >& sequences,
+        uint64_t maxPeriod);
+
+    // Compute average marker graph edge coverage for an edge.
+    double averageEdgeCoverage(edge_descriptor e) const;
 };
 
 
