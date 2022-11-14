@@ -2058,43 +2058,6 @@ uint64_t AssemblyGraph2Edge::countCommonSuffixBases() const
 
 
 
-
-// Figure out if this is a bubble is caused by copy number
-// differences in repeats of period up to maxPeriod.
-// If this is the case, returns the shortest period for which this is true.
-// Otherwise, returns 0.
-void AssemblyGraph2Edge::computeCopyNumberDifferencePeriod(uint64_t maxPeriod)
-{
-    if(not isBubble()) {
-        period = 0;
-    }
-
-    // Check all pairs of branches.
-    vector<uint64_t> periods;
-    for(uint64_t i=0; i<branches.size()-1; i++) {
-        const vector<Base>& iSequence = branches[i].rawSequence;
-        for(uint64_t j=i+1; j<branches.size(); j++) {
-            const vector<Base>& jSequence = branches[j].rawSequence;
-            const uint64_t pairPeriod = shasta::isCopyNumberDifference(iSequence, jSequence, maxPeriod);
-            if(pairPeriod == 0) {
-                period = 0;
-                return;
-            }
-            periods.push_back(pairPeriod);
-        }
-    }
-    deduplicate(periods);
-
-
-    if(periods.size() == 1) {
-        period = periods.front();
-    } else {
-        period = 0;
-    }
-}
-
-
-
 // Compute the edit distance between the sequences of the two branches.
 // This can only be called for a diploid bubble (2 branches).
 uint64_t AssemblyGraph2Edge::bubbleEditDistance() const

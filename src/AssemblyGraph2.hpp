@@ -214,11 +214,6 @@ public:
     uint64_t backwardTransferCount = 0;
     uint64_t forwardTransferCount = 0;
 
-    // Figure out if this is a bubble is caused by copy number
-    // differences in repeats of period up to maxPeriod.
-    // If this is the case, stores the shortest period for which this is true.
-    // Otherwise, stores 0 as the period.
-    void computeCopyNumberDifferencePeriod(uint64_t maxPeriod);
     uint64_t period = 0;
     string color(uint64_t branchId) const;
 
