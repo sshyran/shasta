@@ -2,7 +2,7 @@
 #define SHASTA_COPY_NUMBER_HPP
 
 #include "prefixLength.hpp"
-#include "span.hpp"
+#include "SHASTA_ASSERT.hpp"
 #include "cstdint.hpp"
 
 namespace shasta {

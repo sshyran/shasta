@@ -27,7 +27,7 @@ the segments.
 - In the second instance, only marker graph edges that were not
 flagged by the BubbleCleaner are used.
 
-Class BubbleCleaner takes as input the initial :PackedMarkerGraph
+Class BubbleCleaner takes as input the initial PackedMarkerGraph
 and flags marker graph edges of branch bubbles that are
 likely to be caused by errors.
 
@@ -48,9 +48,6 @@ after bubble removal.
 #include "MappedMemoryOwner.hpp"
 #include "MemoryMappedVectorOfVectors.hpp"
 
-// Boost libraries.
-#include <boost/graph/adjacency_list.hpp>
-
 // Standard library.
 #include "string.hpp"
 
@@ -62,13 +59,6 @@ namespace shasta {
         class Assembler;
         class PackedMarkerGraph;
         class AssemblyGraph;
-
-        class BubbleCleaner;
-        class BubbleCleanerVertex;
-        class BubbleCleanerEdge;
-        using BubbleCleanerBaseClass = boost::adjacency_list<
-            boost::listS, boost::listS, boost::bidirectionalS,
-            BubbleCleanerVertex, BubbleCleanerEdge>;
     }
 
     // Forward declarations of Shasta classes defined elsewhere.
@@ -167,66 +157,6 @@ public:
     void createConnectivity(const string& name);
 
     void writeGfa(const string& name) const;
-};
-
-
-
-// Each vertex of the BubbleGraph corresponds to a marker graph vertex.
-class shasta::mode3a::BubbleCleanerVertex {
-public:
-    uint64_t markerGraphVertexId;
-    BubbleCleanerVertex(uint64_t markerGraphVertexId) :
-        markerGraphVertexId(markerGraphVertexId) {}
-};
-
-
-
-// Each edge of the BubbleCleaner corresponds to a path in the marker graph.
-// The path is described as a sequence of segments in the PackedMarkerGraph.
-class shasta::mode3a::BubbleCleanerEdge {
-public:
-    vector<uint64_t> segments;
-    BubbleCleanerEdge(uint64_t segmentId) : segments(1, segmentId) {}
-
-    string representation() const;
-    void assembledSequence(const PackedMarkerGraph&, vector<Base>&) const;
-};
-
-
-
-class shasta::mode3a::BubbleCleaner : public BubbleCleanerBaseClass {
-public:
-
-    // Construct the BubbleCleaner from the PackedMarkerGraph.
-    BubbleCleaner(const PackedMarkerGraph&);
-    const PackedMarkerGraph& packedMarkerGraph;
-
-    // Clean up the bubbles causes by errors.
-    // This flags marker graph edges of bubble branches
-    // likely to be errors.
-    void cleanup(MarkerGraph&);
-
-    // Get the vertex corresponding to a given marker graph vertex,
-    // creating if necessary.
-    vertex_descriptor getVertex(uint64_t markerGraphVertexId);
-
-    // Map marker graph vertices to vertex descriptors.
-    std::map<uint64_t, vertex_descriptor> vertexMap;
-
-    // Hide BubbleCleanerBaseClass::Base.
-    using Base = shasta::Base;
-
-    // Given assembled sequences of the branches of a bubble,
-    // figure out if this is a bubble caused by copy number
-    // differences in repeats of period up to maxPeriod.
-    // If this is the case, returns the shortest period for which this is true.
-    // Otherwise, returns 0.
-    static uint64_t computeCopyNumberDifferencePeriod(
-        const vector< vector<Base> >& sequences,
-        uint64_t maxPeriod);
-
-    // Compute average marker graph edge coverage for an edge.
-    double averageEdgeCoverage(edge_descriptor e) const;
 };
 
 
