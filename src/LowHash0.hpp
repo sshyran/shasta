@@ -42,7 +42,6 @@ public:
         size_t maxBucketSize,           // The maximum size for a bucket to be used.
         size_t minFrequency,            // Minimum number of minHash hits for a pair to be considered a candidate.
         size_t threadCount,
-        const MemoryMapped::Vector<KmerInfo>& kmerTable,
         const Reads& reads,
         const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>&,
         MemoryMapped::Vector<OrientedReadPair>&,
@@ -60,7 +59,6 @@ private:
     size_t maxBucketSize;           // The maximum size for a bucket to be used.
     size_t minFrequency;            // Minimum number of minHash hits for a pair to be considered a candidate.
     size_t threadCount;
-    const MemoryMapped::Vector<KmerInfo>& kmerTable;
     const Reads& reads;
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers;
     MemoryMapped::Vector< array<uint64_t, 3> > &readLowHashStatistics;

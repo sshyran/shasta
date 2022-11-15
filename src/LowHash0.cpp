@@ -33,7 +33,6 @@ LowHash0::LowHash0(
     size_t maxBucketSize,           // The maximum size for a bucket to be used.
     size_t minFrequency,            // Minimum number of minHash hits for a pair to be considered a candidate.
     size_t threadCountArgument,
-    const MemoryMapped::Vector<KmerInfo>& kmerTable,
     const Reads& reads,
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
     MemoryMapped::Vector<OrientedReadPair>& candidateAlignments,
@@ -48,7 +47,6 @@ LowHash0::LowHash0(
     maxBucketSize(maxBucketSize),
     minFrequency(minFrequency),
     threadCount(threadCountArgument),
-    kmerTable(kmerTable),
     reads(reads),
     markers(markers),
     readLowHashStatistics(readLowHashStatistics),

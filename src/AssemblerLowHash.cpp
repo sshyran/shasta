@@ -43,7 +43,6 @@ void Assembler::findAlignmentCandidatesLowHash0(
         maxBucketSize,
         minFrequency,
         threadCount,
-        kmerTable,
         getReads(),
         markers,
         alignmentCandidates.candidates,
