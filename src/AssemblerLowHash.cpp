@@ -1,6 +1,5 @@
 #include "Assembler.hpp"
 #include "LowHash0.hpp"
-#include "LowHash1.hpp"
 using namespace shasta;
 
 
@@ -127,52 +126,6 @@ void Assembler::writeOverlappingReads(
     cout << "Found " << alignmentTable[orientedReadId0.getValue()].size();
     cout << " overlapping oriented reads." << endl;
 
-}
-
-
-
-// New version that also stores alignmentCandidates.featureOrdinals.
-// This can be used to filter the alignment candidates.
-void Assembler::findAlignmentCandidatesLowHash1(
-    size_t m,                       // Number of consecutive k-mers that define a feature.
-    double hashFraction,            // Low hash threshold.
-    size_t minHashIterationCount,   // Number of lowHash iterations.
-    size_t log2MinHashBucketCount,  // Base 2 log of number of buckets for lowHash.
-    size_t minBucketSize,           // The minimum size for a bucket to be used.
-    size_t maxBucketSize,           // The maximum size for a bucket to be used.
-    size_t minFrequency,            // Minimum number of minHash hits for a pair to become a candidate.
-    size_t threadCount)
-{
-    // Check that we have what we need.
-    checkKmersAreOpen();
-    checkMarkersAreOpen();
-    const ReadId readCount = ReadId(markers.size() / 2);
-    SHASTA_ASSERT(readCount > 0);
-
-    // Prepare storage.
-    alignmentCandidates.candidates.createNew(
-        largeDataName("AlignmentCandidates"), largeDataPageSize);
-    alignmentCandidates.featureOrdinals.createNew(
-        largeDataName("AlignmentCandidatesFeatureOrdinale"), largeDataPageSize);
-
-    // Do the computation.
-    LowHash1 lowHash1(
-        m,
-        hashFraction,
-        minHashIterationCount,
-        log2MinHashBucketCount,
-        minBucketSize,
-        maxBucketSize,
-        minFrequency,
-        threadCount,
-        kmerTable,
-        getReads(),
-        markers,
-        alignmentCandidates,
-        largeDataFileNamePrefix,
-        largeDataPageSize);
-    
-    alignmentCandidates.unreserve();
 }
 
 

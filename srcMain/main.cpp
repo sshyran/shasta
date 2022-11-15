@@ -228,11 +228,10 @@ void shasta::main::assemble(
     }
 
     // Check assemblerOptions.minHashOptions.version.
-    if( assemblerOptions.minHashOptions.version!=0 and
-        assemblerOptions.minHashOptions.version!=1) {
+    if( assemblerOptions.minHashOptions.version!=0) {
         throw runtime_error("Invalid value " +
             to_string(assemblerOptions.minHashOptions.version) +
-            " specified for --MinHash.version. Must be 0 or 1.");
+            " specified for --MinHash.version. Must be 0.");
     }
 
     // Check assemblerOptions.minHashOptions minimum/maximum bucket size.
@@ -669,23 +668,13 @@ void shasta::main::assemble(
     // Find alignment candidates.
     if(assemblerOptions.minHashOptions.allPairs) {
         assembler.markAlignmentCandidatesAllPairs();
-    } else if(assemblerOptions.minHashOptions.version == 0) {
+    } else {
+        SHASTA_ASSERT(assemblerOptions.minHashOptions.version == 0); // Already checked for that.
         assembler.findAlignmentCandidatesLowHash0(
             assemblerOptions.minHashOptions.m,
             assemblerOptions.minHashOptions.hashFraction,
             assemblerOptions.minHashOptions.minHashIterationCount,
             assemblerOptions.minHashOptions.alignmentCandidatesPerRead,
-            0,
-            assemblerOptions.minHashOptions.minBucketSize,
-            assemblerOptions.minHashOptions.maxBucketSize,
-            assemblerOptions.minHashOptions.minFrequency,
-            threadCount);
-    } else {
-        SHASTA_ASSERT(assemblerOptions.minHashOptions.version == 1);    // Already checked for that.
-        assembler.findAlignmentCandidatesLowHash1(
-            assemblerOptions.minHashOptions.m,
-            assemblerOptions.minHashOptions.hashFraction,
-            assemblerOptions.minHashOptions.minHashIterationCount,
             0,
             assemblerOptions.minHashOptions.minBucketSize,
             assemblerOptions.minHashOptions.maxBucketSize,
