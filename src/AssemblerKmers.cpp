@@ -1,6 +1,7 @@
 // Shasta.
 #include "Assembler.hpp"
 #include "deduplicate.hpp"
+#include "KmerChecker.hpp"
 #include "MurmurHash2.hpp"
 #include "Reads.hpp"
 #include "timestamp.hpp"
@@ -18,13 +19,26 @@ void Assembler::accessKmers()
     if(kmerTable.size() != (1ULL<< (2*assemblerInfo->k))) {
         throw runtime_error("Size of k-mer vector is inconsistent with stored value of k.");
     }
+    accessKmerChecker();
 }
 
 void Assembler::checkKmersAreOpen()const
 {
-    if(!kmerTable.isOpen) {
+    if(!kmerTable.isOpen or not kmerChecker) {
         throw runtime_error("Kmers are not accessible.");
     }
+}
+
+void Assembler::createKmerChecker()
+{
+    kmerChecker = make_shared<KmerChecker>();
+    kmerChecker->create(kmerTable, largeDataName("KmerChecker"), largeDataPageSize);
+}
+void Assembler::accessKmerChecker()
+{
+    kmerChecker = make_shared<KmerChecker>();
+    kmerChecker->access(largeDataName("KmerChecker"));
+
 }
 
 

@@ -39,6 +39,7 @@ namespace shasta {
     class ConsensusCaller;
     class Histogram2;
     class InducedAlignment;
+    class KmerChecker;
     class LocalAssemblyGraph;
     class LocalAlignmentCandidateGraph;
     class LocalAlignmentGraph;
@@ -426,7 +427,15 @@ private:
     MemoryMapped::Vector<KmerInfo> kmerTable;
     void checkKmersAreOpen() const;
 
+    // As we transition to longer markers, we will no longer be able to store a k-mer
+    // table. Instead, the KmerChecker will be used to find out if a given k-mer
+    // is a marker. The initial implementation of the KmerChecker is table based,
+    // but later we will switch to hashing.
+    shared_ptr<KmerChecker> kmerChecker;
 public:
+    void createKmerChecker();
+    void accessKmerChecker();
+
     void accessKmers();
     void writeKmers(const string& fileName) const;
 

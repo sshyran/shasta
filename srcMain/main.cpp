@@ -643,6 +643,7 @@ void shasta::main::assemble(
         throw runtime_error("Invalid --Kmers generationMethod. "
             "Specify a value between 0 and 4, inclusive.");
     }
+    assembler.createKmerChecker();
 
 
 
