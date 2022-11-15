@@ -327,8 +327,7 @@ void AssemblerOptions::addConfigurableOptions()
         ("MinHash.version",
         value<int>(&minHashOptions.version)->
         default_value(0),
-        "Controls the version of the LowHash algorithm to use. Can be 0 (default) "
-        "or 1.(experimental).")
+        "Controls the version of the LowHash algorithm to use. Must be 0 (default).")
 
         ("MinHash.m",
         value<int>(&minHashOptions.m)->
