@@ -115,21 +115,8 @@ void BubbleCleaner::cleanup(MarkerGraph& markerGraph)
     const bool debug = false;
     BubbleCleaner& bubbleCleaner = *this;
 
-    // A bubble is a set of parallel edges. Find them all.
-    std::map<pair<vertex_descriptor, vertex_descriptor>, vector<edge_descriptor> > bubbles;
-    BGL_FORALL_EDGES(e, bubbleCleaner, BubbleCleaner) {
-        const vertex_descriptor v0 = source(e, bubbleCleaner);
-        const vertex_descriptor v1 = target(e, bubbleCleaner);
-        bubbles[make_pair(v0, v1)].push_back(e);
-    }
-    for(auto it=bubbles.begin(); it!=bubbles.end(); /* Increment later */) {
-        auto itNext = it;
-        ++itNext;
-        if(it->second.size() < 2) {
-            bubbles.erase(it);
-        }
-        it = itNext;
-    }
+    Bubbles bubbles;
+    findBubbles(bubbles);
 
     if(debug) {
         cout << "Found " << bubbles.size() << " bubbles." << endl;
@@ -141,55 +128,63 @@ void BubbleCleaner::cleanup(MarkerGraph& markerGraph)
     // For now, this is not recursive.
     // This means it will only deal with one level of "bubble within a bubble"
     // situations.
-    for(const auto& p: bubbles) {
+    while(not bubbles.empty()) {
+        const auto it = bubbles.begin();
         vertex_descriptor v0;
         vertex_descriptor v1;
-        tie(v0, v1) = p.first;
-        const vector<edge_descriptor>& bubble = p.second;
+        tie(v0, v1) = it->first;
+        const Bubble& bubble = it->second;
 
-        // Get the sequence of the branches.
-        vector< vector<Base> > sequences(bubble.size());
-        for(uint64_t i=0; i<bubble.size(); i++) {
-            const edge_descriptor e = bubble[i];
-            bubbleCleaner[e].assembledSequence(packedMarkerGraph, sequences[i]);
+        // Sanity check.
+        for(const edge_descriptor e: bubble) {
+            SHASTA_ASSERT(source(e, bubbleCleaner) == v0);
+            SHASTA_ASSERT(target(e, bubbleCleaner) == v1);
         }
 
+        // Get the sequence of the branches.
+        vector< vector<Base> > sequences;
+        getBubbleSequences(bubble, sequences);
 
         if(debug) {
-            cout << "Working on a bubble with " << bubble.size() << " branches.\n";
+            cout << "Working on a bubble with " << bubble.size() << " branches." << endl;
             cout << "MarkerGraph vertices " <<
                 bubbleCleaner[v0].markerGraphVertexId << " " <<
-                bubbleCleaner[v1].markerGraphVertexId << "\n";
+                bubbleCleaner[v1].markerGraphVertexId << endl;
 
             for(uint64_t i=0; i<bubble.size(); i++) {
                 const edge_descriptor e = bubble[i];
                 copy(sequences[i].begin(), sequences[i].end(), ostream_iterator<Base>(cout));
-                cout << " " << bubbleCleaner[e].representation() << "\n";
+                cout << " " << bubbleCleaner[e].representation() << endl;
             }
         }
 
-
+        // See if the branches differ by a repeat count in a short repeat, with period
+        // up to maxPeriod.
         const uint64_t period = computeCopyNumberDifferencePeriod(sequences, maxPeriod);
         if(period == 0) {
+            bubbles.erase(it);
             continue;
         }
-
         if(period > maxPeriod) {
+            bubbles.erase(it);
             continue;
         }
 
         if(debug) {
-            cout << "This bubble describes copy number changes in a repeat of period " << period << "\n";
+            cout << "This bubble describes copy number changes in a repeat of period " << period << endl;
         }
 
         // Compute average edge coverage for the branches of this bubble.
         vector<double> coverage(bubbles.size());
-        for(uint64_t i=0; i<bubble.size(); i++) {
-            const edge_descriptor e = bubble[i];
-            coverage[i] = averageEdgeCoverage(e);
-            if(debug) {
-                cout << bubbleCleaner[e].representation() <<
-                    " has length " << sequences[i].size() << " and coverage " << coverage[i] << "\n";
+        computeBubbleCoverage(bubble, coverage);
+
+        if(debug) {
+            for(uint64_t i=0; i<bubble.size(); i++) {
+                const edge_descriptor e = bubble[i];
+                if(debug) {
+                    cout << bubbleCleaner[e].representation() <<
+                        " has length " << sequences[i].size() << " and coverage " << coverage[i] << endl;
+                }
             }
         }
 
@@ -201,8 +196,9 @@ void BubbleCleaner::cleanup(MarkerGraph& markerGraph)
             sumCoverage += coverage[i];
         }
         const double weightedAverageLength = double(sum) / double(sumCoverage);
+
         if(debug) {
-            cout << "Coverage-weighted average length " << weightedAverageLength << "\n";
+            cout << "Coverage-weighted average length " << weightedAverageLength << endl;
         }
 
         // Find the index of the branch that is closest to the weighted average.
@@ -215,12 +211,14 @@ void BubbleCleaner::cleanup(MarkerGraph& markerGraph)
                 bestDelta = delta;
             }
         }
+        SHASTA_ASSERT(iBest != invalid<uint64_t>);
+
         if(debug) {
-            cout << "Best approximation branch is " << bubbleCleaner[bubble[iBest]].representation() << "\n";
+            cout << "Best approximation branch is " << bubbleCleaner[bubble[iBest]].representation() << endl;
         }
 
-
         // Flag as removed the marker graph edges of the other branches.
+        // Remove the BubbleCleaner edges corresponding to the other branches.
         for(uint64_t i=0; i<bubble.size(); i++) {
             if(i == iBest) {
                 continue;
@@ -233,11 +231,114 @@ void BubbleCleaner::cleanup(MarkerGraph& markerGraph)
                     markerGraph.edges[edgeId].isSuperBubbleEdge = 1;
                 }
             }
+            boost::remove_edge(e, bubbleCleaner);
         }
 
+        // Merge the surviving bubble with the previous and/or next edge, if possible.
+        edge_descriptor e = bubble[iBest];
+        edge_descriptor eNew;
+        const bool mergedWithPrevious = mergeWithPreviousIfPossible(e, eNew);
+        e = eNew;
+        const bool mergedWithNext = mergeWithNextIfPossible(e, eNew);
+        e = eNew;
 
+
+
+        // If merge occurred, see if we can add the merged edge to an existing
+        // unprocessed bubble, or if we can use it to create a new bubble.
+        if(mergedWithPrevious or mergedWithNext) {
+            const vertex_descriptor v0 = source(e, bubbleCleaner);
+            const vertex_descriptor v1 = target(e, bubbleCleaner);
+            auto it = bubbles.find(VertexPair(v0, v1));
+            if(it != bubbles.end()) {
+                // Add it to this bubble.
+                it->second.push_back(e);
+            } else {
+                // We can't add it to an existing unprocessed bubble.
+                // See if we can create a new bubble.
+                Bubble bubble;
+                bool noWay = false;
+                BGL_FORALL_OUTEDGES(v0, e, bubbleCleaner, BubbleCleaner) {
+                    if(target(e, bubbleCleaner) != v1) {
+                        noWay = true;
+                        break;
+                    }
+                    bubble.push_back(e);
+                }
+                if(not noWay and bubble.size() > 1) {
+                    BGL_FORALL_INEDGES(v1, e, bubbleCleaner, BubbleCleaner) {
+                        if(source(e, bubbleCleaner) != v0) {
+                            noWay = true;
+                            break;
+                        }
+                    }
+                    if(not noWay) {
+                        bubbles.insert(make_pair(VertexPair(v0, v1), bubble));
+                    }
+                }
+            }
+        }
+
+        // Remove this bubble from our list.
+        bubbles.erase(it);
     }
 
+}
+
+
+
+// Compute average edge coverage for the branches of a bubble.
+void BubbleCleaner::computeBubbleCoverage(
+    const Bubble& bubble,
+    vector<double>& coverage) const
+{
+    coverage.resize(bubble.size());
+    for(uint64_t i=0; i<bubble.size(); i++) {
+        const edge_descriptor e = bubble[i];
+        coverage[i] = averageEdgeCoverage(e);
+    }
+}
+
+
+
+// Get assembled sequences of the branches of a bubble.
+void BubbleCleaner::getBubbleSequences(
+    const Bubble& bubble,
+    vector< vector<Base> >& sequences) const
+{
+    const BubbleCleaner& bubbleCleaner = *this;
+
+    sequences.resize(bubble.size());
+    for(uint64_t i=0; i<bubble.size(); i++) {
+        const edge_descriptor e = bubble[i];
+        bubbleCleaner[e].assembledSequence(packedMarkerGraph, sequences[i]);
+    }
+
+}
+
+
+
+// A bubble is a set of parallel edges between two vertices (v0, v1).
+void BubbleCleaner::findBubbles(Bubbles& bubbles) const
+{
+    const BubbleCleaner& bubbleCleaner = *this;
+    bubbles.clear();
+
+    BGL_FORALL_EDGES(e, bubbleCleaner, BubbleCleaner) {
+        const vertex_descriptor v0 = source(e, bubbleCleaner);
+        const vertex_descriptor v1 = target(e, bubbleCleaner);
+        bubbles[VertexPair(v0, v1)].push_back(e);
+    }
+
+    // Only keep the ones with at least 2 edges.
+    for(auto it=bubbles.begin(); it!=bubbles.end(); /* Increment later */) {
+        auto itNext = it;
+        ++itNext;
+        if(it->second.size() < 2) {
+            bubbles.erase(it);
+        }
+        it = itNext;
+    }
 }
 
 
@@ -273,3 +374,115 @@ uint64_t BubbleCleaner::computeCopyNumberDifferencePeriod(
         return 0;
     }
 }
+
+
+
+// Merge an edge with its only previous edge, if possible.
+// If the merge  was done this returns true and eNew is the
+// newly created edge.
+// Otherwise, this returns false and eNew is set equal to e.
+bool BubbleCleaner::mergeWithPreviousIfPossible(
+    edge_descriptor e,
+    edge_descriptor& eNew
+    )
+{
+    BubbleCleaner& bubbleCleaner = *this;
+
+    const vertex_descriptor v0 = source(e, bubbleCleaner);
+    if(in_degree(v0, bubbleCleaner) == 1 and out_degree(v0, bubbleCleaner) == 1) {
+
+        // We can merge (except for exceptional case below).
+        const vertex_descriptor v1 = target(e, bubbleCleaner);
+
+        in_edge_iterator it;
+        tie(it, ignore) = in_edges(v0, bubbleCleaner);
+        const edge_descriptor ePrevious = *it;
+        if(ePrevious == e) {
+            // We can't merge.
+            eNew = e;
+            return false;
+        }
+        const vertex_descriptor v2 = source(ePrevious, bubbleCleaner);
+
+        // Add the new edge.
+        bool edgeWasAdded = false;
+        tie(eNew, edgeWasAdded) = add_edge(v2, v1, bubbleCleaner);
+        SHASTA_ASSERT(edgeWasAdded);
+        BubbleCleanerEdge& newEdge = bubbleCleaner[eNew];
+
+        // Store the segments of the new edge.
+        const BubbleCleanerEdge& previousEdge = bubbleCleaner[ePrevious];
+        newEdge.segments = previousEdge.segments;
+        const BubbleCleanerEdge& edge = bubbleCleaner[e];
+        copy(edge.segments.begin(), edge.segments.end(), back_inserter(newEdge.segments));
+
+        // Remove the old edges.
+        boost::remove_edge(ePrevious, bubbleCleaner);
+        boost::remove_edge(e, bubbleCleaner);
+
+        return true;
+    } else {
+
+        // We can't merge.
+        eNew = e;
+        return false;
+    }
+}
+
+
+
+
+
+
+// Merge an edge with its only next edge, if possible.
+// If the merge  was done this returns true and eNew is the
+// newly created edge.
+// Otherwise, this returns false and eNew is set equal to e.
+bool BubbleCleaner::mergeWithNextIfPossible(
+    edge_descriptor e,
+    edge_descriptor& eNew
+    )
+{
+    BubbleCleaner& bubbleCleaner = *this;
+
+    const vertex_descriptor v1 = target(e, bubbleCleaner);
+    if(in_degree(v1, bubbleCleaner) == 1 and out_degree(v1, bubbleCleaner) == 1) {
+
+        // We can merge (except for exceptional case below).
+        const vertex_descriptor v0 = source(e, bubbleCleaner);
+
+        out_edge_iterator it;
+        tie(it, ignore) = out_edges(v1, bubbleCleaner);
+        const edge_descriptor eNext = *it;
+        if(eNext == e) {
+            // We can't merge.
+            eNew = e;
+            return false;
+        }
+        const vertex_descriptor v2 = target(eNext, bubbleCleaner);
+
+        // Add the new edge.
+        bool edgeWasAdded = false;
+        tie(eNew, edgeWasAdded) = add_edge(v0, v2, bubbleCleaner);
+        SHASTA_ASSERT(edgeWasAdded);
+        BubbleCleanerEdge& newEdge = bubbleCleaner[eNew];
+
+        // Store the segments of the new edge.
+        const BubbleCleanerEdge& edge = bubbleCleaner[e];
+        newEdge.segments = edge.segments;
+        const BubbleCleanerEdge& nextEdge = bubbleCleaner[eNext];
+        copy(nextEdge.segments.begin(), nextEdge.segments.end(), back_inserter(newEdge.segments));
+
+        // Remove the old edges.
+        boost::remove_edge(eNext, bubbleCleaner);
+        boost::remove_edge(e, bubbleCleaner);
+
+        return true;
+    } else {
+
+        // We can't merge.
+        eNew = e;
+        return false;
+    }
+}
+
