@@ -72,7 +72,10 @@ Assembler::Assembler(
 
     // Create the AssemblyGraph.
     packedMarkerGraph->createMarkerGraphEdgeTable(threadCount);
+    packedMarkerGraph->computeJourneys(threadCount);
+    packedMarkerGraph->writeJourneys();
     AssemblyGraph assemblyGraph(*packedMarkerGraph);
+    packedMarkerGraph->journeys.shrink_to_fit();
     packedMarkerGraph->markerGraphEdgeTable.remove();
 }
 

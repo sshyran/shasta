@@ -21,6 +21,7 @@ namespace shasta {
 
     class CompressedMarker;
     class MarkerGraph;
+    class OrientedReadId;
 }
 
 
@@ -95,14 +96,29 @@ public:
 
     void remove();
 
-    // Keep track of the segment and position each marker graph edge corresponds to.
+    // Keep track of the segment each marker graph edge corresponds to.
     // For each marker graph edge, store in the marker graph edge table
-    // the corresponding segment id and position in the path, if any.
+    // the corresponding segment id, if any.
     // Indexed by the edge id in the marker graph.
-    // This is needed when computing markerGraphJourneys below.
-    MemoryMapped::Vector< pair<uint64_t, uint64_t> > markerGraphEdgeTable;
+    // This is needed when computing oriented read journeys below.
+    MemoryMapped::Vector<uint64_t> markerGraphEdgeTable;
     void createMarkerGraphEdgeTable(uint64_t threadCount);
     void createMarkerGraphEdgeTableThreadFunction(uint64_t threadId);
+
+    // The journey of an oriented read is the sequence of segments it encounters.
+    // Indexed by OrientedReadId::getValue().
+    // Their computation uses the markerGraphEdgeTable above.
+    vector< vector<uint64_t> > journeys;
+    void computeJourneys(uint64_t threadCount);
+    void computeJourneysThreadFunction(uint64_t threadId);
+    void computeJourney(
+        OrientedReadId,
+        vector<uint64_t>& markerGraphVertices,
+        vector<uint64_t>& edges);
+    void writeJourneys() const;
+
+
+
 };
 
 #endif
