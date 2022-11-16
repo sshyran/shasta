@@ -10,6 +10,10 @@ using namespace mode3a;
 #include "fstream.hpp"
 #include <map>
 
+// Explicit instantiation.
+#include "MultithreadedObject.tpp"
+template class MultithreadedObject<PackedMarkerGraph>;
+
 
 
 // Initial creation from the marker graph.
@@ -20,6 +24,7 @@ PackedMarkerGraph::PackedMarkerGraph(
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
     const MarkerGraph& markerGraph) :
     MappedMemoryOwner(mappedMemoryOwner),
+    MultithreadedObject<PackedMarkerGraph>(*this),
     name(name),
     k(k),
     markers(markers),
@@ -276,5 +281,49 @@ void PackedMarkerGraph::remove()
     }
     if(linksByTarget.isOpen()) {
         linksByTarget.remove();
+    }
+}
+
+
+
+void PackedMarkerGraph::createMarkerGraphEdgeTable(uint64_t threadCount)
+{
+
+    // Initialize the marker graph edge table.
+    createNew(markerGraphEdgeTable, name + "-MarkerGraphEdgeTable");
+    markerGraphEdgeTable.resize(markerGraph.edges.size());
+    fill(markerGraphEdgeTable.begin(), markerGraphEdgeTable.end(), make_pair(
+        std::numeric_limits<uint64_t>::max(),
+        std::numeric_limits<uint32_t>::max()
+        ));
+
+    // Fill in the marker graph edge table.
+    const uint64_t batchSize = 100;
+    setupLoadBalancing(segments.size(), batchSize);
+    runThreads(&PackedMarkerGraph::createMarkerGraphEdgeTableThreadFunction, threadCount);
+}
+
+
+
+void PackedMarkerGraph::createMarkerGraphEdgeTableThreadFunction(uint64_t threadId)
+{
+
+    // Loop over all batches assigned to this thread.
+    uint64_t begin, end;
+    while(getNextBatch(begin, end)) {
+
+        // Loop over all segments assigned to this batch.
+        for(uint64_t segmentId=begin; segmentId!=end; ++segmentId) {
+            const auto segment = segments[segmentId];
+
+            // Loop over the marker graph path of this segment.
+            for(uint64_t position=0; position<segment.size(); position++) {
+                const uint64_t markerGraphEdgeId = segment[position];
+
+                // Store the marker graph edge table entry for this edge.
+                SHASTA_ASSERT(markerGraphEdgeId < markerGraphEdgeTable.size());
+                markerGraphEdgeTable[markerGraphEdgeId] = make_pair(segmentId, position);
+            }
+        }
     }
 }

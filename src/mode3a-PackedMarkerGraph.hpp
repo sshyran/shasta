@@ -7,6 +7,7 @@
 #include "Base.hpp"
 #include "MappedMemoryOwner.hpp"
 #include "MemoryMappedVectorOfVectors.hpp"
+#include "MultithreadedObject.hpp"
 
 // Standard library.
 #include "string.hpp"
@@ -16,6 +17,7 @@ namespace shasta {
     namespace mode3a {
         class PackedMarkerGraph;
     }
+    extern template class MultithreadedObject<mode3a::PackedMarkerGraph>;
 
     class CompressedMarker;
     class MarkerGraph;
@@ -26,7 +28,8 @@ namespace shasta {
 // In the PackedMarkerGraph, each segment corresponds exactly to a
 // path in the marker graph.
 class shasta::mode3a::PackedMarkerGraph :
-    public MappedMemoryOwner {
+    public MappedMemoryOwner,
+    public MultithreadedObject<PackedMarkerGraph> {
 public:
     PackedMarkerGraph(
         const MappedMemoryOwner&,
@@ -91,6 +94,15 @@ public:
     void writeGfa() const;
 
     void remove();
+
+    // Keep track of the segment and position each marker graph edge corresponds to.
+    // For each marker graph edge, store in the marker graph edge table
+    // the corresponding segment id and position in the path, if any.
+    // Indexed by the edge id in the marker graph.
+    // This is needed when computing markerGraphJourneys below.
+    MemoryMapped::Vector< pair<uint64_t, uint64_t> > markerGraphEdgeTable;
+    void createMarkerGraphEdgeTable(uint64_t threadCount);
+    void createMarkerGraphEdgeTableThreadFunction(uint64_t threadId);
 };
 
 #endif

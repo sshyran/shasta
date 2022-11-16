@@ -71,7 +71,9 @@ Assembler::Assembler(
     packedMarkerGraph->writeGfa();
 
     // Create the AssemblyGraph.
+    packedMarkerGraph->createMarkerGraphEdgeTable(threadCount);
     AssemblyGraph assemblyGraph(*packedMarkerGraph);
+    packedMarkerGraph->markerGraphEdgeTable.remove();
 }
 
 
