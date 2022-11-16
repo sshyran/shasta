@@ -88,6 +88,8 @@ public:
     void createConnectivity(const string& name);
 
     void writeGfa(const string& name) const;
+
+    void remove();
 };
 
 #endif

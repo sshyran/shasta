@@ -257,3 +257,23 @@ void PackedMarkerGraph::writeGfa(const string& name) const
 
 }
 
+
+
+void PackedMarkerGraph::remove()
+{
+    if(segments.isOpen()) {
+        segments.remove();
+    }
+    if(segmentSequences.isOpen()) {
+        segmentSequences.remove();
+    }
+    if(links.isOpen) {
+        links.remove();
+    }
+    if(linksBySource.isOpen()) {
+        linksBySource.remove();
+    }
+    if(linksByTarget.isOpen()) {
+        linksByTarget.remove();
+    }
+}

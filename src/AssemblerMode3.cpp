@@ -91,8 +91,7 @@ void Assembler::mode3aAssembly(
         threadCount = std::thread::hardware_concurrency();
     }
 
-    // Create the mode3a::Assembler.
-    mode3a::Assembler assembler(
+    mode3aAssembler = make_shared<mode3a::Assembler>(
         threadCount,
         assemblerInfo->k,
         MappedMemoryOwner(*this),

@@ -65,6 +65,7 @@ and a final snapshot after detangling.
 #include "MemoryMappedVectorOfVectors.hpp"
 
 // Standard library.
+#include <memory>
 #include "string.hpp"
 
 
@@ -104,6 +105,8 @@ public:
     // The MarkerGraph is not const because the Assembler uses the BubbleCleaner
     // to flag marker graph edges.
     MarkerGraph& markerGraph;
+
+    std::shared_ptr<PackedMarkerGraph> packedMarkerGraph;
 };
 
 

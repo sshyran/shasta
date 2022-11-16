@@ -75,6 +75,9 @@ namespace shasta {
     namespace mode3 {
         class AssemblyGraph;
     }
+    namespace mode3a {
+        class Assembler;
+    }
 
     extern template class MultithreadedObject<Assembler>;
 }
@@ -2396,7 +2399,7 @@ public:
         bool debug);
 
 
-    // Mode 3 assembly (old development code0.
+    // Mode 3 assembly (old development code).
     void mode3Assembly(
         size_t threadCount);
     shared_ptr<mode3::AssemblyGraph> assemblyGraph3Pointer;
@@ -2407,6 +2410,7 @@ public:
 
     // The new Mode 3 assembly code is in namespace mode3a.
     void mode3aAssembly(size_t threadCount);
+    std::shared_ptr<mode3a::Assembler> mode3aAssembler;
 
 
 

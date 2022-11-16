@@ -41,35 +41,39 @@ Assembler::Assembler(
     }
 
     // Create the initial PackedMarkerGraph.
-    const string name0 = "Mode3a-PackedMarkerGraph-0";
-    PackedMarkerGraph packedMarkerGraph0(name0, k, MappedMemoryOwner(*this), markers, markerGraph);
-    packedMarkerGraph0.assembleSegmentSequences(name0);
+    const string initialPackedMarkerGraphName = "Mode3a-PackedMarkerGraph-Initial";
+    packedMarkerGraph = make_shared<PackedMarkerGraph>(
+        initialPackedMarkerGraphName, k, MappedMemoryOwner(*this), markers, markerGraph);
+    packedMarkerGraph->assembleSegmentSequences(initialPackedMarkerGraphName);
     cout << "The initial PackedMarkerGraph has " <<
-        packedMarkerGraph0.segments.size() << " segments, " <<
-        packedMarkerGraph0.links.size() << " links, and " <<
-        packedMarkerGraph0.segmentSequences.totalSize() <<
+        packedMarkerGraph->segments.size() << " segments, " <<
+        packedMarkerGraph->links.size() << " links, and " <<
+        packedMarkerGraph->segmentSequences.totalSize() <<
         " bases of assembled sequence." << endl;
-    packedMarkerGraph0.writeGfa(name0);
+    packedMarkerGraph->writeGfa(initialPackedMarkerGraphName);
 
     // Clean up the bubbles causes by errors.
     // This keeps one branch of each bubble.
     // The marker graph edges of the remaining branches are flagged as removed.
-    BubbleCleaner cleaner(packedMarkerGraph0);
+    BubbleCleaner cleaner(*packedMarkerGraph);
     cleaner.cleanup(markerGraph);
+    packedMarkerGraph->remove();
+    packedMarkerGraph = 0;
 
-    // Create the cleaned up PackedMarkerGraph.
-    const string name1 = "Mode3a-PackedMarkerGraph-1";
-    PackedMarkerGraph packedMarkerGraph1(name1, k, MappedMemoryOwner(*this), markers, markerGraph);
-    packedMarkerGraph1.assembleSegmentSequences(name1);
+    // Create the final PackedMarkerGraph.
+    const string packedMarkerGraphName = "Mode3a-PackedMarkerGraph";
+    packedMarkerGraph = make_shared<PackedMarkerGraph>(
+        packedMarkerGraphName, k, MappedMemoryOwner(*this), markers, markerGraph);
+    packedMarkerGraph->assembleSegmentSequences(packedMarkerGraphName);
     cout << "After bubble cleanup, the PackedMarkerGraph has " <<
-        packedMarkerGraph1.segments.size() << " segments, " <<
-        packedMarkerGraph1.links.size() << " links, and " <<
-        packedMarkerGraph1.segmentSequences.totalSize() <<
+        packedMarkerGraph->segments.size() << " segments, " <<
+        packedMarkerGraph->links.size() << " links, and " <<
+        packedMarkerGraph->segmentSequences.totalSize() <<
         " bases of assembled sequence." << endl;
-    packedMarkerGraph1.writeGfa(name1);
+    packedMarkerGraph->writeGfa(packedMarkerGraphName);
 
     // Create the AssemblyGraph.
-    AssemblyGraph assemblyGraph(packedMarkerGraph1);
+    AssemblyGraph assemblyGraph(*packedMarkerGraph);
 }
 
 
