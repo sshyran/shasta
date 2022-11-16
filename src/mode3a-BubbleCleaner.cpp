@@ -5,6 +5,7 @@
 #include "MarkerGraph.hpp"
 #include "invalid.hpp"
 #include "mode3a.hpp"
+#include "mode3a-PackedMarkerGraph.hpp"
 using namespace shasta;using namespace mode3a;
 
 // Boost libraries.

@@ -1,0 +1,115 @@
+#ifndef SHASTA_MODE3A_PACKED_MARKER_GRAPH_HPP
+#define SHASTA_MODE3A_PACKED_MARKER_GRAPH_HPP
+
+/*******************************************************************************
+
+Class mode3a::PackedMarkerGraph is used to
+construct a "packed" representations of the marker graph.
+Here, each segment corresponds to a path in the marker graph
+Connectivity is generated based on marker graph connectivity.
+That is, a link between segments s0 and s1 is created
+if the last marker graph vertex of s0 is the same as the first
+marker graph vertex of s1.
+Because connectivity does not "follow the reads", the
+mode3a::PackedMarkerGraph is subject to fragmentation.
+
+We use two instances of PackedMarkerGraph(s).
+In both versions, each segment corresponds to a
+linear sequence of marker graph edges
+without any intervening incoming/outgoing edges in the marker graph.
+- In the first instance, all marker graph edges are used to define
+the segments.
+- In the second instance, only marker graph edges that were not
+flagged by the BubbleCleaner are used.
+
+*******************************************************************************/
+
+// Shasta.
+#include "Base.hpp"
+#include "MappedMemoryOwner.hpp"
+#include "MemoryMappedVectorOfVectors.hpp"
+
+// Standard library.
+#include "string.hpp"
+
+namespace shasta {
+
+    namespace mode3a {
+        class PackedMarkerGraph;
+    }
+
+    class CompressedMarker;
+    class MarkerGraph;
+}
+
+
+
+// In the PackedMarkerGraph, each segment corresponds exactly to a
+// path in the marker graph.
+class shasta::mode3a::PackedMarkerGraph :
+    public MappedMemoryOwner {
+public:
+    PackedMarkerGraph(
+        const string& name,
+        uint64_t k,
+        const MappedMemoryOwner&,
+        const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
+        const MarkerGraph&);
+
+
+    uint64_t k;
+    const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers;
+    const MarkerGraph& markerGraph;
+
+    // For each segment, we store its path in the marker graph.
+    // The path is a sequence of marker graph edge ids.
+    MemoryMapped::VectorOfVectors<uint64_t, uint64_t> segments;
+
+    void createSegmentsFromMarkerGraph(const string& name);
+
+    // Get the first or last marker graph vertex of a segment.
+    uint64_t getFirstSegmentVertex(uint64_t segmentId) const;
+    uint64_t getLastSegmentVertex (uint64_t segmentId) const;
+
+    // Assembled sequence of each segment.
+    MemoryMapped::VectorOfVectors<Base, uint64_t> segmentSequences;
+    void assembleSegmentSequences(const string& name);
+
+    // The segmentSequences stores, for each segment,
+    // the entire sequence from the AssembledSegment.
+    // This includes the entire sequence of the first
+    // and last vertex of each segment.
+    // This returns the clipped sequence of each segment,
+    // which excludes the first and last k/2 bases.
+    span<const Base> clippedSequence(uint64_t segmentId) const;
+
+    // A link between segments s0 and s1 is created if
+    // the last marker graph vertex of s0 coincides with the
+    // first marker graph vertex of s1.
+    class Link {
+    public:
+        uint64_t segmentId0;
+        uint64_t segmentId1;
+        Link() {}
+        Link(
+            uint64_t segmentId0,
+            uint64_t segmentId1) :
+            segmentId0(segmentId0),
+            segmentId1(segmentId1) {}
+
+    };
+    MemoryMapped::Vector<Link> links;
+
+    // This creates the links once the segments are available.
+    void createLinks(const string& name);
+
+    // Given the links, create the connectivity.
+    MemoryMapped::VectorOfVectors<uint64_t, uint64_t> linksBySource;
+    MemoryMapped::VectorOfVectors<uint64_t, uint64_t> linksByTarget;
+    void createConnectivity(const string& name);
+
+    void writeGfa(const string& name) const;
+};
+
+#endif
+
