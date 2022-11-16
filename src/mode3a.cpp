@@ -41,16 +41,15 @@ Assembler::Assembler(
     }
 
     // Create the initial PackedMarkerGraph.
-    const string initialPackedMarkerGraphName = "Mode3a-PackedMarkerGraph-Initial";
     packedMarkerGraph = make_shared<PackedMarkerGraph>(
-        initialPackedMarkerGraphName, k, MappedMemoryOwner(*this), markers, markerGraph);
-    packedMarkerGraph->assembleSegmentSequences(initialPackedMarkerGraphName);
+        *this, "Mode3a-PackedMarkerGraph-Initial", k, markers, markerGraph);
+    packedMarkerGraph->assembleSegmentSequences();
     cout << "The initial PackedMarkerGraph has " <<
         packedMarkerGraph->segments.size() << " segments, " <<
         packedMarkerGraph->links.size() << " links, and " <<
         packedMarkerGraph->segmentSequences.totalSize() <<
         " bases of assembled sequence." << endl;
-    packedMarkerGraph->writeGfa(initialPackedMarkerGraphName);
+    packedMarkerGraph->writeGfa();
 
     // Clean up the bubbles causes by errors.
     // This keeps one branch of each bubble.
@@ -61,16 +60,15 @@ Assembler::Assembler(
     packedMarkerGraph = 0;
 
     // Create the final PackedMarkerGraph.
-    const string packedMarkerGraphName = "Mode3a-PackedMarkerGraph";
     packedMarkerGraph = make_shared<PackedMarkerGraph>(
-        packedMarkerGraphName, k, MappedMemoryOwner(*this), markers, markerGraph);
-    packedMarkerGraph->assembleSegmentSequences(packedMarkerGraphName);
+        *this, "Mode3a-PackedMarkerGraph", k, markers, markerGraph);
+    packedMarkerGraph->assembleSegmentSequences();
     cout << "After bubble cleanup, the PackedMarkerGraph has " <<
         packedMarkerGraph->segments.size() << " segments, " <<
         packedMarkerGraph->links.size() << " links, and " <<
         packedMarkerGraph->segmentSequences.totalSize() <<
         " bases of assembled sequence." << endl;
-    packedMarkerGraph->writeGfa(packedMarkerGraphName);
+    packedMarkerGraph->writeGfa();
 
     // Create the AssemblyGraph.
     AssemblyGraph assemblyGraph(*packedMarkerGraph);

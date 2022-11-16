@@ -14,23 +14,24 @@ using namespace mode3a;
 
 // Initial creation from the marker graph.
 PackedMarkerGraph::PackedMarkerGraph(
+    const MappedMemoryOwner& mappedMemoryOwner,
     const string& name,
     uint64_t k,
-    const MappedMemoryOwner& mappedMemoryOwner,
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
     const MarkerGraph& markerGraph) :
     MappedMemoryOwner(mappedMemoryOwner),
+    name(name),
     k(k),
     markers(markers),
     markerGraph(markerGraph)
 {
-    createSegmentsFromMarkerGraph(name);
-    createLinks(name);
+    createSegmentsFromMarkerGraph();
+    createLinks();
 }
 
 
 
-void PackedMarkerGraph::createSegmentsFromMarkerGraph(const string& name)
+void PackedMarkerGraph::createSegmentsFromMarkerGraph()
 {
     createNew(segments, name + "-segments");
 
@@ -163,7 +164,7 @@ uint64_t PackedMarkerGraph::getLastSegmentVertex (uint64_t segmentId) const
 
 
 
-void PackedMarkerGraph::createLinks(const string& name)
+void PackedMarkerGraph::createLinks()
 {
     // Index the segments by their first vertex.
     // This can be made faster.
@@ -185,7 +186,7 @@ void PackedMarkerGraph::createLinks(const string& name)
 
 
 
-void PackedMarkerGraph::assembleSegmentSequences(const string& name)
+void PackedMarkerGraph::assembleSegmentSequences()
 {
     createNew(segmentSequences, name + "-sequences");
 
@@ -222,7 +223,7 @@ span<const Base> PackedMarkerGraph::clippedSequence(uint64_t segmentId) const
 
 
 
-void PackedMarkerGraph::writeGfa(const string& name) const
+void PackedMarkerGraph::writeGfa() const
 {
     ofstream gfa(name + ".gfa");
     ofstream csv(name + ".csv");

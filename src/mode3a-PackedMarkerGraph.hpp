@@ -29,13 +29,14 @@ class shasta::mode3a::PackedMarkerGraph :
     public MappedMemoryOwner {
 public:
     PackedMarkerGraph(
+        const MappedMemoryOwner&,
         const string& name,
         uint64_t k,
-        const MappedMemoryOwner&,
         const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
         const MarkerGraph&);
 
-
+    // Objects stored by the constructor.
+    string name;
     uint64_t k;
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers;
     const MarkerGraph& markerGraph;
@@ -44,7 +45,7 @@ public:
     // The path is a sequence of marker graph edge ids.
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> segments;
 
-    void createSegmentsFromMarkerGraph(const string& name);
+    void createSegmentsFromMarkerGraph();
 
     // Get the first or last marker graph vertex of a segment.
     uint64_t getFirstSegmentVertex(uint64_t segmentId) const;
@@ -52,7 +53,7 @@ public:
 
     // Assembled sequence of each segment.
     MemoryMapped::VectorOfVectors<Base, uint64_t> segmentSequences;
-    void assembleSegmentSequences(const string& name);
+    void assembleSegmentSequences();
 
     // The segmentSequences stores, for each segment,
     // the entire sequence from the AssembledSegment.
@@ -80,14 +81,14 @@ public:
     MemoryMapped::Vector<Link> links;
 
     // This creates the links once the segments are available.
-    void createLinks(const string& name);
+    void createLinks();
 
     // Given the links, create the connectivity.
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> linksBySource;
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> linksByTarget;
-    void createConnectivity(const string& name);
+    void createConnectivity();
 
-    void writeGfa(const string& name) const;
+    void writeGfa() const;
 
     void remove();
 };
