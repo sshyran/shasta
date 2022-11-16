@@ -1,6 +1,7 @@
 // Shasta.
 #include "mode3a.hpp"
 #include "MarkerGraph.hpp"
+#include "mode3a-AssemblyGraph.hpp"
 #include "mode3a-BubbleCleaner.hpp"
 #include "mode3a-PackedMarkerGraph.hpp"
 #include "Reads.hpp"
@@ -66,6 +67,9 @@ Assembler::Assembler(
         packedMarkerGraph1.segmentSequences.totalSize() <<
         " bases of assembled sequence." << endl;
     packedMarkerGraph1.writeGfa(name1);
+
+    // Create the AssemblyGraph.
+    AssemblyGraph assemblyGraph(packedMarkerGraph1);
 }
 
 

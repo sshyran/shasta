@@ -1,28 +1,7 @@
 #ifndef SHASTA_MODE3A_PACKED_MARKER_GRAPH_HPP
 #define SHASTA_MODE3A_PACKED_MARKER_GRAPH_HPP
 
-/*******************************************************************************
-
-Class mode3a::PackedMarkerGraph is used to
-construct a "packed" representations of the marker graph.
-Here, each segment corresponds to a path in the marker graph
-Connectivity is generated based on marker graph connectivity.
-That is, a link between segments s0 and s1 is created
-if the last marker graph vertex of s0 is the same as the first
-marker graph vertex of s1.
-Because connectivity does not "follow the reads", the
-mode3a::PackedMarkerGraph is subject to fragmentation.
-
-We use two instances of PackedMarkerGraph(s).
-In both versions, each segment corresponds to a
-linear sequence of marker graph edges
-without any intervening incoming/outgoing edges in the marker graph.
-- In the first instance, all marker graph edges are used to define
-the segments.
-- In the second instance, only marker graph edges that were not
-flagged by the BubbleCleaner are used.
-
-*******************************************************************************/
+// See comments in mode3a.hpp.
 
 // Shasta.
 #include "Base.hpp"

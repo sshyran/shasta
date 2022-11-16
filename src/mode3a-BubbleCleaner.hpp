@@ -1,13 +1,7 @@
 #ifndef SHASTA_MODE3A_BUBBLE_CLEANER_HPP
 #define SHASTA_MODE3A_BUBBLE_CLEANER_HPP
 
-/*******************************************************************************
-
-Class BubbleCleaner takes as input the initial PackedMarkerGraph
-and flags marker graph edges of branch bubbles that are
-likely to be caused by errors.
-
-*******************************************************************************/
+// See comments in mode3a.hpp.
 
 // Boost libraries.
 #include <boost/graph/adjacency_list.hpp>
