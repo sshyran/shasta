@@ -11,6 +11,7 @@
 
 // Standard library.
 #include <list>
+#include "tuple.hpp"
 #include "vector.hpp"
 
 namespace shasta {
@@ -59,6 +60,21 @@ public:
 // Each edge represents a link.
 class shasta::mode3a::AssemblyGraphEdge {
 public:
+
+    // A transition of an oriented read from a segment to the next.
+    class Transition {
+    public:
+        std::list<AssemblyGraphBaseClass::vertex_descriptor>::iterator it0;
+        std::list<AssemblyGraphBaseClass::vertex_descriptor>::iterator it1;
+        OrientedReadId orientedReadId;
+
+        bool operator<(const Transition& that) const
+        {
+            return tie(*it0, *it1, orientedReadId) < tie(*that.it0, *that.it1, that.orientedReadId);
+        }
+    };
+
+    vector<Transition> transitions;
 };
 
 
@@ -66,6 +82,7 @@ public:
 class shasta::mode3a::AssemblyGraph : public AssemblyGraphBaseClass {
 public:
     AssemblyGraph(const PackedMarkerGraph&);
+    void writeLinkCoverageHistogram(const string& name) const;
 private:
 
     // Each segment in the AssemblyGraph corresponds to a segment in
@@ -79,6 +96,8 @@ private:
     vector< std::list<vertex_descriptor> > paths;
 
     void createSegmentsAndPaths();
+    void createLinks();
+
 };
 
 #endif

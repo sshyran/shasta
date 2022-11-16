@@ -4,6 +4,12 @@
 using namespace shasta;
 using namespace mode3a;
 
+// Boost libraries.
+#include <boost/graph/iteration_macros.hpp>
+
+// Standard library.
+#include "fstream.hpp"
+
 
 
 AssemblyGraph::AssemblyGraph(
@@ -11,6 +17,7 @@ AssemblyGraph::AssemblyGraph(
     packedMarkerGraph(packedMarkerGraph)
 {
     createSegmentsAndPaths();
+    createLinks();
 }
 
 
@@ -41,3 +48,81 @@ void AssemblyGraph::createSegmentsAndPaths()
         }
     }
 }
+
+
+
+void AssemblyGraph::createLinks()
+{
+    AssemblyGraph& assemblyGraph = *this;
+
+    vector<AssemblyGraphEdge::Transition> transitions;
+    AssemblyGraphEdge::Transition transition;
+    for(uint64_t i=0; i<paths.size(); i++) {
+        transition.orientedReadId = OrientedReadId::fromValue(ReadId(i));
+        auto& path = paths[i];  // Can't be const because we are storing non-const iterators to it.
+
+        for(auto it=path.begin(); /* Check later*/; ++it) {
+            auto itNext = it;
+            ++itNext;
+            if(itNext == path.end()) {
+                break;
+            }
+            transition.it0 = it;
+            transition.it1 = itNext;
+            transitions.push_back(transition);
+        }
+    }
+    sort(transitions.begin(), transitions.end());
+
+
+
+    // Each streak of transitions with the same vertices generates a link.
+    for(auto it=transitions.begin(); it!=transitions.end(); /* Increment later */) {
+        const vertex_descriptor v0 = *(it->it0);
+        const vertex_descriptor v1 = *(it->it1);
+
+        // Find the streak for these two vertices.
+        auto streakBegin = it;
+        auto streakEnd = it;
+        ++streakEnd;
+        while(streakEnd != transitions.end()) {
+            if(*(streakEnd->it0) != v0 or *(streakEnd->it1) != v1) {
+                break;
+            }
+            ++streakEnd;
+        }
+
+        // The transitions of this streak generate an edge.
+        edge_descriptor e;
+        tie(e, ignore) = add_edge(v0, v1, assemblyGraph);
+        AssemblyGraphEdge& edge = assemblyGraph[e];
+        for(auto jt=streakBegin; jt!=streakEnd; ++jt) {
+            edge.transitions.push_back(*jt);
+        }
+
+        it = streakEnd;
+    }
+
+}
+
+
+void AssemblyGraph::writeLinkCoverageHistogram(const string& name) const
+{
+    const AssemblyGraph& assemblyGraph = *this;
+
+    vector<uint64_t> histogram;
+    BGL_FORALL_EDGES(e, assemblyGraph, AssemblyGraph) {
+        const uint64_t coverage = assemblyGraph[e].transitions.size();
+        if(histogram.size() <= coverage) {
+            histogram.resize(coverage+1, 0);
+        }
+        ++histogram[coverage];
+    }
+
+    ofstream csv(name);
+    csv << "Coverage,Frequency\n";
+    for(uint64_t coverage=0; coverage<histogram.size(); coverage++) {
+        csv << coverage << "," << histogram[coverage] << "\n";
+    }
+}
+
