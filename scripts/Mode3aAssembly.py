@@ -13,7 +13,7 @@ import GetConfig
 
 config = GetConfig.getConfig()
 
-shasta.openPerformanceLog('Mode3Assembly.log')
+shasta.openPerformanceLog('Mode3aAssembly.log')
 
 a = shasta.Assembler()
 a.setupConsensusCaller(config['Assembly']['consensusCaller'])

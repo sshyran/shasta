@@ -2,6 +2,7 @@
 #include "mode3a.hpp"
 #include "MarkerGraph.hpp"
 #include "mode3a-AssemblyGraph.hpp"
+#include "mode3a-AssemblyGraphSnapshot.hpp"
 #include "mode3a-BubbleCleaner.hpp"
 #include "mode3a-PackedMarkerGraph.hpp"
 #include "Reads.hpp"
@@ -82,7 +83,8 @@ Assembler::Assembler(
     cout << "The initial AssemblyGraph has " <<
         num_vertices(assemblyGraph) << " segments and " <<
         num_edges(assemblyGraph) << " links." << endl;
-    assemblyGraph.write("Mode3-AssemblyGraph-Initial");
+    assemblyGraph.write("Mode3a-AssemblyGraph-Initial");
+    AssemblyGraphSnapshot snapshot(assemblyGraph, "Mode3a-AssemblyGraph-Initial", *this);
 }
 
 
