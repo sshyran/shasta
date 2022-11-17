@@ -34,12 +34,23 @@ namespace shasta {
 class shasta::mode3a::AssemblyGraphVertex {
 public:
 
-    // The PackedMarkerGraph segment that this vertex
-    // corresponds to.
+    // The PackedMarkerGraph segment that this vertex corresponds to.
     uint64_t segmentId;
 
-    AssemblyGraphVertex(uint64_t segmentId) :
-        segmentId(segmentId) {}
+    // Serial number among all vertices with the same segmentId.
+    uint64_t id;
+
+    AssemblyGraphVertex(uint64_t segmentId, uint64_t id=0) :
+        segmentId(segmentId), id(id) {}
+
+    string stringId() const
+    {
+        string s = to_string(segmentId);
+        if(id != 0) {
+            s += "." + to_string(id);
+        }
+        return s;
+    }
 
     // The path entries that go through this vertex.
     class PathEntry {
@@ -93,6 +104,11 @@ private:
     // Each segment in the AssemblyGraph corresponds to a segment in
     // this PackedMarkerGraph.
     const PackedMarkerGraph& packedMarkerGraph;
+
+    // The number of vertices created so far for each segmentId
+    // (some of these may have been deleted).
+    // This also equals the next id for a vertex with a given segmentId.
+    vector<uint64_t> vertexCountBySegment;
 
     // The sequence of segments visited by each oriented read
     // is a path. Initially, we construct it from the corresponding journey

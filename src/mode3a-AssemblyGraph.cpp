@@ -31,6 +31,7 @@ void AssemblyGraph::createSegmentsAndPaths()
     for(uint64_t segmentId=0; segmentId<packedMarkerGraph.segments.size(); segmentId++) {
         vertexTable[segmentId] = add_vertex(AssemblyGraphVertex(segmentId), assemblyGraph);
     }
+    vertexCountBySegment.resize(vertexTable.size(), 1);
 
     // The sequence of segments visited by each oriented read
     // is a path. Initially, we construct it from the corresponding journey
@@ -150,7 +151,7 @@ void AssemblyGraph::writeGfa(const string& name, uint64_t minLinkCoverage) const
 
     // Write the segments.
     BGL_FORALL_VERTICES(v, assemblyGraph, AssemblyGraph) {
-        gfa <<"S\t" << assemblyGraph[v].segmentId << "\t*\n";
+        gfa <<"S\t" << assemblyGraph[v].stringId() << "\t*\n";
     }
 
     // Write the links.
@@ -161,8 +162,8 @@ void AssemblyGraph::writeGfa(const string& name, uint64_t minLinkCoverage) const
         const vertex_descriptor v0 = source(e, assemblyGraph);
         const vertex_descriptor v1 = target(e, assemblyGraph);
         gfa << "L\t" <<
-            assemblyGraph[v0].segmentId << "\t+\t" <<
-            assemblyGraph[v1].segmentId << "\t+\t0M\n";
+            assemblyGraph[v0].stringId() << "\t+\t" <<
+            assemblyGraph[v1].stringId() << "\t+\t0M\n";
     }
 }
 
