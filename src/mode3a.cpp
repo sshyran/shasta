@@ -77,10 +77,12 @@ Assembler::Assembler(
     AssemblyGraph assemblyGraph(*packedMarkerGraph);
     packedMarkerGraph->journeys.shrink_to_fit();
     packedMarkerGraph->markerGraphEdgeTable.remove();
+
+    // Write it out.
     cout << "The initial AssemblyGraph has " <<
         num_vertices(assemblyGraph) << " segments and " <<
         num_edges(assemblyGraph) << " links." << endl;
-    assemblyGraph.writeLinkCoverageHistogram("InitialLinkCoverageHistogram.csv");
+    assemblyGraph.write("Mode3-AssemblyGraph-Initial");
 }
 
 

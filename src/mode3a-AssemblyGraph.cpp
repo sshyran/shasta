@@ -106,6 +106,17 @@ void AssemblyGraph::createLinks()
 }
 
 
+
+void AssemblyGraph::write(const string& name) const
+{
+    for(uint64_t minLinkCoverage=2; minLinkCoverage<=6; minLinkCoverage++) {
+        writeGfa(name + "-minLinkCoverage-" + to_string(minLinkCoverage) + ".gfa", minLinkCoverage);
+    }
+    writeLinkCoverageHistogram(name + "-LinkCoverageHistogram.csv");
+}
+
+
+
 void AssemblyGraph::writeLinkCoverageHistogram(const string& name) const
 {
     const AssemblyGraph& assemblyGraph = *this;
@@ -123,6 +134,35 @@ void AssemblyGraph::writeLinkCoverageHistogram(const string& name) const
     csv << "Coverage,Frequency\n";
     for(uint64_t coverage=0; coverage<histogram.size(); coverage++) {
         csv << coverage << "," << histogram[coverage] << "\n";
+    }
+}
+
+
+
+void AssemblyGraph::writeGfa(const string& name, uint64_t minLinkCoverage) const
+{
+    const AssemblyGraph& assemblyGraph = *this;
+
+    ofstream gfa(name);
+
+    // Write the headers.
+    gfa << "H\tVN:Z:1.0\n";
+
+    // Write the segments.
+    BGL_FORALL_VERTICES(v, assemblyGraph, AssemblyGraph) {
+        gfa <<"S\t" << assemblyGraph[v].segmentId << "\t*\n";
+    }
+
+    // Write the links.
+    BGL_FORALL_EDGES(e, assemblyGraph, AssemblyGraph) {
+        if(assemblyGraph[e].coverage() < minLinkCoverage) {
+            continue;
+        }
+        const vertex_descriptor v0 = source(e, assemblyGraph);
+        const vertex_descriptor v1 = target(e, assemblyGraph);
+        gfa << "L\t" <<
+            assemblyGraph[v0].segmentId << "\t+\t" <<
+            assemblyGraph[v1].segmentId << "\t+\t0M\n";
     }
 }
 

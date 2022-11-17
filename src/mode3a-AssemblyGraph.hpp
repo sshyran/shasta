@@ -75,6 +75,11 @@ public:
     };
 
     vector<Transition> transitions;
+
+    uint64_t coverage() const
+    {
+        return transitions.size();
+    }
 };
 
 
@@ -82,7 +87,7 @@ public:
 class shasta::mode3a::AssemblyGraph : public AssemblyGraphBaseClass {
 public:
     AssemblyGraph(const PackedMarkerGraph&);
-    void writeLinkCoverageHistogram(const string& name) const;
+    void write(const string& name) const;
 private:
 
     // Each segment in the AssemblyGraph corresponds to a segment in
@@ -98,6 +103,8 @@ private:
     void createSegmentsAndPaths();
     void createLinks();
 
+    void writeGfa(const string& name, uint64_t minLinkCoverage) const;
+    void writeLinkCoverageHistogram(const string& name) const;
 };
 
 #endif
