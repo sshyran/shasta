@@ -78,13 +78,13 @@ Assembler::Assembler(
     AssemblyGraph assemblyGraph(*packedMarkerGraph);
     packedMarkerGraph->journeys.shrink_to_fit();
     packedMarkerGraph->markerGraphEdgeTable.remove();
-
-    // Write it out.
     cout << "The initial AssemblyGraph has " <<
         num_vertices(assemblyGraph) << " segments and " <<
         num_edges(assemblyGraph) << " links." << endl;
-    assemblyGraph.write("Mode3a-AssemblyGraph-0");
-    AssemblyGraphSnapshot snapshot0(assemblyGraph, "Mode3a-AssemblyGraph-0", *this);
+
+    // Create a persistent snapshot.
+    AssemblyGraphSnapshot snapshot0(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-0", *this);
+    snapshot0.write();
 }
 
 

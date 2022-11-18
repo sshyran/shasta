@@ -37,25 +37,33 @@ public:
 
     const string name;
 
-    // Class Segment stores segmentId and id from AssemblyGraphVertex.
+    // Class Vertex stores segmentId and id from AssemblyGraphVertex.
     // For the purpose of the snapshot, the index into this vector
     // is used as a vertex id.
-    class Segment{
+    class Vertex {
     public:
         uint64_t segmentId;
         uint64_t id;
-        Segment(const AssemblyGraphVertex&);
-        Segment() {}
+        Vertex(const AssemblyGraphVertex&);
+        Vertex() {}
+        string stringId() const
+        {
+            string s = to_string(segmentId);
+            if(id != 0) {
+                s += "." + to_string(id);
+            }
+            return s;
+        }
     };
-    MemoryMapped::Vector<Segment> segments;
+    MemoryMapped::Vector<Vertex> vertexVector;  // Can't call it vertices due to boost graph macros.
 
-    // Class Link stores vertex ids (indexes into the vertices vector).
-    class Link {
+    // Class Edge stores vertex ids (indexes into the vertices vector).
+    class Edge {
     public:
         uint64_t vertexId0;
         uint64_t vertexId1;
     };
-    MemoryMapped::Vector<Link> links;
+    MemoryMapped::Vector<Edge> edgeVector;  // Can't call it edges due to boost graph macros.
 
     // The path of each oriented read, stored as a sequence of vertex ids
     // (that is,indexes into the segments vector above).
@@ -78,6 +86,11 @@ public:
         uint64_t position;  // The transition if between position and position+1
     };
     void getTransitions(uint64_t linkId, vector<Transition>&) const;
+    uint64_t linkCoverage(uint64_t linkId) const;
+
+    void write() const;
+    void writeGfa(uint64_t minLinkCoverage) const;
+    void writePaths() const;
 };
 
 #endif

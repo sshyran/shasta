@@ -122,6 +122,7 @@ private:
 
     void writeGfa(const string& name, uint64_t minLinkCoverage) const;
     void writeLinkCoverageHistogram(const string& name) const;
+    void writePaths(const string& name) const;
 };
 
 #endif

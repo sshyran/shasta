@@ -114,6 +114,7 @@ void AssemblyGraph::write(const string& name) const
         writeGfa(name + "-minLinkCoverage-" + to_string(minLinkCoverage) + ".gfa", minLinkCoverage);
     }
     writeLinkCoverageHistogram(name + "-LinkCoverageHistogram.csv");
+    writePaths(name + "-paths.csv");
 }
 
 
@@ -136,6 +137,26 @@ void AssemblyGraph::writeLinkCoverageHistogram(const string& name) const
     for(uint64_t coverage=0; coverage<histogram.size(); coverage++) {
         csv << coverage << "," << histogram[coverage] << "\n";
     }
+}
+
+
+
+void AssemblyGraph::writePaths(const string& name) const
+{
+    const AssemblyGraph& assemblyGraph = *this;
+    ofstream csv(name);
+
+    for(uint64_t i=0; i<paths.size(); i++) {
+        const OrientedReadId orientedReadId = OrientedReadId::fromValue(ReadId(i));
+        const auto path = paths[orientedReadId.getValue()];
+
+        csv << orientedReadId << ",";
+        for(const vertex_descriptor v: path) {
+            csv << assemblyGraph[v].stringId() << ",";
+        }
+        csv << "\n";
+    }
+
 }
 
 
