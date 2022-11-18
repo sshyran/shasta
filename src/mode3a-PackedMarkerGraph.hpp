@@ -37,7 +37,8 @@ public:
         const string& name,
         uint64_t k,
         const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
-        const MarkerGraph&);
+        const MarkerGraph&,
+        bool accessExisting);
 
     // Objects stored by the constructor.
     string name;
@@ -86,6 +87,9 @@ public:
 
     // This creates the links once the segments are available.
     void createLinks();
+
+    void accessSegments();
+    void accessLinks();
 
     // Given the links, create the connectivity.
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> linksBySource;

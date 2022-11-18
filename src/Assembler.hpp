@@ -76,6 +76,11 @@ namespace shasta {
         class AssemblyGraph;
     }
 
+    namespace mode3a {
+        class PackedMarkerGraph;
+        class AssemblyGraphSnapshot;
+    }
+
     extern template class MultithreadedObject<Assembler>;
 }
 
@@ -2405,9 +2410,18 @@ public:
     void createMode3PathGraph();
     void createMode3Detangler();
 
-    // The new Mode 3 assembly code is in namespace mode3a.
-    void mode3aAssembly(size_t threadCount);
 
+
+    // Mode 3 assembly (new code in namespace mode3a).
+    void mode3aAssembly(size_t threadCount);
+    class Mode3aAssemblyData {
+    public:
+        shared_ptr<mode3a::PackedMarkerGraph> packedMarkerGraph;
+        vector< shared_ptr<mode3a::AssemblyGraphSnapshot> > assemblyGraphSnapshots;
+    };
+    Mode3aAssemblyData mode3aAssemblyData;
+    void accessMode3aAssemblyData();
+    void exploreMode3aAssemblyGraph(const vector<string>& request, ostream& html);
 
 
 public:

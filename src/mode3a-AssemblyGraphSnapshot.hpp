@@ -30,8 +30,15 @@ namespace shasta {
 class shasta::mode3a::AssemblyGraphSnapshot :
     public MappedMemoryOwner {
 public:
+
+    // This creates a snapshot of the AssemblyGraph in the current state.
     AssemblyGraphSnapshot(
         const AssemblyGraph&,
+        const string& name,
+        const MappedMemoryOwner& mappedMemoryOwner);
+
+    // This accesses an existing snapshot.
+    AssemblyGraphSnapshot(
         const string& name,
         const MappedMemoryOwner& mappedMemoryOwner);
 

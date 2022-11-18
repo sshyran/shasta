@@ -43,7 +43,7 @@ Assembler::Assembler(
 
     // Create the initial PackedMarkerGraph.
     packedMarkerGraph = make_shared<PackedMarkerGraph>(
-        *this, "Mode3a-PackedMarkerGraph-Initial", k, markers, markerGraph);
+        MappedMemoryOwner(*this), "Mode3a-PackedMarkerGraph-Initial", k, markers, markerGraph, false);
     packedMarkerGraph->assembleSegmentSequences();
     cout << "The initial PackedMarkerGraph has " <<
         packedMarkerGraph->segments.size() << " segments, " <<
@@ -62,7 +62,7 @@ Assembler::Assembler(
 
     // Create the final PackedMarkerGraph.
     packedMarkerGraph = make_shared<PackedMarkerGraph>(
-        *this, "Mode3a-PackedMarkerGraph", k, markers, markerGraph);
+        MappedMemoryOwner(*this), "Mode3a-PackedMarkerGraph", k, markers, markerGraph, false);
     packedMarkerGraph->assembleSegmentSequences();
     cout << "After bubble cleanup, the PackedMarkerGraph has " <<
         packedMarkerGraph->segments.size() << " segments, " <<

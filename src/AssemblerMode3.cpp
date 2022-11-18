@@ -3,6 +3,8 @@
 #include "mode3-Detangler.hpp"
 #include "mode3-PathGraph.hpp"
 #include "mode3a.hpp"
+#include "mode3a-AssemblyGraphSnapshot.hpp"
+#include "mode3a-PackedMarkerGraph.hpp"
 #include "Reads.hpp"
 using namespace shasta;
 
@@ -98,4 +100,27 @@ void Assembler::mode3aAssembly(
         *reads,
         markers,
         markerGraph);
+}
+
+
+
+void Assembler::accessMode3aAssemblyData()
+{
+    mode3aAssemblyData.packedMarkerGraph = make_shared<mode3a::PackedMarkerGraph>(
+        MappedMemoryOwner(*this), "Mode3a-PackedMarkerGraph", assemblerInfo->k, markers, markerGraph, true);
+
+    mode3aAssemblyData.assemblyGraphSnapshots.clear();
+    for(uint64_t i=0; ; i++) {
+        try {
+            const string name = "Mode3a-AssemblyGraphSnapshot-" + to_string(i);
+            const auto snapshot =
+                make_shared<mode3a::AssemblyGraphSnapshot>(name, MappedMemoryOwner(*this));
+            mode3aAssemblyData.assemblyGraphSnapshots.push_back(snapshot);
+        } catch (exception&) {
+            break;
+        }
+    }
+
+    cout << "Found " << mode3aAssemblyData.assemblyGraphSnapshots.size() <<
+        " assembly graph snapshots." << endl;
 }

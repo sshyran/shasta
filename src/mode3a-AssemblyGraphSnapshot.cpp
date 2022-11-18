@@ -12,6 +12,7 @@ using namespace mode3a;
 
 
 
+// This creates a snapshot of the AssemblyGraph in the current state.
 AssemblyGraphSnapshot::AssemblyGraphSnapshot(
     const AssemblyGraph& assemblyGraph,
     const string& name,
@@ -49,11 +50,25 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
             pathEntries[vertexId].push_back({orientedReadId, position++});
         }
     }
-    // cout << "paths.size() " << paths.size() << endl;
     createNew(vertexPathEntries, name + "-vertexPathEntries");
     for(const vector<PathEntry>& v: pathEntries) {
         vertexPathEntries.appendVector(v);
     }
+}
+
+
+
+// This accesses an existing snapshot.
+AssemblyGraphSnapshot::AssemblyGraphSnapshot(
+    const string& name,
+    const MappedMemoryOwner& mappedMemoryOwner) :
+    MappedMemoryOwner(mappedMemoryOwner),
+    name(name)
+{
+    accessExistingReadOnly(vertexVector, name + "-vertices");
+    accessExistingReadOnly(edgeVector, name + "-edges");
+    accessExistingReadOnly(paths, name + "-paths");
+    accessExistingReadOnly(vertexPathEntries, name + "-vertexPathEntries");
 }
 
 
@@ -170,5 +185,4 @@ void AssemblyGraphSnapshot::writePaths() const
     }
 
 }
-
 

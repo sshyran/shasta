@@ -241,6 +241,7 @@ void Assembler::fillServerFunctionTable()
     SHASTA_ADD_TO_FUNCTION_TABLE(exploreAssemblyGraphEdge);
     SHASTA_ADD_TO_FUNCTION_TABLE(exploreAssemblyGraphEdgesSupport);
     SHASTA_ADD_TO_FUNCTION_TABLE(exploreCompressedAssemblyGraph);
+
     SHASTA_ADD_TO_FUNCTION_TABLE(exploreMode3AssemblyGraph);
     SHASTA_ADD_TO_FUNCTION_TABLE(exploreMode3AssemblyGraphSegment);
     SHASTA_ADD_TO_FUNCTION_TABLE(exploreMode3AssemblyGraphSegmentPair);
@@ -248,6 +249,8 @@ void Assembler::fillServerFunctionTable()
     SHASTA_ADD_TO_FUNCTION_TABLE(exploreMode3MetaAlignment);
     SHASTA_ADD_TO_FUNCTION_TABLE(exploreMode3AssemblyPath);
     SHASTA_ADD_TO_FUNCTION_TABLE(exploreMode3LinkAssembly);
+
+    SHASTA_ADD_TO_FUNCTION_TABLE(exploreMode3aAssemblyGraph);
 
 }
 #undef SHASTA_ADD_TO_FUNCTION_TABLE
@@ -460,14 +463,22 @@ void Assembler::writeNavigation(ostream& html) const
             });
     }
     if(assemblerInfo->assemblyMode == 3) {
-        writeNavigation(html, "Assembly graph", {
-            {"Local assembly graph", "exploreMode3AssemblyGraph"},
-            {"Assembly graph segments", "exploreMode3AssemblyGraphSegment"},
-            {"Assembly graph segment pairs", "exploreMode3AssemblyGraphSegmentPair"},
-            {"Assembly graph links", "exploreMode3AssemblyGraphLink"},
-            {"Meta-alignments", "exploreMode3MetaAlignment"},
-            {"Assembly paths", "exploreMode3AssemblyPath"},
-            });
+        if(assemblyGraph3Pointer) {
+            // Implementation in the mode3 namespace.
+            writeNavigation(html, "Assembly graph", {
+                {"Local assembly graph", "exploreMode3AssemblyGraph"},
+                {"Assembly graph segments", "exploreMode3AssemblyGraphSegment"},
+                {"Assembly graph segment pairs", "exploreMode3AssemblyGraphSegmentPair"},
+                {"Assembly graph links", "exploreMode3AssemblyGraphLink"},
+                {"Meta-alignments", "exploreMode3MetaAlignment"},
+                {"Assembly paths", "exploreMode3AssemblyPath"},
+                });
+        } else {
+            // Implementation in the mode3a namespace.
+            writeNavigation(html, "Assembly graph", {
+                {"Local assembly graph", "exploreMode3aAssemblyGraph"}
+                });
+        }
     }
 
     if (!httpServerData.docsDirectory.empty()) {
@@ -723,8 +734,12 @@ void Assembler::accessAllSoft()
         try {
             accessMode3AssemblyGraph();
         } catch(const exception& e) {
-            cout << "The mode 3 assembly graph is not accessible." << endl;
-            allDataAreAvailable = false;
+            try {
+                accessMode3aAssemblyData();
+            } catch(const exception& e) {
+                cout << "The mode 3 assembly graph is not accessible." << endl;
+                allDataAreAvailable = false;
+            }
         }
     }
 

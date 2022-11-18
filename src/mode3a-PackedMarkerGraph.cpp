@@ -23,7 +23,8 @@ PackedMarkerGraph::PackedMarkerGraph(
     const string& name,
     uint64_t k,
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
-    const MarkerGraph& markerGraph) :
+    const MarkerGraph& markerGraph,
+    bool accessExisting) :
     MappedMemoryOwner(mappedMemoryOwner),
     MultithreadedObject<PackedMarkerGraph>(*this),
     name(name),
@@ -31,8 +32,13 @@ PackedMarkerGraph::PackedMarkerGraph(
     markers(markers),
     markerGraph(markerGraph)
 {
-    createSegmentsFromMarkerGraph();
-    createLinks();
+    if(accessExisting) {
+        accessSegments();
+        accessLinks();
+    } else {
+        createSegmentsFromMarkerGraph();
+        createLinks();
+    }
 }
 
 
@@ -145,6 +151,20 @@ void PackedMarkerGraph::createSegmentsFromMarkerGraph()
         const MarkerGraph::Edge& edge = markerGraph.edges[edgeId];
         SHASTA_ASSERT(edge.wasRemoved() or wasFound[edgeId]);
     }
+}
+
+
+
+void PackedMarkerGraph::accessSegments()
+{
+    accessExistingReadOnly(segments, name + "-segments");
+}
+
+
+
+void PackedMarkerGraph::accessLinks()
+{
+    accessExistingReadOnly(links, name + "-links");
 }
 
 
