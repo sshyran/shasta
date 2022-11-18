@@ -99,6 +99,13 @@ class shasta::mode3a::AssemblyGraph : public AssemblyGraphBaseClass {
 public:
     AssemblyGraph(const PackedMarkerGraph&);
     void write(const string& name) const;
+
+    // The sequence of segments visited by each oriented read
+    // is a path, if we consider all edges (links) without regards to coverage.
+    // Initially, we construct it from the corresponding journey
+    // in the PackedMarkerGraph.
+    // Indexed by OrientedReadId::getValue().
+    vector< std::list<vertex_descriptor> > paths;
 private:
 
     // Each segment in the AssemblyGraph corresponds to a segment in
@@ -109,12 +116,6 @@ private:
     // (some of these may have been deleted).
     // This also equals the next id for a vertex with a given segmentId.
     vector<uint64_t> vertexCountBySegment;
-
-    // The sequence of segments visited by each oriented read
-    // is a path. Initially, we construct it from the corresponding journey
-    // in the PackedMarkerGraph.
-    // Indexed by OrientedReadId.getValue().
-    vector< std::list<vertex_descriptor> > paths;
 
     void createSegmentsAndPaths();
     void createLinks();

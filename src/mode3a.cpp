@@ -83,8 +83,8 @@ Assembler::Assembler(
     cout << "The initial AssemblyGraph has " <<
         num_vertices(assemblyGraph) << " segments and " <<
         num_edges(assemblyGraph) << " links." << endl;
-    assemblyGraph.write("Mode3a-AssemblyGraph-Initial");
-    AssemblyGraphSnapshot snapshot(assemblyGraph, "Mode3a-AssemblyGraph-Initial", *this);
+    assemblyGraph.write("Mode3a-AssemblyGraph-0");
+    AssemblyGraphSnapshot snapshot0(assemblyGraph, "Mode3a-AssemblyGraph-0", *this);
 }
 
 

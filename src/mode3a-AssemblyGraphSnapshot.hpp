@@ -9,6 +9,7 @@
 #include "MappedMemoryOwner.hpp"
 #include "MemoryMappedVector.hpp"
 #include "MemoryMappedVectorOfVectors.hpp"
+#include "ReadId.hpp"
 
 // Standard library.
 #include "cstdint.hpp"
@@ -36,27 +37,47 @@ public:
 
     const string name;
 
-    // Class SegmentInfo stores segmentId and id from AssemblyGraphVertex.
-    // For the purpose of the snapshot, the index info this vector
+    // Class Segment stores segmentId and id from AssemblyGraphVertex.
+    // For the purpose of the snapshot, the index into this vector
     // is used as a vertex id.
-    class SegmentInfo{
+    class Segment{
     public:
         uint64_t segmentId;
         uint64_t id;
-        SegmentInfo(const AssemblyGraphVertex&);
-        SegmentInfo() {}
+        Segment(const AssemblyGraphVertex&);
+        Segment() {}
     };
-    MemoryMapped::Vector<SegmentInfo> segments;
+    MemoryMapped::Vector<Segment> segments;
 
-    // Class LinkInfo stores vertex ids (indexes into the vertices vector).
-    class LinkInfo {
+    // Class Link stores vertex ids (indexes into the vertices vector).
+    class Link {
     public:
         uint64_t vertexId0;
         uint64_t vertexId1;
-        LinkInfo(uint64_t vertexId0, uint64_t vertexId1);
-        LinkInfo() {}
     };
-    MemoryMapped::Vector<LinkInfo> links;
+    MemoryMapped::Vector<Link> links;
+
+    // The path of each oriented read, stored as a sequence of vertex ids
+    // (that is,indexes into the segments vector above).
+    // Indexed by OrientedRead::getValue().
+    MemoryMapped::VectorOfVectors<uint64_t, uint64_t> paths;
+
+    // The path entries for each vertex.
+    class PathEntry {
+    public:
+        OrientedReadId orientedReadId;
+        uint64_t position;  // The position i the path for this oriented read
+    };
+    MemoryMapped::VectorOfVectors<PathEntry, uint64_t> vertexPathEntries;
+
+    // The transitions of each link don't need to be stored.
+    // They can be computed from the vertexPathEntries.
+    class Transition {
+    public:
+        OrientedReadId orientedReadId;
+        uint64_t position;  // The transition if between position and position+1
+    };
+    void getTransitions(uint64_t linkId, vector<Transition>&) const;
 };
 
 #endif
