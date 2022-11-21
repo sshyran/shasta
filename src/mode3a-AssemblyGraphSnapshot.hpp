@@ -85,7 +85,7 @@ public:
     };
     MemoryMapped::VectorOfVectors<PathEntry, uint64_t> vertexPathEntries;
 
-    // The transitions of each link don't need to be stored.
+    // The transitions of each edge (link) don't need to be stored.
     // They can be computed from the vertexPathEntries.
     class Transition {
     public:
