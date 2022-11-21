@@ -30,9 +30,11 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
 
     // Store the edges.
     createNew(edgeVector, name + "-edges");
+    std::map<AssemblyGraph::edge_descriptor, uint64_t> edgeMap;
     BGL_FORALL_EDGES(e, assemblyGraph, AssemblyGraph) {
         const AssemblyGraph::vertex_descriptor v0 = source(e, assemblyGraph);
         const AssemblyGraph::vertex_descriptor v1 = target(e, assemblyGraph);
+        edgeMap.insert(make_pair(e, edgeVector.size()));
         edgeVector.push_back({vertexMap[v0], vertexMap[v1]});
     }
 
@@ -54,6 +56,24 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
     for(const vector<PathEntry>& v: pathEntries) {
         vertexPathEntries.appendVector(v);
     }
+
+
+    // Compute connectivity.
+    createNew(edgesBySource, name + "-edgesBySource");
+    BGL_FORALL_VERTICES(v, assemblyGraph, AssemblyGraph) {
+        edgesBySource.appendVector();
+        BGL_FORALL_OUTEDGES(v, e, assemblyGraph, AssemblyGraph) {
+            edgesBySource.append(edgeMap[e]);
+        }
+    }
+    createNew(edgesByTarget, name + "-edgesByTarget");
+    BGL_FORALL_VERTICES(v, assemblyGraph, AssemblyGraph) {
+        edgesByTarget.appendVector();
+        BGL_FORALL_INEDGES(v, e, assemblyGraph, AssemblyGraph) {
+            edgesByTarget.append(edgeMap[e]);
+        }
+    }
+
 }
 
 
@@ -69,6 +89,8 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
     accessExistingReadOnly(edgeVector, name + "-edges");
     accessExistingReadOnly(paths, name + "-paths");
     accessExistingReadOnly(vertexPathEntries, name + "-vertexPathEntries");
+    accessExistingReadOnly(edgesBySource, name + "-edgesBySource");
+    accessExistingReadOnly(edgesByTarget, name + "-edgesByTarget");
 }
 
 

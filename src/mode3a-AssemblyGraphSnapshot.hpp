@@ -95,6 +95,10 @@ public:
     void getTransitions(uint64_t linkId, vector<Transition>&) const;
     uint64_t linkCoverage(uint64_t linkId) const;
 
+    // Connectivity.
+    MemoryMapped::VectorOfVectors<uint64_t, uint64_t> edgesBySource;
+    MemoryMapped::VectorOfVectors<uint64_t, uint64_t> edgesByTarget;
+
     void write() const;
     void writeGfa(uint64_t minLinkCoverage) const;
     void writePaths() const;
