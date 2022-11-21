@@ -35,10 +35,10 @@ namespace shasta {
 // Classes used to display in the http server a local portion of the AssemblyGraph.
 class shasta::mode3a::LocalAssemblyGraphVertex {
 public:
-    uint64_t segmentId;
+    uint64_t vertexId;
     uint64_t distance;  // From the start vertex.
     LocalAssemblyGraphVertex(
-        uint64_t segmentId,
+        uint64_t vertexId,
         uint64_t distance);
     LocalAssemblyGraphVertex();
 
@@ -58,9 +58,9 @@ public:
 
 class shasta::mode3a::LocalAssemblyGraphEdge {
 public:
-    uint64_t linkId;
-    LocalAssemblyGraphEdge(uint64_t linkId=0) :
-        linkId(linkId)
+    uint64_t edgeId;
+    LocalAssemblyGraphEdge(uint64_t edgeId=0) :
+        edgeId(edgeId)
         {}
 };
 
@@ -73,7 +73,7 @@ public:
 
     LocalAssemblyGraph(
         const AssemblyGraphSnapshot&,
-        uint64_t startSegmentId,
+        uint64_t startVertexId,
         uint64_t maxDistance);
 
     const AssemblyGraphSnapshot& assemblyGraphSnapshot;
@@ -144,8 +144,8 @@ public:
     void computeSegmentTangents();
     void computeSegmentTangents(vertex_descriptor);
 
-    // Return the random svg color for a segment.
-    static string randomSegmentColor(uint64_t segmentId);
+    // Return the random svg color for a vertex.
+    static string randomSegmentColor(uint64_t vertextId);
 
 
 

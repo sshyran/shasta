@@ -9,8 +9,6 @@
 using namespace shasta;
 using namespace mode3a;
 
-#if 0
-
 // Boost libraries.
 #include <boost/geometry/algorithms/make.hpp>
 #include <boost/geometry/algorithms/length.hpp>
@@ -29,10 +27,10 @@ using namespace mode3a;
 
 // Create the LocalAssemblyGraph using a BFS
 // that starts at the specified vertex and moves away
-// (in both directions) up to the specified distance
+// (in both directions) up to the specified distance.
 LocalAssemblyGraph::LocalAssemblyGraph(
     const AssemblyGraphSnapshot& assemblyGraphSnapshot,
-    uint64_t startSegmentId,
+    uint64_t startVertexId,
     uint64_t maxDistance) :
     assemblyGraphSnapshot(assemblyGraphSnapshot),
     maxDistance(maxDistance)
@@ -42,16 +40,15 @@ LocalAssemblyGraph::LocalAssemblyGraph(
     // The BFS queue.
     std::queue<uint64_t> q;
 
-    // Map segments in the AssemblyGraph to vertices in
-    // the LocalAssemblyGraph.
-    std::map<uint64_t, vertex_descriptor> segmentMap;
+    // Map vertices of the AssemblyGraphSnapshot to vertices of the LocalAssemblyGraph.
+    std::map<uint64_t, vertex_descriptor> vertexMap;
 
     // Initialize the BFS.
     if(maxDistance > 0) {
-        q.push(startSegmentId);
+        q.push(startVertexId);
     }
-    const vertex_descriptor vStart = addVertex(startSegmentId, 0);
-    segmentMap.insert(make_pair(startSegmentId, vStart));
+    const vertex_descriptor vStart = addVertex(startVertexId, 0);
+    vertexMap.insert(make_pair(startVertexId, vStart));
 
 
 
@@ -59,39 +56,39 @@ LocalAssemblyGraph::LocalAssemblyGraph(
     while(not q.empty()) {
 
         // Dequeue a segment.
-        const uint64_t segmentId0 = q.front();
+        const uint64_t vertexId0 = q.front();
         q.pop();
-        const vertex_descriptor v0 = segmentMap[segmentId0];
+        const vertex_descriptor v0 = vertexMap[vertexId0];
         const uint64_t distance0 = localAssemblyGraph[v0].distance;
         const uint64_t distance1 = distance0 + 1;
 
         // Loop over children.
-        for(const uint64_t linkId: assemblyGraphSnapshot.linksBySource[segmentId0]) {
-            const AssemblyGraphSnapshot::Link& link = assemblyGraphSnapshot.links[linkId];
-            const uint64_t segmentId1 = link.segmentId1;
-            if(segmentMap.find(segmentId1) != segmentMap.end()) {
-                // We already encountered this segment.
+        for(const uint64_t linkId: assemblyGraphSnapshot.edgesBySource[vertexId0]) {
+            const AssemblyGraphSnapshot::Edge& link = assemblyGraphSnapshot.edgeVector[linkId];
+            const uint64_t vertexId1 = link.vertexId1;
+            if(vertexMap.find(vertexId1) != vertexMap.end()) {
+                // We already encountered this vertex.
                 continue;
             }
-            const vertex_descriptor v1 = addVertex(segmentId1, distance1);
-            segmentMap.insert(make_pair(segmentId1, v1));
+            const vertex_descriptor v1 = addVertex(vertexId1, distance1);
+            vertexMap.insert(make_pair(vertexId1, v1));
             if(distance1 < maxDistance) {
-                q.push(segmentId1);
+                q.push(vertexId1);
             }
         }
 
         // Loop over parents.
-        for(const uint64_t linkId: assemblyGraph.linksByTarget[segmentId0]) {
-            const AssemblyGraphSnapshot::Link& link = assemblyGraphSnapshot.links[linkId];
-            const uint64_t segmentId1 = link.segmentId0;
-            if(segmentMap.find(segmentId1) != segmentMap.end()) {
-                // We already encountered this segment.
+        for(const uint64_t linkId: assemblyGraphSnapshot.edgesByTarget[vertexId0]) {
+            const AssemblyGraphSnapshot::Edge& link = assemblyGraphSnapshot.edgeVector[linkId];
+            const uint64_t vertexId1 = link.vertexId0;
+            if(vertexMap.find(vertexId1) != vertexMap.end()) {
+                // We already encountered this vertex.
                 continue;
             }
-            const vertex_descriptor v1 = addVertex(segmentId1, distance1);
-            segmentMap.insert(make_pair(segmentId1, v1));
+            const vertex_descriptor v1 = addVertex(vertexId1, distance1);
+            vertexMap.insert(make_pair(vertexId1, v1));
             if(distance1 < maxDistance) {
-                q.push(segmentId1);
+                q.push(vertexId1);
             }
         }
     }
@@ -99,30 +96,29 @@ LocalAssemblyGraph::LocalAssemblyGraph(
 
 
     // Add the edges.
-    for(const auto& p: segmentMap) {
-        const uint64_t segmentId0 = p.first;
+    for(const auto& p: vertexMap) {
+        const uint64_t vertexId0 = p.first;
         const vertex_descriptor v0 = p.second;
 
-        for(const uint64_t linkId: assemblyGraph.linksBySource[segmentId0]) {
-            const AssemblyGraphSnapshot::Link& link = assemblyGraphSnapshot.links[linkId];
-            const uint64_t segmentId1 = link.segmentId1;
-            const auto it1 = segmentMap.find(segmentId1);
-            if(it1 == segmentMap.end()) {
+        for(const uint64_t edgeId: assemblyGraphSnapshot.edgesBySource[vertexId0]) {
+            const AssemblyGraphSnapshot::Edge& link = assemblyGraphSnapshot.edgeVector[edgeId];
+            const uint64_t vertexId1 = link.vertexId1;
+            const auto it1 = vertexMap.find(vertexId1);
+            if(it1 == vertexMap.end()) {
                 continue;
             }
             const vertex_descriptor v1 = it1->second;
-            boost::add_edge(v0, v1, LocalAssemblyGraphEdge(linkId), localAssemblyGraph);
+            boost::add_edge(v0, v1, LocalAssemblyGraphEdge(edgeId), localAssemblyGraph);
         }
     }
 
 }
 
 
-
 LocalAssemblyGraphVertex::LocalAssemblyGraphVertex(
-    uint64_t segmentId,
+    uint64_t vertexId,
     uint64_t distance) :
-    segmentId(segmentId),
+    vertexId(vertexId),
     distance(distance)
 {
 }
@@ -130,21 +126,23 @@ LocalAssemblyGraphVertex::LocalAssemblyGraphVertex(
 
 
 LocalAssemblyGraphVertex::LocalAssemblyGraphVertex() :
-    segmentId(0),
+    vertexId(0),
     distance(0)
 {
 }
 
 
 
-LocalAssemblyGraph::vertex_descriptor mode3::LocalAssemblyGraph::addVertex(
-    uint64_t segmentId,
+LocalAssemblyGraph::vertex_descriptor LocalAssemblyGraph::addVertex(
+    uint64_t vertexId,
     uint64_t distance)
 {
-    return add_vertex(LocalAssemblyGraphVertex(segmentId, distance), *this);
+    return add_vertex(LocalAssemblyGraphVertex(vertexId, distance), *this);
 }
 
 
+
+#if 0
 
 void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) const
 {
@@ -1102,18 +1100,19 @@ void LocalAssemblyGraph::computeSegmentTangents(vertex_descriptor v0)
     vertex0.t2.y(direction[1]);
 #endif
 }
+#endif
 
 
 
-// Return the svg color for a segment.
-string LocalAssemblyGraph::randomSegmentColor(uint64_t segmentId)
+// Return the svg color for a vertex.
+string LocalAssemblyGraph::randomSegmentColor(uint64_t vertexId)
 {
-    const uint32_t hue = MurmurHash2(&segmentId, sizeof(segmentId), 231) % 360;
+    const uint32_t hue = MurmurHash2(&vertexId, sizeof(vertexId), 231) % 360;
     return "hsl(" + to_string(hue) + ",50%,50%)";
 }
 
 
-
+#if 0
 // Find out if the paths of two segments are consecutive.
 bool LocalAssemblyGraph::haveConsecutivePaths(
     vertex_descriptor v0,
@@ -1150,6 +1149,7 @@ int32_t LocalAssemblyGraph::linkSeparation(edge_descriptor e) const
     const uint64_t linkId = localAssemblyGraph[e].linkId;
     return assemblyGraph.links[linkId].separation;
 }
+#endif
 
 
 
@@ -1178,35 +1178,6 @@ LocalAssemblyGraph::SvgOptions::SvgOptions(const vector<string>& request)
     HttpServer::getParameterValue(request, "additionalSegmentLengthPerMarker", additionalSegmentLengthPerMarker);
     HttpServer::getParameterValue(request, "minimumSegmentThickness", minimumSegmentThickness);
     HttpServer::getParameterValue(request, "additionalSegmentThicknessPerUnitCoverage", additionalSegmentThicknessPerUnitCoverage);
-
-    // Segment coloring
-    HttpServer::getParameterValue(request, "segmentColoring", segmentColoring);
-    HttpServer::getParameterValue(request, "segmentColor", segmentColor);
-    HttpServer::getParameterValue(request, "greenThreshold", greenThreshold);
-    HttpServer::getParameterValue(request, "referenceSegmentId", referenceSegmentId);
-    HttpServer::getParameterValue(request, "hashSeed", hashSeed);
-    HttpServer::getParameterValue(request, "pathStart", pathStart);
-    HttpServer::getParameterValue(request, "pathDirection", pathDirection);
-
-    string clustersToBeColoredString;
-    HttpServer::getParameterValue(request, "clustersToBeColored", clustersToBeColoredString);
-    clustersToBeColored.clear();
-    if(not clustersToBeColoredString.empty()) {
-        vector<string> tokens;
-        boost::algorithm::split(tokens, clustersToBeColoredString, boost::algorithm::is_any_of(","));
-        for(const string& token: tokens) {
-            try {
-                const uint64_t clusterId =std::stoi(token);
-                clustersToBeColored.push_back(clusterId);
-            } catch(const std::exception&) {
-                // Neglect it.
-            }
-        }
-    }
-
-    // Flag to turn on sequence assembly when coloring a path.
-    string assemblePathSequenceString;
-    assemblePathSequence = HttpServer::getParameterValue(request, "assemblePathSequence", assemblePathSequenceString);
 
     // Link length and thickness.
     HttpServer::getParameterValue(request, "minimumLinkLength", minimumLinkLength);
@@ -1259,108 +1230,7 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         "<td class=centered><input type=text name=additionalSegmentThicknessPerUnitCoverage size=8 style='text-align:center'"
         " value='" << additionalSegmentThicknessPerUnitCoverage <<
         "'>"
-
-
-
-        // Segment coloring.
-        "<tr>"
-        "<td class = left>Color"
-        "<td class=left>"
-
-        // Random segment coloring.
-        "<input type=radio name=segmentColoring value=random"
-        << (segmentColoring=="random" ? " checked=checked" : "") <<
-        ">Random<hr>"
-
-        // Uniform segment coloring.
-        "<input type=radio name=segmentColoring value=uniform"
-        << (segmentColoring=="uniform" ? " checked=checked" : "") <<
-        ">"
-        "<input type=text name=segmentColor size=8 style='text-align:center'"
-                " value='" << segmentColor << "'>"
-        "<hr>"
-
-        // Segment coloring by Jaccard similarity with the reference segment.
-        "<input type=radio name=segmentColoring value=byJaccard"
-        << (segmentColoring=="byJaccard" ? " checked=checked" : "") <<
-        ">By Jaccard similarity with reference segment, without counting short reads"
-        "<br>"
-
-        // Segment coloring by raw Jaccard similarity with the reference segment.
-        "<input type=radio name=segmentColoring value=byRawJaccard"
-        << (segmentColoring=="byRawJaccard" ? " checked=checked" : "") <<
-        ">By raw Jaccard similarity with reference segment (no special treatment of short reads)"
-        "<br>"
-
-        // Segment coloring by number of common reads with the reference segment.
-        "<input type=radio name=segmentColoring value=byCommonReads"
-        << (segmentColoring=="byCommonReads" ? " checked=checked" : "") <<
-        ">By number of common supporting oriented reads with reference segment"
-        "<div style='text-indent:3em'>"
-        "Green if at least "
-        "<input type=text name=greenThreshold size=4 style='text-align:center'"
-        " value='" << greenThreshold <<
-        "'>"        " common reads (0 = automatic)"
-        "</div>"
-
-        // Segment coloring by unexplained fraction on the reference segment.
-        "<input type=radio name=segmentColoring value=byUnexplainedFractionOnReferenceSegment"
-        << (segmentColoring=="byUnexplainedFractionOnReferenceSegment" ? " checked=checked" : "") <<
-        ">By unexplained fraction on the reference segment"
-        "<br>"
-
-        // Segment coloring by unexplained fraction on the displayed segment.
-        "<input type=radio name=segmentColoring value=byUnexplainedFractionOnDisplayedSegment"
-        << (segmentColoring=="byUnexplainedFractionOnDisplayedSegment" ? " checked=checked" : "") <<
-        ">By unexplained fraction on the displayed segment"
-        "<br>"
-
-        "Reference segment&nbsp;<input type=text name=referenceSegmentId size=8 style='text-align:center'"
-                " value='" << referenceSegmentId << "'><hr>"
-
-        // Segment coloring by cluster id.
-        "<input type=radio name=segmentColoring value=byCluster"
-        << (segmentColoring=="byCluster" ? " checked=checked" : "") <<
-        ">By cluster"
-        "<br>"
-        "Hash seed&nbsp;<input type=text name=hashSeed size=8 style='text-align:center'"
-                " value='" << hashSeed << "'><br>"
-        "Only color clusters&nbsp;<input type=text name=clustersToBeColored size=8 style='text-align:center'"
-                " value='";
-     for(const uint64_t clusterId: clustersToBeColored) {
-         html << clusterId << ",";
-     }
-     html <<  "'><hr>"
-
-         // Segment coloring by local cluster
-         // (computed by analyzeSubgraph using as input only the segments at
-         // distance less than maxDistance).
-         "<input type=radio name=segmentColoring value=byLocalCluster"
-         << (segmentColoring=="byLocalCluster" ? " checked=checked" : "") <<
-         ">By local cluster"
-         "<br>";
-
-         // Segment coloring using a path.
-         html <<
-             "<hr>"
-             "<input type=radio name=segmentColoring value=path"
-             << (segmentColoring=="path" ? " checked=checked" : "") <<
-             ">Color an assembly path"
-             "<br>"
-             "Start the path at segment &nbsp;<input type=text name=pathStart size=8 style='text-align:center'"
-                     " value='" << pathStart << "'>"
-             "<br><input type=radio name=pathDirection value=forward" <<
-             (pathDirection=="forward" ? " checked=checked" : "") << "> Forward"
-             "<br><input type=radio name=pathDirection value=backward" <<
-             (pathDirection=="backward" ? " checked=checked" : "") << "> Backward"
-             "<br><input type=radio name=pathDirection value=bidirectional" <<
-             (pathDirection=="bidirectional" ? " checked=checked" : "") << "> Both directions" <<
-             "<br><input type=checkbox name=assemblePathSequence" <<
-             (assemblePathSequence ? " checked=checked" : "") <<
-             "> Assemble path sequence.";
-
-
-        html << "</table>"
+        "</table>"
 
 
 
@@ -1388,31 +1258,13 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         "'>"
         "</table>"
 
-        "</table>"
-
-
-        ;
+        "</table>";
 
 }
 
 
 
-// Return true if there were no changes in the options
-// that affect graph layout changed, compared to another
-// SvgOptions object.
-bool LocalAssemblyGraph::SvgOptions::hasSameLayoutOptions(const SvgOptions& that) const
-{
-    return
-        (layoutMethod == that.layoutMethod) and
-        (minimumSegmentLength == that.minimumSegmentLength) and
-        (additionalSegmentLengthPerMarker == that.additionalSegmentLengthPerMarker) and
-        (minimumLinkLength == that.minimumLinkLength) and
-        (additionalLinkLengthPerMarker == that.additionalLinkLengthPerMarker)
-        ;
-}
-
-
-
+#if 0
 // Write the local assembly graph in gfa format.
 void LocalAssemblyGraph::writeGfa(const string& fileName) const
 {
