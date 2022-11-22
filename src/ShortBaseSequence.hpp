@@ -3,6 +3,7 @@
 
 // shasta.
 #include "Base.hpp"
+#include "bitReversal.hpp"
 
 // Standard library.
 #include "array.hpp"
