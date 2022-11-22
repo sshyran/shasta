@@ -114,7 +114,10 @@ void Assembler::accessMode3aAssemblyData()
         try {
             const string name = "Mode3a-AssemblyGraphSnapshot-" + to_string(i);
             const auto snapshot =
-                make_shared<mode3a::AssemblyGraphSnapshot>(name, MappedMemoryOwner(*this));
+                make_shared<mode3a::AssemblyGraphSnapshot>(
+                    name,
+                    MappedMemoryOwner(*this),
+                    *mode3aAssemblyData.packedMarkerGraph);
             mode3aAssemblyData.assemblyGraphSnapshots.push_back(snapshot);
         } catch (exception&) {
             break;

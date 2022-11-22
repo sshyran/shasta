@@ -141,15 +141,12 @@ LocalAssemblyGraph::vertex_descriptor LocalAssemblyGraph::addVertex(
 }
 
 
-
 #if 0
-
 void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) const
 {
     // Write the svg object.
     html << "<div style='display: inline-block; vertical-align:top'>";
-    vector<mode3::AssemblyGraph::AnalyzeSubgraphClasses::Cluster> clusters;
-    writeSvg(html, options, clusters);
+    writeSvg(html, options);
     html << "</div>";
     addSvgDragAndZoom(html);
 
@@ -412,77 +409,6 @@ function onMouseExitSegment()
      </table>
         )stringDelimiter";
 
-
-    // Code to display one local cluster at a time, with a button
-    // to cycle through them.
-    if(options.segmentColoring == "byLocalCluster") {
-        html <<
-            "<br>Found " << clusters.size() << " clusters. "
-            "Displaying cluster <span id='currentCluster'></span>"
-            "<br><button onClick='previousCluster()'>Previous<br>cluster</button>"
-            "<button onClick='nextCluster()'>Next<br>cluster</button>"
-            "<script>\n"
-            "var clusters = [";
-        for(uint64_t i=0; i<clusters.size(); i++) {
-            html << "[";
-            const auto & cluster = clusters[i];
-            for(uint64_t j=0; j<cluster.segments.size(); j++) {
-                html << cluster.segments[j].first;
-                if(j != cluster.segments.size() - 1) {
-                    html << ",";
-                }
-            }
-            html << "]";
-            if(i != clusters.size() -1) {
-                html << ",";
-            }
-        }
-        html << "];\n";
-
-        html << R"stringDelimiter(
-
-        function clusterColor(clusterId)
-        {
-            var ratio = clusterId / clusters.length;
-            return 'hsl(' + Math.round(360*ratio) + ', 85%, 70%)';
-        }
-
-        function highlightCluster(clusterId, color)
-        {
-            for(i=0; i<clusters[clusterId].length; i++) {
-                segmentId = clusters[clusterId][i];
-                document.getElementById("Segment-" + segmentId).style.stroke = color;
-                document.getElementById("marker" + segmentId).style.fill = color;
-            }
-        }
-        var currentCluster = 0;
-        highlightCluster(currentCluster, clusterColor(currentCluster));
-        document.getElementById("currentCluster").innerHTML = currentCluster;
-        function nextCluster()
-        {
-            highlightCluster(currentCluster, "Black");
-            currentCluster = currentCluster + 1;
-            if(currentCluster == clusters.length) {
-                currentCluster = 0;
-            }
-            highlightCluster(currentCluster, clusterColor(currentCluster));
-            document.getElementById("currentCluster").innerHTML = currentCluster;
-        }
-        function previousCluster()
-        {
-            highlightCluster(currentCluster, "Black");
-            if(currentCluster == 0) {
-                currentCluster = clusters.length;
-            }
-            currentCluster = currentCluster - 1;
-            highlightCluster(currentCluster, clusterColor(currentCluster));
-            document.getElementById("currentCluster").innerHTML = currentCluster;
-        }
-        </script>
-
-        )stringDelimiter";
-    }
-
     // End of side panel.
     html << "</div>";
 
@@ -554,8 +480,6 @@ void LocalAssemblyGraph::writeSvg(
     // Write the links first, so they don't overwrite the segments.
     svg << "<g id='" << svgId << "-links'>\n";
     BGL_FORALL_EDGES(e, localAssemblyGraph, LocalAssemblyGraph) {
-        const uint64_t linkId = localAssemblyGraph[e].linkId;
-        const AssemblyGraph::Link& link = assemblyGraph.links[linkId];
 
         // Access the LocalAssemblyGraph vertices corresponding to
         // the two segments of this Link and extract some information
@@ -566,6 +490,8 @@ void LocalAssemblyGraph::writeSvg(
         const LocalAssemblyGraphVertex& vertex2 = localAssemblyGraph[v2];
         const uint64_t segmentId1 = vertex1.segmentId;
         const uint64_t segmentId2 = vertex2.segmentId;
+        const uint64_t segmentCopyIndex1 = vertex1.segmentCopyIndex;
+        const uint64_t segmentCopyIndex2 = vertex2.segmentCopyIndex;
 
         // Get the positions of the ends of this link.
         SHASTA_ASSERT(vertex1.position.size() >= 2);
@@ -593,32 +519,6 @@ void LocalAssemblyGraph::writeSvg(
             link.segmentsAreAdjacent ? "" :
             " stroke-dasharray='0 " + to_string(1.5 * linkThickness) + "'";
 
-        // If the link participates in a path, color it consistently with the
-        // segments is joins.
-        string linkColor = options.linkColor;
-        if(options.segmentColoring == "path") {
-            const auto it1 = pathSegments.find(segmentId1);
-            if(it1 != pathSegments.end()) {
-                const auto positions1 = it1->second;
-                SHASTA_ASSERT(not positions1.empty());
-                const auto it2 = pathSegments.find(segmentId2);
-                if(it2 != pathSegments.end()) {
-                    const auto positions2 = it2->second;
-                    SHASTA_ASSERT(not positions2.empty());
-                    if(positions1.size()==1 and positions2.size()==1) {
-                        const uint64_t position1 = positions1.front().first;
-                        const uint64_t position2 = positions2.front().first;
-                        if(position2 == position1 + 1) {
-                            const uint32_t hue = uint32_t(
-                                std::round(120. * double(position1 + position2) / double(path.segments.size())));
-                            linkColor = "hsl(" + to_string(hue) + ",100%, 20%)";
-                        }
-                    } else {
-                        linkColor = "Fuchsia";
-                    }
-                }
-            }
-        }
 
         svg <<
             "<g>"
@@ -683,98 +583,7 @@ void LocalAssemblyGraph::writeSvg(
         if(distance == maxDistance) {
             color = options.segmentAtMaxDistanceColor;
         } else {
-            if(options.segmentColoring == "random") {
-                color = randomSegmentColor(segmentId);
-            } else if(options.segmentColoring == "uniform") {
-                color = options.segmentColor;
-            } else if(options.segmentColoring == "byCommonReads") {
-                const uint64_t commonCount = segmentPairInformationTable[v].commonCount;
-                double fraction;
-                if(options.greenThreshold) {
-                    fraction = min(1., double(commonCount) / double(options.greenThreshold));
-                } else {
-                    fraction = double(commonCount) / double(referenceSegmentInfo.infos.size());
-                }
-                const uint64_t hue = uint64_t(std::round(fraction * 120.));
-                color = "hsl(" + to_string(hue) + ",100%, 50%)";
-            } else if(options.segmentColoring == "byJaccard") {
-                const auto& pairInfo = segmentPairInformationTable[v];
-                if(pairInfo.commonCount > 0) {
-                    const double jaccard = pairInfo.jaccard();
-                    const uint64_t hue = uint64_t(std::round(jaccard * 120.));
-                    color = "hsl(" + to_string(hue) + ",100%, 50%)";
-                } else {
-                    color = "blue";
-                }
-            } else if(options.segmentColoring == "byRawJaccard") {
-                const auto& pairInfo = segmentPairInformationTable[v];
-                if(pairInfo.commonCount > 0) {
-                    const double rawJaccard = pairInfo.rawJaccard();
-                    const uint64_t hue = uint64_t(std::round(rawJaccard * 120.));
-                    color = "hsl(" + to_string(hue) + ",100%, 50%)";
-                } else {
-                    color = "blue";
-                }
-            } else if(options.segmentColoring == "byUnexplainedFractionOnReferenceSegment") {
-                const auto& pairInfo = segmentPairInformationTable[v];
-                if(pairInfo.commonCount > 0) {
-                    const double fraction = 1. - pairInfo.unexplainedFraction(0);
-                    const uint64_t hue = uint64_t(std::round(fraction * 120.));
-                    color = "hsl(" + to_string(hue) + ",100%, 50%)";
-                } else {
-                    color = "blue";
-                }
-            } else if(options.segmentColoring == "byUnexplainedFractionOnDisplayedSegment") {
-                const auto& pairInfo = segmentPairInformationTable[v];
-                if(pairInfo.commonCount > 0) {
-                    const double fraction = 1. - pairInfo.unexplainedFraction(1);
-                    const uint64_t hue = uint64_t(std::round(fraction * 120.));
-                    color = "hsl(" + to_string(hue) + ",100%, 50%)";
-                } else {
-                    color = "blue";
-                }
-            } else if(options.segmentColoring == "byCluster") {
-                const uint64_t clusterId = assemblyGraph.clusterIds[segmentId];
-                if(clusterId == std::numeric_limits<uint64_t>::max()) {
-                    color = "Gray";
-                } else {
-                    if(options.clustersToBeColored.empty()) {
-                        // We are coloring all cluster. Use a hash function to decide the color.
-                        const uint32_t hashValue = MurmurHash2(&clusterId, sizeof(clusterId), uint32_t(options.hashSeed));
-                        const uint32_t hue = hashValue % 360;
-                        color = "hsl(" + to_string(hue) + ",100%, 50%)";
-                    } else {
-                        // We are only coloring some segments.
-                        auto it = clusterColorMap.find(clusterId);
-                        if(it == clusterColorMap.end()) {
-                            color = "Black";
-                        } else {
-                            color = it->second;
-                        }
-                    }
-                }
-            } else if(options.segmentColoring == "path") {
-                auto it = pathSegments.find(segmentId);
-                if(it == pathSegments.end()) {
-                    color = "Black";
-                } else {
-                    const auto positions = it->second;
-                    SHASTA_ASSERT(not positions.empty());
-                    if(positions.size() == 1) {
-                        const auto& p = positions.front();
-                        const uint64_t positionInPath = p.first;
-                        const bool isReferenceSegment = p.second;
-                        const uint32_t hue = uint32_t(
-                            std::round(240. * double(positionInPath) / double(path.segments.size())));
-                        color = "hsl(" + to_string(hue) + ",100%, " + (isReferenceSegment ? "40%" : "70%") + ")";
-                    } else {
-                        // This segment appears more than once on the path.
-                        color = "Fuchsia";
-                    }
-                }
-            } else {
-                color = "Black";
-            }
+            color = randomSegmentColor(segmentId);
         }
 
 
@@ -891,9 +700,10 @@ void LocalAssemblyGraph::writeSvg(
     // End the svg.
     svg << "</svg>\n";
 }
+#endif
 
 
-
+#if 0
 void LocalAssemblyGraph::computeLayout(
     const SvgOptions& options,
     double timeout)
@@ -1103,13 +913,13 @@ void LocalAssemblyGraph::computeSegmentTangents(vertex_descriptor v0)
 #endif
 
 
-
 // Return the svg color for a vertex.
 string LocalAssemblyGraph::randomSegmentColor(uint64_t vertexId)
 {
     const uint32_t hue = MurmurHash2(&vertexId, sizeof(vertexId), 231) % 360;
     return "hsl(" + to_string(hue) + ",50%,50%)";
 }
+
 
 
 #if 0

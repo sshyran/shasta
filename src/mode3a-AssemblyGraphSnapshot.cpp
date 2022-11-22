@@ -20,7 +20,8 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
     const string& name,
     const MappedMemoryOwner& mappedMemoryOwner) :
     MappedMemoryOwner(mappedMemoryOwner),
-    name(name)
+    name(name),
+    packedMarkerGraph(assemblyGraph.packedMarkerGraph)
 {
     // Store the segments.
     createNew(vertexVector, name + "-vertices");
@@ -115,9 +116,11 @@ void AssemblyGraphSnapshot::createVertexTable(
 // This accesses an existing snapshot.
 AssemblyGraphSnapshot::AssemblyGraphSnapshot(
     const string& name,
-    const MappedMemoryOwner& mappedMemoryOwner) :
+    const MappedMemoryOwner& mappedMemoryOwner,
+    const PackedMarkerGraph& packedMarkerGraph) :
     MappedMemoryOwner(mappedMemoryOwner),
-    name(name)
+    name(name),
+    packedMarkerGraph(packedMarkerGraph)
 {
     accessExistingReadOnly(vertexVector, name + "-vertices");
     accessExistingReadOnly(edgeVector, name + "-edges");
@@ -134,6 +137,15 @@ AssemblyGraphSnapshot::Vertex::Vertex(const AssemblyGraphVertex& vertex) :
     segmentId(vertex.segmentId),
     segmentCopyIndex(vertex.segmentCopyIndex)
 {}
+
+
+
+// Get the length of assembled sequence for a vertex.
+uint64_t AssemblyGraphSnapshot::getVertexAssembledSequenceLength(uint64_t vertexId) const
+{
+    const Vertex& vertex = vertexVector[vertexId];
+    return packedMarkerGraph.segmentSequences[vertex.segmentId].size();
+}
 
 
 

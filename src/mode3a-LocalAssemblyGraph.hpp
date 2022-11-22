@@ -35,7 +35,7 @@ namespace shasta {
 // Classes used to display in the http server a local portion of the AssemblyGraph.
 class shasta::mode3a::LocalAssemblyGraphVertex {
 public:
-    uint64_t vertexId;
+    uint64_t vertexId;  // In the AssemblyGraphSnapshot
     uint64_t distance;  // From the start vertex.
     LocalAssemblyGraphVertex(
         uint64_t vertexId,

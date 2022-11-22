@@ -42,9 +42,13 @@ public:
     // This accesses an existing snapshot.
     AssemblyGraphSnapshot(
         const string& name,
-        const MappedMemoryOwner& mappedMemoryOwner);
+        const MappedMemoryOwner& mappedMemoryOwner,
+        const PackedMarkerGraph& packedMarkerGraph);
 
     const string name;
+
+    // The PackedMarkerGraph that this AssemblyGraphSnapshot refers to.
+    const PackedMarkerGraph& packedMarkerGraph;
 
     // Class Vertex stores segmentId and id from AssemblyGraphVertex.
     // For the purpose of the snapshot, the index into this vector
@@ -109,6 +113,9 @@ public:
     // if no such vertex.
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> vertexTable;
     void createVertexTable(const PackedMarkerGraph&);
+
+    // Get the length of assembled sequence for a vertex.
+    uint64_t getVertexAssembledSequenceLength(uint64_t vertexId) const;
 
     void write() const;
     void writeGfa(uint64_t minLinkCoverage) const;

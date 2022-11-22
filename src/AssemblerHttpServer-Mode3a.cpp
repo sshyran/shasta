@@ -7,6 +7,7 @@ using namespace shasta;
 using namespace mode3a;
 
 
+
 void Assembler::exploreMode3aAssemblyGraph(
     const vector<string>& request,
     ostream& html)
@@ -76,6 +77,11 @@ void Assembler::exploreMode3aAssemblyGraph(
 
 
 
+    if(not startSegmentIdIsPresent) {
+        return;
+    }
+
+
     // Access the requested snapshot.
     const uint64_t snapshotCount = mode3aAssemblyData.assemblyGraphSnapshots.size();
     if(snapshotIndex >= snapshotCount) {
@@ -94,7 +100,7 @@ void Assembler::exploreMode3aAssemblyGraph(
     }
     auto v = snapshot.vertexTable[startSegmentId];
     if(startSegmentCopyIndex >= v.size() or v[startSegmentCopyIndex] == invalid<uint64_t> ) {
-        html << "<br>Invalid segment copy index.<br>Valid segment copy indexes for this segment are";
+        html << "<br>Invalid segment copy index.<br>Valid segment copy indexes for this segment are:";
         for(uint64_t segmentCopyIndex=0; segmentCopyIndex<v.size(); segmentCopyIndex++) {
             if(v[segmentCopyIndex] != invalid<uint64_t>) {
                 html << " " << segmentCopyIndex;
@@ -104,4 +110,24 @@ void Assembler::exploreMode3aAssemblyGraph(
     }
     const uint64_t startVertexId = v[startSegmentCopyIndex];
     SHASTA_ASSERT(startVertexId < snapshot.vertexVector.size());
+    const AssemblyGraphSnapshot::Vertex& startVertex = snapshot.vertexVector[startVertexId];
+    SHASTA_ASSERT(startVertex.segmentId == startSegmentId);
+    SHASTA_ASSERT(startVertex.segmentCopyIndex == startSegmentCopyIndex);
+
+    html << "<h1>Local assembly graph near segment " << startSegmentId <<
+        " copy " << startSegmentCopyIndex << "</h1>";
+
+    // Create this local assembly graph.
+    mode3a::LocalAssemblyGraph localAssemblyGraph(snapshot, startVertexId, maxDistance);
+    html << "<p>The local assembly graph has " << num_vertices(localAssemblyGraph) <<
+        " vertices and " << num_edges(localAssemblyGraph) << " edges." << endl;
+
+    // Compute its layout.
+    // localAssemblyGraph.computeLayout(options, timeout);
+    // localAssemblyGraph.computeSegmentTangents();
+
+    // Display the local assembly graph.
+    // localAssemblyGraph.writeHtml(html, options);
+
+
 }
