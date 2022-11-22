@@ -12,7 +12,7 @@ using namespace mode3;
 Detangler::Detangler(const AssemblyGraph& assemblyGraph)
 {
     // ****** EXPOSE WHEN CODE STABILIZES
-    const uint64_t minLinkCoverage = 6;
+    const uint64_t minLinkCoverage = 4;
 
     createJourneys(assemblyGraph);
     createInitialClusters();
