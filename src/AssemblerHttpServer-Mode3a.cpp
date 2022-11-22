@@ -123,7 +123,7 @@ void Assembler::exploreMode3aAssemblyGraph(
         " vertices and " << num_edges(localAssemblyGraph) << " edges." << endl;
 
     // Compute its layout.
-    // localAssemblyGraph.computeLayout(options, timeout);
+    localAssemblyGraph.computeLayout(options, timeout);
     // localAssemblyGraph.computeSegmentTangents();
 
     // Display the local assembly graph.

@@ -35,9 +35,11 @@ PackedMarkerGraph::PackedMarkerGraph(
     if(accessExisting) {
         accessSegments();
         accessLinks();
+        accessSegmentSequences();
     } else {
         createSegmentsFromMarkerGraph();
         createLinks();
+        assembleSegmentSequences();
     }
 }
 
@@ -230,6 +232,13 @@ void PackedMarkerGraph::assembleSegmentSequences()
 
         segmentSequences.appendVector(assembledSegment.rawSequence);
     }
+}
+
+
+
+void PackedMarkerGraph::accessSegmentSequences()
+{
+    accessExistingReadOnly(segmentSequences, name + "-sequences");
 }
 
 

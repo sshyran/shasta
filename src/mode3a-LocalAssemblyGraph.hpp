@@ -83,6 +83,7 @@ public:
         uint64_t segmentId,
         uint64_t distance);
 
+    uint64_t getVertexAssembledSequenceLength(vertex_descriptor) const;
 
 
     class SvgOptions {
@@ -99,7 +100,7 @@ public:
         // minimumSegmentLength + (n-1) * additionalSegmentLengthPerMarker
         // where n is the path length of the segment, in markers.
         double minimumSegmentLength = 1.;
-        double additionalSegmentLengthPerMarker = 0.1;
+        double additionalSegmentLengthPerBase = 0.001;
 
         // The thickness of a segment is computed as
         // minimumSegmentThickness + coverage * additionalSegmentThicknessPerUnitCoverage
@@ -108,23 +109,12 @@ public:
         double additionalSegmentThicknessPerUnitCoverage = 0.005;
 
         // Link length and thickness.
-
-        // The display length of a link is computed as follows:
-        // - For a link between segments that are consecutive in the marker graph:
-        //   linkLength = minimumLinkLength
-        // - For a link between segments that are not consecutive in the marker graph:
-        //   linkLength = 3 * minimumLinkLength + linkSeparation * additionalLinkLengthPerMarker
-        //   (with the linkSeperation replaced with zero if it is negative).
-        double minimumLinkLength = 1;
-        double additionalLinkLengthPerMarker = 0.1;
+        double linkLength = 1;
 
         // The display thickness of a link is computed as
-        // minimumLinkThickness + (n-1) * additionalSegmentLengthPerMarker
-        // where n is the path length of the segment, in markers.
+        // minimumLinkThickness + (linkCoverage-1) * additionalLinkThicknessPerRead
         double minimumLinkThickness = 0.05;
         double additionalLinkThicknessPerRead = 0.005;
-
-
 
         // Construct the options from an html request.
         SvgOptions(const vector<string>& request);

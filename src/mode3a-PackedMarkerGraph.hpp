@@ -59,6 +59,7 @@ public:
     // Assembled sequence of each segment.
     MemoryMapped::VectorOfVectors<Base, uint64_t> segmentSequences;
     void assembleSegmentSequences();
+    void accessSegmentSequences();
 
     // The segmentSequences stores, for each segment,
     // the entire sequence from the AssembledSegment.

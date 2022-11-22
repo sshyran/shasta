@@ -141,6 +141,18 @@ LocalAssemblyGraph::vertex_descriptor LocalAssemblyGraph::addVertex(
 }
 
 
+
+uint64_t LocalAssemblyGraph::getVertexAssembledSequenceLength(vertex_descriptor v) const
+{
+    const LocalAssemblyGraph& localAssemblyGraph = *this;
+    const LocalAssemblyGraphVertex& localAssemblyGraphVertex = localAssemblyGraph[v];
+    const uint64_t assemblyGraphSnapshotVertexId = localAssemblyGraphVertex.vertexId;
+
+    return assemblyGraphSnapshot.getVertexAssembledSequenceLength(assemblyGraphSnapshotVertexId);
+}
+
+
+
 #if 0
 void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) const
 {
@@ -703,7 +715,8 @@ void LocalAssemblyGraph::writeSvg(
 #endif
 
 
-#if 0
+
+
 void LocalAssemblyGraph::computeLayout(
     const SvgOptions& options,
     double timeout)
@@ -717,12 +730,11 @@ void LocalAssemblyGraph::computeLayout(
     std::map<vertex_descriptor, array<G::vertex_descriptor, 2> > vertexMap;
     std::map<G::edge_descriptor, double> edgeLengthMap;
     BGL_FORALL_VERTICES(v, localAssemblyGraph, LocalAssemblyGraph) {
-        const uint64_t segmentId = localAssemblyGraph[v].segmentId;
 
-        const uint64_t pathLength = assemblyGraph.markerGraphPaths.size(segmentId);
+        const uint64_t assembledSequenceLength = localAssemblyGraph.getVertexAssembledSequenceLength(v);
         const double displayLength =
             options.minimumSegmentLength +
-            double(pathLength - 1) * options.additionalSegmentLengthPerMarker;
+            double(assembledSequenceLength) * options.additionalSegmentLengthPerBase;
 
         // Add the auxiliary vertices.
         array<G::vertex_descriptor, 2>& auxiliaryVertices = vertexMap[v];
@@ -743,23 +755,13 @@ void LocalAssemblyGraph::computeLayout(
     BGL_FORALL_EDGES(e, localAssemblyGraph, LocalAssemblyGraph) {
         const vertex_descriptor v1 = source(e, localAssemblyGraph);
         const vertex_descriptor v2 = target(e, localAssemblyGraph);
-        const LocalAssemblyGraphEdge& edge = localAssemblyGraph[e];
-        const uint64_t linkId = edge.linkId;
-        const AssemblyGraph::Link& link = assemblyGraph.links[linkId];
 
-        double edgeLength;
-        if(link.segmentsAreAdjacent) {
-            edgeLength = options.minimumLinkLength;
-        } else {
-            const int32_t linkSeparation = max(link.separation, 0);
-            edgeLength = 3. * options.minimumLinkLength + double(linkSeparation) * options.additionalLinkLengthPerMarker;
-        }
         G::edge_descriptor eAuxiliary;
         tie(eAuxiliary, ignore) = add_edge(
             vertexMap[v1].back(),
             vertexMap[v2].front(),
             g);
-        edgeLengthMap.insert(make_pair(eAuxiliary, edgeLength));
+        edgeLengthMap.insert(make_pair(eAuxiliary, options.linkLength));
     }
 
 
@@ -805,7 +807,7 @@ void LocalAssemblyGraph::computeLayout(
 }
 
 
-
+#if 0
 void LocalAssemblyGraph::computeSegmentTangents()
 {
     LocalAssemblyGraph& localAssemblyGraph = *this;
@@ -985,13 +987,12 @@ LocalAssemblyGraph::SvgOptions::SvgOptions(const vector<string>& request)
 
     // Segment length and thickness.
     HttpServer::getParameterValue(request, "minimumSegmentLength", minimumSegmentLength);
-    HttpServer::getParameterValue(request, "additionalSegmentLengthPerMarker", additionalSegmentLengthPerMarker);
+    HttpServer::getParameterValue(request, "additionalSegmentLengthPerBase", additionalSegmentLengthPerBase);
     HttpServer::getParameterValue(request, "minimumSegmentThickness", minimumSegmentThickness);
     HttpServer::getParameterValue(request, "additionalSegmentThicknessPerUnitCoverage", additionalSegmentThicknessPerUnitCoverage);
 
     // Link length and thickness.
-    HttpServer::getParameterValue(request, "minimumLinkLength", minimumLinkLength);
-    HttpServer::getParameterValue(request, "additionalLinkLengthPerMarker", additionalLinkLengthPerMarker);
+    HttpServer::getParameterValue(request, "linkLength", linkLength);
     HttpServer::getParameterValue(request, "minimumLinkThickness", minimumLinkThickness);
     HttpServer::getParameterValue(request, "additionalLinkThicknessPerRead", additionalLinkThicknessPerRead);
 }
@@ -1027,9 +1028,9 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         "<td><input type=text name=minimumSegmentLength size=8 style='text-align:center'"
         " value='" << minimumSegmentLength << "'>"
         "<tr><td class=left>"
-        "Additional display length per marker"
-        "<td><input type=text name=additionalSegmentLengthPerMarker size=8 style='text-align:center'"
-        " value='" << additionalSegmentLengthPerMarker << "'>"
+        "Additional display length per base"
+        "<td><input type=text name=additionalSegmentLengthPerBase size=8 style='text-align:center'"
+        " value='" << additionalSegmentLengthPerBase << "'>"
         "<tr>"
         "<td class=left>Minimum thickness"
         "<td class=centered><input type=text name=minimumSegmentThickness size=8 style='text-align:center'"
@@ -1049,13 +1050,9 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         "<td class=centered>"
         "<table>"
         "<tr><td class=left>"
-        "Minimum display length "
-        "<td><input type=text name=minimumLinkLength size=8 style='text-align:center'"
-        " value='" << minimumLinkLength << "'>"
-        "<tr><td class=left>"
-        "Additional display length per marker"
-        "<td><input type=text name=additionalLinkLengthPerMarker size=8 style='text-align:center'"
-        " value='" << additionalLinkLengthPerMarker << "'>"
+        "Display length "
+        "<td><input type=text name=linkLength size=8 style='text-align:center'"
+        " value='" << linkLength << "'>"
         "<tr>"
         "<td class=left>Minimum thickness"
         "<td class=centered><input type=text name=minimumLinkThickness size=8 style='text-align:center'"
