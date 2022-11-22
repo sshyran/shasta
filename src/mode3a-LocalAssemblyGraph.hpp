@@ -99,7 +99,7 @@ public:
         // minimumSegmentLength + (n-1) * additionalSegmentLengthPerMarker
         // where n is the path length of the segment, in markers.
         double minimumSegmentLength = 1.;
-        double additionalSegmentLengthPerMarker = 0.2;
+        double additionalSegmentLengthPerMarker = 0.1;
 
         // The thickness of a segment is computed as
         // minimumSegmentThickness + coverage * additionalSegmentThicknessPerUnitCoverage
@@ -116,7 +116,7 @@ public:
         //   linkLength = 3 * minimumLinkLength + linkSeparation * additionalLinkLengthPerMarker
         //   (with the linkSeperation replaced with zero if it is negative).
         double minimumLinkLength = 1;
-        double additionalLinkLengthPerMarker = 0.2;
+        double additionalLinkLengthPerMarker = 0.1;
 
         // The display thickness of a link is computed as
         // minimumLinkThickness + (n-1) * additionalSegmentLengthPerMarker
