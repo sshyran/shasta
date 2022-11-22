@@ -47,7 +47,7 @@ public:
 
     const string name;
 
-    // The PackedMarkerGraph that this AssemblyGraphSnapshot refers to.
+    // The MarkerGraph and PackedMarkerGraph that this AssemblyGraphSnapshot refers to.
     const PackedMarkerGraph& packedMarkerGraph;
 
     // Class Vertex stores segmentId and id from AssemblyGraphVertex.
@@ -98,8 +98,11 @@ public:
         OrientedReadId orientedReadId;
         uint64_t position;  // The transition if between position and position+1
     };
-    void getTransitions(uint64_t linkId, vector<Transition>&) const;
-    uint64_t linkCoverage(uint64_t linkId) const;
+    void getEdgeTransitions(uint64_t edgeId, vector<Transition>&) const;
+    uint64_t getEdgeCoverage(uint64_t edgeId) const;
+
+    // Find out if the segments of an edge are adjacent in the marker graph.
+    bool segmentsAreAdjacent(uint64_t edgeId) const;
 
     // Connectivity.
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> edgesBySource;

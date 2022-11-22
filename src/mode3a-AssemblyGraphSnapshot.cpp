@@ -1,5 +1,6 @@
 #include "mode3a-AssemblyGraphSnapshot.hpp"
 #include "invalid.hpp"
+#include "MarkerGraph.hpp"
 #include "mode3a-AssemblyGraph.hpp"
 #include "mode3a-PackedMarkerGraph.hpp"
 using namespace shasta;
@@ -149,12 +150,12 @@ uint64_t AssemblyGraphSnapshot::getVertexAssembledSequenceLength(uint64_t vertex
 
 
 
-void AssemblyGraphSnapshot::getTransitions(
-    uint64_t linkId,
+void AssemblyGraphSnapshot::getEdgeTransitions(
+    uint64_t edgeId,
     vector<Transition>& transitions) const
 {
     transitions.clear();
-    const Edge& edge = edgeVector[linkId];
+    const Edge& edge = edgeVector[edgeId];
     const uint64_t vertexId0 = edge.vertexId0;
     const uint64_t vertexId1 = edge.vertexId1;
 
@@ -172,11 +173,13 @@ void AssemblyGraphSnapshot::getTransitions(
     }
 }
 
-uint64_t AssemblyGraphSnapshot::linkCoverage(uint64_t linkId) const
+
+
+uint64_t AssemblyGraphSnapshot::getEdgeCoverage(uint64_t edgeId) const
 {
     uint64_t coverage = 0;
 
-    const Edge& edge = edgeVector[linkId];
+    const Edge& edge = edgeVector[edgeId];
     const uint64_t vertexId0 = edge.vertexId0;
     const uint64_t vertexId1 = edge.vertexId1;
 
@@ -193,10 +196,40 @@ uint64_t AssemblyGraphSnapshot::linkCoverage(uint64_t linkId) const
         }
     }
 
-    // cout << "*** " << linkId << " " << coverage << "\n";
     return coverage;
 }
 
+
+
+// Find out if the segments of an edge are adjacent in the marker graph.
+bool AssemblyGraphSnapshot::segmentsAreAdjacent(uint64_t edgeId) const
+{
+    // Get this edge.
+    const Edge& edge = edgeVector[edgeId];
+
+    // Get the corresponding vertices.
+    const uint64_t vertexId0 = edge.vertexId0;
+    const uint64_t vertexId1 = edge.vertexId1;
+    const Vertex& vertex0 = vertexVector[vertexId0];
+    const Vertex& vertex1 = vertexVector[vertexId1];
+
+    // Get the corresponding segments.
+    const uint64_t segmentId0 = vertex0.segmentId;
+    const uint64_t segmentId1 = vertex1.segmentId;
+
+    // Get the marker graph paths of these segments.
+    const auto path0 = packedMarkerGraph.segments[segmentId0];
+    const auto path1 = packedMarkerGraph.segments[segmentId1];
+
+    // The the last marker graph edge of path0
+    // and the first marker graph edge of path1.
+    const uint64_t markerGraphEdgeId0 = path0.back();
+    const uint64_t markerGraphEdgeId1 = path1.front();
+    const MarkerGraph::Edge& markerGraphEdge0 = packedMarkerGraph.markerGraph.edges[markerGraphEdgeId0];
+    const MarkerGraph::Edge& markerGraphEdge1 = packedMarkerGraph.markerGraph.edges[markerGraphEdgeId1];
+
+    return markerGraphEdge0.target == markerGraphEdge1.source;
+}
 
 
 
@@ -218,17 +251,17 @@ void AssemblyGraphSnapshot::writeGfa(uint64_t minLinkCoverage) const
     // Write the header.
     gfa << "H\tVN:Z:1.0\n";
 
-    // Write the segments.
+    // Write the vertices.
     for(const Vertex& vertex: vertexVector) {
         gfa <<"S\t" << vertex.stringId() << "\t*\n";
     }
 
-    // Write the links.
-    for(uint64_t linkId=0; linkId<edgeVector.size(); linkId++) {
-        if(linkCoverage(linkId) < minLinkCoverage) {
+    // Write the edges.
+    for(uint64_t edgeId=0; edgeId<edgeVector.size(); edgeId++) {
+        if(getEdgeCoverage(edgeId) < minLinkCoverage) {
             continue;
         }
-        const Edge& edge = edgeVector[linkId];
+        const Edge& edge = edgeVector[edgeId];
         gfa << "L\t" <<
             vertexVector[edge.vertexId0].stringId() << "\t+\t" <<
             vertexVector[edge.vertexId1].stringId() << "\t+\t0M\n";

@@ -58,7 +58,7 @@ public:
 
 class shasta::mode3a::LocalAssemblyGraphEdge {
 public:
-    uint64_t edgeId;
+    uint64_t edgeId; // In the AssemblyGraphSnapshot.
     LocalAssemblyGraphEdge(uint64_t edgeId=0) :
         edgeId(edgeId)
         {}

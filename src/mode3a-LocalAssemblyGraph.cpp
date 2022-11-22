@@ -101,8 +101,8 @@ LocalAssemblyGraph::LocalAssemblyGraph(
         const vertex_descriptor v0 = p.second;
 
         for(const uint64_t edgeId: assemblyGraphSnapshot.edgesBySource[vertexId0]) {
-            const AssemblyGraphSnapshot::Edge& link = assemblyGraphSnapshot.edgeVector[edgeId];
-            const uint64_t vertexId1 = link.vertexId1;
+            const AssemblyGraphSnapshot::Edge& edge = assemblyGraphSnapshot.edgeVector[edgeId];
+            const uint64_t vertexId1 = edge.vertexId1;
             const auto it1 = vertexMap.find(vertexId1);
             if(it1 == vertexMap.end()) {
                 continue;
@@ -153,7 +153,6 @@ uint64_t LocalAssemblyGraph::getVertexAssembledSequenceLength(vertex_descriptor 
 
 
 
-#if 0
 void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) const
 {
     // Write the svg object.
@@ -492,30 +491,31 @@ void LocalAssemblyGraph::writeSvg(
     // Write the links first, so they don't overwrite the segments.
     svg << "<g id='" << svgId << "-links'>\n";
     BGL_FORALL_EDGES(e, localAssemblyGraph, LocalAssemblyGraph) {
+        const uint64_t edgeId =  localAssemblyGraph[e].edgeId; // In the AssemblyGraphSnapshot
 
         // Access the LocalAssemblyGraph vertices corresponding to
         // the two segments of this Link and extract some information
         // from them.
         const vertex_descriptor v1 = source(e, localAssemblyGraph);
         const vertex_descriptor v2 = target(e, localAssemblyGraph);
-        const LocalAssemblyGraphVertex& vertex1 = localAssemblyGraph[v1];
-        const LocalAssemblyGraphVertex& vertex2 = localAssemblyGraph[v2];
-        const uint64_t segmentId1 = vertex1.segmentId;
-        const uint64_t segmentId2 = vertex2.segmentId;
-        const uint64_t segmentCopyIndex1 = vertex1.segmentCopyIndex;
-        const uint64_t segmentCopyIndex2 = vertex2.segmentCopyIndex;
+        const LocalAssemblyGraphVertex& localAssemblyGraphVertex1 = localAssemblyGraph[v1];
+        const LocalAssemblyGraphVertex& localAssemblyGraphVertex2 = localAssemblyGraph[v2];
+        const AssemblyGraphSnapshot::Vertex& snapshotVertex1 =
+            assemblyGraphSnapshot.vertexVector[localAssemblyGraphVertex1.vertexId];
+        const AssemblyGraphSnapshot::Vertex& snapshotVertex2 =
+            assemblyGraphSnapshot.vertexVector[localAssemblyGraphVertex2.vertexId];
 
         // Get the positions of the ends of this link.
-        SHASTA_ASSERT(vertex1.position.size() >= 2);
-        SHASTA_ASSERT(vertex2.position.size() >= 2);
-        const Point& p1 = vertex1.position.back();
-        const Point& p2 = vertex2.position.front();
+        SHASTA_ASSERT(localAssemblyGraphVertex1.position.size() >= 2);
+        SHASTA_ASSERT(localAssemblyGraphVertex2.position.size() >= 2);
+        const Point& p1 = localAssemblyGraphVertex1.position.back();
+        const Point& p2 = localAssemblyGraphVertex2.position.front();
         const double length = boost::geometry::distance(p1, p2);
 
         // Get the tangents and compute the control points.
         const double controlPointDistance = 0.25 * length;
-        const Point& t1 = vertex1.t2;
-        const Point& t2 = vertex2.t1;
+        const Point& t1 = localAssemblyGraphVertex1.t2;
+        const Point& t2 = localAssemblyGraphVertex2.t1;
         Point q1 = t1;
         multiply_value(q1, controlPointDistance);
         add_point(q1, p1);
@@ -525,10 +525,10 @@ void LocalAssemblyGraph::writeSvg(
 
         const double linkThickness =
             options.minimumLinkThickness +
-            options.additionalLinkThicknessPerRead * double(assemblyGraph.linkCoverage(linkId) - 1);
+            options.additionalLinkThicknessPerRead * double(assemblyGraphSnapshot.getEdgeCoverage(edgeId) - 1);
 
         const string dash =
-            link.segmentsAreAdjacent ? "" :
+            assemblyGraphSnapshot.segmentsAreAdjacent(edgeId) ? "" :
             " stroke-dasharray='0 " + to_string(1.5 * linkThickness) + "'";
 
 
@@ -536,24 +536,23 @@ void LocalAssemblyGraph::writeSvg(
             "<g>"
             // "<a href='exploreMode3AssemblyGraphLink?linkId=" << linkId << "'>"
             "<title>"
-            "Link " << linkId <<
-            " from segment " << segmentId1 <<
-            " to segment " << segmentId2 <<
-            ", coverage " << assemblyGraphSnapshot.linkCoverage(linkId) <<
-            ", separation " << link.separation <<
+            "Link " << edgeId <<
+            " from segment " << snapshotVertex1.stringId() <<
+            " to segment " << snapshotVertex2.stringId() <<
+            ", coverage " << assemblyGraphSnapshot.getEdgeCoverage(edgeId) <<
             "</title>"
             "<path d="
             "'M " << p1.x() << " " << p1.y() <<
             " C " << q1.x() << " " << q1.y() << ", "
                   << q2.x() << " " << q2.y() << ","
                   << p2.x() << " " << p2.y() << "'"
-            " stroke='" << linkColor << "'" <<
+            " stroke='black'" <<
             dash <<
             " stroke-width='" << linkThickness << "'"
             " stroke-linecap='round'"
             " fill='transparent'"
             // " vector-effect='non-scaling-stroke'"
-            " onclick='if(event.ctrlKey) {location.href=\"exploreMode3AssemblyGraphLink?linkId=" << linkId << "\";}'"
+            // " onclick='if(event.ctrlKey) {location.href=\"exploreMode3AssemblyGraphLink?linkId=" << linkId << "\";}'"
             "/>"
             // "</a>"
             "</g>\n";
@@ -586,26 +585,18 @@ void LocalAssemblyGraph::writeSvg(
         multiply_value(q2, -controlPointDistance);
         add_point(q2, p2);
 
-        const uint64_t segmentId = localAssemblyGraph[v].segmentId;
-
-
-
         // Decide the color for this segment.
         string color;
         if(distance == maxDistance) {
-            color = options.segmentAtMaxDistanceColor;
+            color = "LightGray";
         } else {
-            color = randomSegmentColor(segmentId);
+            color = randomSegmentColor(vertex.vertexId);
         }
 
 
 
-        // Get the oriented reads and average edge coverage.
-        vector<OrientedReadId> orientedReadIds;
-        const double averageEdgeCoverage = assemblyGraph.findOrientedReadsOnSegment(segmentId, orientedReadIds);
-
-        // Create a marker to show the arrow for this segment.
-        const string arrowMarkerName = "arrow" + to_string(segmentId);
+       // Create a marker to show the arrow for this segment.
+        const string arrowMarkerName = "arrow" + to_string(vertex.vertexId);
         svg <<
             "<defs>\n"
             "<marker id='" << arrowMarkerName <<
@@ -614,30 +605,16 @@ void LocalAssemblyGraph::writeSvg(
             "markerUnits='strokeWidth'\n"
             "markerWidth='0.6' markerHeight='1'\n"
             "orient='auto'>\n"
-            "<path id='marker" << segmentId << "' d='M 0 0 L 0.1 0 L 0.6 0.5 L 0.1 1 L 0 1 z' "
+            "<path id='marker" << vertex.vertexId << "' d='M 0 0 L 0.1 0 L 0.6 0.5 L 0.1 1 L 0 1 z' "
             "fill='" << color << "' "
             "/>\n"
             "</marker>\n"
             "</defs>\n";
 
         // Add this segment to the svg.
-        const auto& segmentPairInfo = segmentPairInformationTable[v];
-        const auto oldPrecision = svg.precision(1);
+         const auto oldPrecision = svg.precision(1);
         const auto oldFlags = svg.setf(std::ios_base::fixed, std::ios_base::floatfield);
 
-        if(options.segmentColoring == "path") {
-            svg << "<g>";
-            auto it = pathSegments.find(segmentId);
-            if(it != pathSegments.end()) {
-                const auto positions = it->second;
-                SHASTA_ASSERT(not positions.empty());
-                svg << "<title>";
-                for(const auto& p: positions) {
-                    svg << p.first << " ";
-                }
-                svg << "</title>";
-            }
-        }
 
         /*
         svg <<
@@ -654,23 +631,7 @@ void LocalAssemblyGraph::writeSvg(
                 " of " << referenceSegmentInfo.infos.size();
         }
         */
-        svg <<
-            // "</title>"
-            "<path id='Segment-" << segmentId << "'"
-            " onmouseenter='onMouseEnterSegment(" <<
-            segmentId << "," <<
-            distance << "," <<
-            assemblyGraph.markerGraphPaths.size(segmentId) << "," <<
-            averageEdgeCoverage << "," <<
-            assemblyGraph.clusterIds[segmentId] << "," <<
-            segmentPairInfo.totalCount[0] << "," <<
-            segmentPairInfo.totalCount[1] << "," <<
-            segmentPairInfo.shortCount[0] << "," <<
-            segmentPairInfo.shortCount[1] << "," <<
-            segmentPairInfo.commonCount << "," <<
-            segmentPairInfo.unexplainedCount[0] << "," <<
-            segmentPairInfo.unexplainedCount[1] << ")'" <<
-            " onmouseleave='onMouseExitSegment()'" <<
+        svg << "<path id='Vertex-" << vertex.vertexId << "'" <<
 
 #if 0
             // Old code that displays the segment as a cubic spline.
@@ -687,23 +648,20 @@ void LocalAssemblyGraph::writeSvg(
             p2.x() << " " << p2.y() << "'" <<
             " stroke='" << color << "'"
             " stroke-width='" <<
-            options.minimumSegmentThickness + averageEdgeCoverage * options.additionalSegmentThicknessPerUnitCoverage << "'"
+            options.minimumSegmentThickness /* + averageEdgeCoverage * options.additionalSegmentThicknessPerUnitCoverage*/ << "'"
             " fill='none'"
             " marker-end='url(#" <<
             arrowMarkerName <<
             ")'"
-            " onclick='if(event.ctrlKey) {"
-            "location.href=\"exploreMode3AssemblyGraphSegment?segmentId=" << segmentId <<
-            "&showSequence=on\";}'"
+            // " onclick='if(event.ctrlKey) {"
+            // "location.href=\"exploreMode3AssemblyGraphSegment?segmentId=" << segmentId <<
+            // "&showSequence=on\";}'"
             "/>"
             // "</a>"
             // "</g>"
             "\n";
         svg.precision(oldPrecision);
         svg.flags(oldFlags);
-        if(options.segmentColoring == "path") {
-            svg << "</g>";
-        }
     }
     svg << "</g>\n";
 
@@ -712,8 +670,6 @@ void LocalAssemblyGraph::writeSvg(
     // End the svg.
     svg << "</svg>\n";
 }
-#endif
-
 
 
 
@@ -755,13 +711,19 @@ void LocalAssemblyGraph::computeLayout(
     BGL_FORALL_EDGES(e, localAssemblyGraph, LocalAssemblyGraph) {
         const vertex_descriptor v1 = source(e, localAssemblyGraph);
         const vertex_descriptor v2 = target(e, localAssemblyGraph);
+        const bool segmentsAreAdjacent = assemblyGraphSnapshot.segmentsAreAdjacent(localAssemblyGraph[e].edgeId);
+
+        double length = options.linkLength;
+        if((not segmentsAreAdjacent) and (out_degree(v1, localAssemblyGraph)>1) and (in_degree(v2, localAssemblyGraph)>1)) {
+            length *= 3.;
+        }
 
         G::edge_descriptor eAuxiliary;
         tie(eAuxiliary, ignore) = add_edge(
             vertexMap[v1].back(),
             vertexMap[v2].front(),
             g);
-        edgeLengthMap.insert(make_pair(eAuxiliary, options.linkLength));
+        edgeLengthMap.insert(make_pair(eAuxiliary, length));
     }
 
 
@@ -807,7 +769,7 @@ void LocalAssemblyGraph::computeLayout(
 }
 
 
-#if 0
+
 void LocalAssemblyGraph::computeSegmentTangents()
 {
     LocalAssemblyGraph& localAssemblyGraph = *this;
@@ -912,7 +874,6 @@ void LocalAssemblyGraph::computeSegmentTangents(vertex_descriptor v0)
     vertex0.t2.y(direction[1]);
 #endif
 }
-#endif
 
 
 // Return the svg color for a vertex.

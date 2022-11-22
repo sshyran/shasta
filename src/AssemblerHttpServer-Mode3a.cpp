@@ -124,10 +124,10 @@ void Assembler::exploreMode3aAssemblyGraph(
 
     // Compute its layout.
     localAssemblyGraph.computeLayout(options, timeout);
-    // localAssemblyGraph.computeSegmentTangents();
+    localAssemblyGraph.computeSegmentTangents();
 
     // Display the local assembly graph.
-    // localAssemblyGraph.writeHtml(html, options);
+    localAssemblyGraph.writeHtml(html, options);
 
 
 }
