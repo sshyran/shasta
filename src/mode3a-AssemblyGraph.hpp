@@ -38,16 +38,16 @@ public:
     uint64_t segmentId;
 
     // Serial number among all vertices with the same segmentId.
-    uint64_t id;
+    uint64_t segmentCopyIndex;
 
-    AssemblyGraphVertex(uint64_t segmentId, uint64_t id=0) :
-        segmentId(segmentId), id(id) {}
+    AssemblyGraphVertex(uint64_t segmentId, uint64_t segmentCopyIndex=0) :
+        segmentId(segmentId), segmentCopyIndex(segmentCopyIndex) {}
 
     string stringId() const
     {
         string s = to_string(segmentId);
-        if(id != 0) {
-            s += "." + to_string(id);
+        if(segmentCopyIndex != 0) {
+            s += "." + to_string(segmentCopyIndex);
         }
         return s;
     }
@@ -106,11 +106,11 @@ public:
     // in the PackedMarkerGraph.
     // Indexed by OrientedReadId::getValue().
     vector< std::list<vertex_descriptor> > paths;
-private:
 
     // Each segment in the AssemblyGraph corresponds to a segment in
     // this PackedMarkerGraph.
     const PackedMarkerGraph& packedMarkerGraph;
+private:
 
     // The number of vertices created so far for each segmentId
     // (some of these may have been deleted).

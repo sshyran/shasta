@@ -1,5 +1,7 @@
 #include "mode3a-AssemblyGraphSnapshot.hpp"
+#include "invalid.hpp"
 #include "mode3a-AssemblyGraph.hpp"
+#include "mode3a-PackedMarkerGraph.hpp"
 using namespace shasta;
 using namespace mode3a;
 
@@ -74,6 +76,38 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
         }
     }
 
+    createVertexTable(assemblyGraph.packedMarkerGraph);
+}
+
+
+
+// The vertex table is a data structure that allows to get a vertexId (index in vertexVector)
+// given a segmentId and segmentCopyIndex.
+// Indexed by segmentId.
+// vertexTable[segmentId][segmentCopyIndex] contains the vertexId
+// with the given segmentId and segmentCopyIndex, or invalid<uint64_t>
+// if no such vertex.
+void AssemblyGraphSnapshot::createVertexTable(
+    const PackedMarkerGraph& packedMarkerGraph)
+{
+    const uint64_t segmentCount = packedMarkerGraph.segments.size();
+
+    // Create a temporary vertex table stored in a way that is easy to manipulate.
+    vector< vector<uint64_t> > tmpVertexTable(segmentCount);
+    for(uint64_t vertexId=0; vertexId<vertexVector.size(); vertexId++) {
+        const Vertex& vertex = vertexVector[vertexId];
+        auto& v = tmpVertexTable[vertex.segmentId];
+        if(v.size() <= vertex.segmentCopyIndex) {
+            v.resize(vertex.segmentCopyIndex + 1, invalid<uint64_t>);
+        }
+        v[vertex.segmentCopyIndex] = vertexId;
+    }
+
+    // Now copy it to its permanent location.
+    createNew(vertexTable, name + "-vertexTable");
+    for(const auto& v: tmpVertexTable) {
+        vertexTable.appendVector(v);
+    }
 }
 
 
@@ -91,13 +125,14 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
     accessExistingReadOnly(vertexPathEntries, name + "-vertexPathEntries");
     accessExistingReadOnly(edgesBySource, name + "-edgesBySource");
     accessExistingReadOnly(edgesByTarget, name + "-edgesByTarget");
+    accessExistingReadOnly(vertexTable, name + "-vertexTable");
 }
 
 
 
 AssemblyGraphSnapshot::Vertex::Vertex(const AssemblyGraphVertex& vertex) :
     segmentId(vertex.segmentId),
-    id(vertex.id)
+    segmentCopyIndex(vertex.segmentCopyIndex)
 {}
 
 

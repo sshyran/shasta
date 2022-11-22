@@ -22,6 +22,8 @@ namespace shasta {
         class AssemblyGraph;
         class AssemblyGraphVertex;
         class AssemblyGraphEdge;
+
+        class PackedMarkerGraph;
     }
 }
 
@@ -50,14 +52,14 @@ public:
     class Vertex {
     public:
         uint64_t segmentId;
-        uint64_t id;
+        uint64_t segmentCopyIndex;
         Vertex(const AssemblyGraphVertex&);
         Vertex() {}
         string stringId() const
         {
             string s = to_string(segmentId);
-            if(id != 0) {
-                s += "." + to_string(id);
+            if(segmentCopyIndex != 0) {
+                s += "." + to_string(segmentCopyIndex);
             }
             return s;
         }
@@ -98,6 +100,15 @@ public:
     // Connectivity.
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> edgesBySource;
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> edgesByTarget;
+
+    // A data structure that allows to get a vertexId (index in vertexVector)
+    // given a segmentId and segmentCopyIndex.
+    // Indexed by segmentId.
+    // vertexTable[segmentId][segmentCopyIndex] contains the vertexId
+    // with the given segmentId and segmentCopyIndex, or invalid<uint64_t>
+    // if no such vertex.
+    MemoryMapped::VectorOfVectors<uint64_t, uint64_t> vertexTable;
+    void createVertexTable(const PackedMarkerGraph&);
 
     void write() const;
     void writeGfa(uint64_t minLinkCoverage) const;
