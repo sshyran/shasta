@@ -31,7 +31,8 @@ using namespace mode3a;
 LocalAssemblyGraph::LocalAssemblyGraph(
     const AssemblyGraphSnapshot& assemblyGraphSnapshot,
     uint64_t startVertexId,
-    uint64_t maxDistance) :
+    uint64_t maxDistance,
+    uint64_t minLinkCoverage) :
     assemblyGraphSnapshot(assemblyGraphSnapshot),
     maxDistance(maxDistance)
 {
@@ -64,6 +65,9 @@ LocalAssemblyGraph::LocalAssemblyGraph(
 
         // Loop over children.
         for(const uint64_t linkId: assemblyGraphSnapshot.edgesBySource[vertexId0]) {
+            if(assemblyGraphSnapshot.getEdgeCoverage(linkId) < minLinkCoverage) {
+                continue;
+            }
             const AssemblyGraphSnapshot::Edge& link = assemblyGraphSnapshot.edgeVector[linkId];
             const uint64_t vertexId1 = link.vertexId1;
             if(vertexMap.find(vertexId1) != vertexMap.end()) {
@@ -79,6 +83,9 @@ LocalAssemblyGraph::LocalAssemblyGraph(
 
         // Loop over parents.
         for(const uint64_t linkId: assemblyGraphSnapshot.edgesByTarget[vertexId0]) {
+            if(assemblyGraphSnapshot.getEdgeCoverage(linkId) < minLinkCoverage) {
+                continue;
+            }
             const AssemblyGraphSnapshot::Edge& link = assemblyGraphSnapshot.edgeVector[linkId];
             const uint64_t vertexId1 = link.vertexId0;
             if(vertexMap.find(vertexId1) != vertexMap.end()) {
@@ -101,6 +108,9 @@ LocalAssemblyGraph::LocalAssemblyGraph(
         const vertex_descriptor v0 = p.second;
 
         for(const uint64_t edgeId: assemblyGraphSnapshot.edgesBySource[vertexId0]) {
+            if(assemblyGraphSnapshot.getEdgeCoverage(edgeId) < minLinkCoverage) {
+                continue;
+            }
             const AssemblyGraphSnapshot::Edge& edge = assemblyGraphSnapshot.edgeVector[edgeId];
             const uint64_t vertexId1 = edge.vertexId1;
             const auto it1 = vertexMap.find(vertexId1);

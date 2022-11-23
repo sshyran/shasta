@@ -21,6 +21,9 @@ void Assembler::exploreMode3aAssemblyGraph(
     uint64_t maxDistance = 2;
     getParameterValue(request, "maxDistance", maxDistance);
 
+    uint64_t minLinkCoverage = 4;
+    getParameterValue(request, "minLinkCoverage", minLinkCoverage);
+
     uint64_t startSegmentId;
     const bool startSegmentIdIsPresent = getParameterValue(request, "startSegmentId", startSegmentId);
 
@@ -60,6 +63,12 @@ void Assembler::exploreMode3aAssemblyGraph(
         "<td>Maximum distance"
         "<td class=centered><input type=text name=maxDistance size=8 style='text-align:center'"
         " value='" << maxDistance <<
+        "'>"
+
+        "<tr>"
+        "<td>Minimum link coverage"
+        "<td class=centered><input type=text name=minLinkCoverage size=8 style='text-align:center'"
+        " value='" << minLinkCoverage <<
         "'>"
 
         "<tr>"
@@ -118,7 +127,7 @@ void Assembler::exploreMode3aAssemblyGraph(
         " copy " << startSegmentCopyIndex << "</h1>";
 
     // Create this local assembly graph.
-    mode3a::LocalAssemblyGraph localAssemblyGraph(snapshot, startVertexId, maxDistance);
+    mode3a::LocalAssemblyGraph localAssemblyGraph(snapshot, startVertexId, maxDistance, minLinkCoverage);
     html << "<p>The local assembly graph has " << num_vertices(localAssemblyGraph) <<
         " vertices and " << num_edges(localAssemblyGraph) << " edges." << endl;
 

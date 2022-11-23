@@ -74,7 +74,8 @@ public:
     LocalAssemblyGraph(
         const AssemblyGraphSnapshot&,
         uint64_t startVertexId,
-        uint64_t maxDistance);
+        uint64_t maxDistance,
+        uint64_t minLinkCoverage);
 
     const AssemblyGraphSnapshot& assemblyGraphSnapshot;
     uint64_t maxDistance;
