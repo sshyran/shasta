@@ -134,8 +134,9 @@ public:
     void computeSegmentTangents();
     void computeSegmentTangents(vertex_descriptor);
 
-    // Return the random svg color for a vertex.
-    static string randomSegmentColor(uint64_t vertextId);
+    // Return the svg color for a segment.
+    // All copies of a segment are alway displayed in the same color.
+    static string randomSegmentColor(uint64_t segmentId);
 
 
 

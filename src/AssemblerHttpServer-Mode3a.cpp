@@ -34,7 +34,7 @@ void Assembler::exploreMode3aAssemblyGraph(
 
     // Write the form.
     html <<
-        "<h2>Display the local assembly graph near a given vertex</h2>"
+        "<h2>Local assembly graph</h2>"
         "<form>"
         "<table>"
 
@@ -45,25 +45,25 @@ void Assembler::exploreMode3aAssemblyGraph(
         "'>"
 
         "<tr>"
-        "<td>Start segment id"
-        "<td class=centered><input type=text required name=startSegmentId size=8 style='text-align:center'"
+        "<td>Start segment"
+        "<td class=centered>"
+        "Segment id "
+        "<input type=text required name=startSegmentId size=8 style='text-align:center'"
         " value='" << (startSegmentIdIsPresent ? to_string(startSegmentId) : "") <<
         "'>"
-
-        "<tr>"
-        "<td>Start segment copy index"
-        "<td class=centered><input type=text required name=startSegmentCopyIndex size=8 style='text-align:center'"
+        "<br>Copy index "
+        "<input type=text required name=startSegmentCopyIndex size=8 style='text-align:center'"
         " value='" << startSegmentCopyIndex <<
         "'>"
 
         "<tr>"
-        "<td>Maximum distance in the assembly graph (edges)"
+        "<td>Maximum distance"
         "<td class=centered><input type=text name=maxDistance size=8 style='text-align:center'"
         " value='" << maxDistance <<
         "'>"
 
         "<tr>"
-        "<td>Timeout for graph layout (seconds)"
+        "<td>Timeout for layout (seconds)"
         "<td class=centered><input type=text name=timeout size=8 style='text-align:center'"
         " value='" << timeout <<
         "'>";

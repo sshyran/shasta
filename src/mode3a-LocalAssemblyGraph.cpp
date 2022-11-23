@@ -234,119 +234,26 @@ void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) con
     // Tables that will be automatically updated when the mouse is on a segment.
     html << R"zzz(  
 <p>
-Hover on a segment to populate the tables below.
+Hover on a segment to populate the table below.
 <p>
 <table style='font-size:9'>
 <tr><th class='left'>Segment id<td id='segmentIdCell' class=centered style='width:8em'>
-<tr><th class='left'>Distance from start segment<td id='distanceCell' class=centered style='width:8em'>
-<tr><th class='left'>Path length<td id='pathLengthCell' class=centered style='width:8em'>
-<tr><th class='left'>Average edge coverage<td id='coverageCell' class=centered style='width:8em'>
-<tr><th class='left'>Cluster id<td id='clusterIdCell' class=centered style='width:8em'>
-</table>
-<p>
-Comparison of read compositions
-<p>
-<table>
-
-<tr>
-<td>
-<th>Reference<br>segment
-<th>Displayed<br>segment
-
-<tr>
-<th class='left'>Total
-<th id='totalReferenceCell'>
-<th id='totalDisplayedCell'>
-
-<tr>
-<th class='left'>Common
-<th id='commonReferenceCell'>
-<th id='commonDisplayedCell'>
-
-<tr>
-<th class='left'>Short
-<th id='shortReferenceCell'>
-<th id='shortDisplayedCell'>
-
-<tr>
-<th class='left'>Jaccard
-<th id='jaccardReferenceCell'>
-<th id='jaccardDisplayedCell'>
-
-<tr>
-<th class='left'>Raw Jaccard
-<th id='rawJaccardReferenceCell'>
-<th id='rawJaccardDisplayedCell'>
-
-<tr>
-<th class='left'>Unexplained
-<th id='unexplainedReferenceCell'>
-<th id='unexplainedDisplayedCell'>
-
-<tr>
-<th class='left'>Unexplained fraction
-<th id='unexplainedFractionReferenceCell'>
-<th id='unexplainedFractionDisplayedCell'>
-
+<tr><th class='left'>Segment copy index<td id='segmentCopyIndexCell' class=centered style='width:8em'>
 </table>
 
 <script>
-function onMouseEnterSegment(id, distance, pathLength, coverage, clusterId,
-    totalReference, totalDisplayed,
-    shortReference, shortDisplayed,
-    common, 
-    unexplainedReference, unexplainedDisplayed)
+function onMouseEnterSegment(
+    segmentId,
+    segmentCopyIndex
+)
 {
-    document.getElementById('segmentIdCell').innerHTML = id;
-    document.getElementById('distanceCell').innerHTML = distance;
-    document.getElementById('pathLengthCell').innerHTML = pathLength;
-    document.getElementById('coverageCell').innerHTML = coverage;
-    if(clusterId != 18446744073709551615) {
-        document.getElementById('clusterIdCell').innerHTML = clusterId;
-    }
-
-    document.getElementById('totalReferenceCell').innerHTML = totalReference;
-    document.getElementById('totalDisplayedCell').innerHTML = totalDisplayed;
-    document.getElementById('commonReferenceCell').innerHTML = common;
-    document.getElementById('commonDisplayedCell').innerHTML = common;
-
-    if(common > 0) {
-        document.getElementById('shortReferenceCell').innerHTML = shortReference;
-        document.getElementById('shortDisplayedCell').innerHTML = shortDisplayed;
-        jaccard = (common / (common + unexplainedReference + unexplainedDisplayed)).toFixed(2);
-        rawJaccard = (common / (totalReference + totalDisplayed - common)).toFixed(2);
-        document.getElementById('jaccardReferenceCell').innerHTML = jaccard;
-        document.getElementById('jaccardDisplayedCell').innerHTML = jaccard;
-        document.getElementById('rawJaccardReferenceCell').innerHTML = rawJaccard;
-        document.getElementById('rawJaccardDisplayedCell').innerHTML = rawJaccard;
-        document.getElementById('unexplainedReferenceCell').innerHTML = unexplainedReference;
-        document.getElementById('unexplainedDisplayedCell').innerHTML = unexplainedDisplayed;
-        document.getElementById('unexplainedFractionReferenceCell').innerHTML = 
-            (unexplainedReference / (common + unexplainedReference)).toFixed(2);
-        document.getElementById('unexplainedFractionDisplayedCell').innerHTML = 
-            (unexplainedDisplayed / (common + unexplainedDisplayed)).toFixed(2);
-    }   
+    document.getElementById('segmentIdCell').innerHTML = segmentId;
+    document.getElementById('segmentCopyIndexCell').innerHTML = segmentCopyIndex;
 }
 function onMouseExitSegment()
 {
     document.getElementById('segmentIdCell').innerHTML = '';
-    document.getElementById('distanceCell').innerHTML = '';
-    document.getElementById('pathLengthCell').innerHTML = '';
-    document.getElementById('coverageCell').innerHTML = '';
-    document.getElementById('clusterIdCell').innerHTML = '';
-
-    document.getElementById('totalReferenceCell').innerHTML = '';
-    document.getElementById('totalDisplayedCell').innerHTML = '';
-    document.getElementById('shortReferenceCell').innerHTML = '';
-    document.getElementById('shortDisplayedCell').innerHTML = '';
-    document.getElementById('commonReferenceCell').innerHTML = '';
-    document.getElementById('commonDisplayedCell').innerHTML = '';
-    document.getElementById('jaccardReferenceCell').innerHTML = '';
-    document.getElementById('jaccardDisplayedCell').innerHTML = '';
-    document.getElementById('unexplainedReferenceCell').innerHTML = '';
-    document.getElementById('unexplainedDisplayedCell').innerHTML = '';
-    document.getElementById('unexplainedFractionReferenceCell').innerHTML = '';
-    document.getElementById('unexplainedFractionDisplayedCell').innerHTML = '';
+    document.getElementById('segmentCopyIndexCell').innerHTML = '';
 }
 </script>
     )zzz";
@@ -565,19 +472,21 @@ void LocalAssemblyGraph::writeSvg(
     // Write the segments.
     svg << "<g id='" << svgId << "-segments'>\n";
     BGL_FORALL_VERTICES(v, localAssemblyGraph, LocalAssemblyGraph) {
-        const LocalAssemblyGraphVertex& vertex = localAssemblyGraph[v];
+        const LocalAssemblyGraphVertex& localAssemblyGraphVertex = localAssemblyGraph[v];
+        const AssemblyGraphSnapshot::Vertex& snapshotVertex =
+            assemblyGraphSnapshot.vertexVector[localAssemblyGraphVertex.vertexId];
         const uint64_t distance = localAssemblyGraph[v].distance;
 
         // Get the positions of the ends of this segment.
-        SHASTA_ASSERT(vertex.position.size() >= 2);
-        const Point& p1 = vertex.position.front();
-        const Point& p2 = vertex.position.back();
+        SHASTA_ASSERT(localAssemblyGraphVertex.position.size() >= 2);
+        const Point& p1 = localAssemblyGraphVertex.position.front();
+        const Point& p2 = localAssemblyGraphVertex.position.back();
         const double length = boost::geometry::distance(p1, p2);
 
         // Get the tangents and compute the control points.
         const double controlPointDistance = 0.25 * length;
-        const Point& t1 = vertex.t1;
-        const Point& t2 = vertex.t2;
+        const Point& t1 = localAssemblyGraphVertex.t1;
+        const Point& t2 = localAssemblyGraphVertex.t2;
         Point q1 = t1;
         multiply_value(q1, -controlPointDistance);
         add_point(q1, p1);
@@ -590,13 +499,13 @@ void LocalAssemblyGraph::writeSvg(
         if(distance == maxDistance) {
             color = "LightGray";
         } else {
-            color = randomSegmentColor(vertex.vertexId);
+            color = randomSegmentColor(snapshotVertex.segmentId);
         }
 
 
 
        // Create a marker to show the arrow for this segment.
-        const string arrowMarkerName = "arrow" + to_string(vertex.vertexId);
+        const string arrowMarkerName = "arrow" + to_string(localAssemblyGraphVertex.vertexId);
         svg <<
             "<defs>\n"
             "<marker id='" << arrowMarkerName <<
@@ -605,44 +514,21 @@ void LocalAssemblyGraph::writeSvg(
             "markerUnits='strokeWidth'\n"
             "markerWidth='0.6' markerHeight='1'\n"
             "orient='auto'>\n"
-            "<path id='marker" << vertex.vertexId << "' d='M 0 0 L 0.1 0 L 0.6 0.5 L 0.1 1 L 0 1 z' "
+            "<path id='marker" << localAssemblyGraphVertex.vertexId << "' d='M 0 0 L 0.1 0 L 0.6 0.5 L 0.1 1 L 0 1 z' "
             "fill='" << color << "' "
             "/>\n"
             "</marker>\n"
             "</defs>\n";
 
         // Add this segment to the svg.
-         const auto oldPrecision = svg.precision(1);
+        const auto oldPrecision = svg.precision(1);
         const auto oldFlags = svg.setf(std::ios_base::fixed, std::ios_base::floatfield);
-
-
-        /*
-        svg <<
-            "<g>"
-            // "<a href='exploreMode3AssemblyGraphSegment?segmentId=" << segmentId << "'>"
-            "<title>"
-            "Segment " << segmentId <<
-            ", distance from start segment " << distance <<
-            ", path length " << assemblyGraph.paths.size(segmentId) <<
-            ", average marker graph edge coverage " << averageEdgeCoverage <<
-            ", number of distinct oriented reads " << orientedReadIds.size();
-        if(doSegmentPairComputations) {
-            svg << ", number of common oriented reads " << segmentPairInfo.commonOrientedReadCount <<
-                " of " << referenceSegmentInfo.infos.size();
-        }
-        */
-        svg << "<path id='Vertex-" << vertex.vertexId << "'" <<
-
-#if 0
-            // Old code that displays the segment as a cubic spline.
-            // This can create artifacts when the segment is very thick.
-            "' d='M " <<
-            p1.x() << " " << p1.y() << " C " <<
-            q1.x() << " " << q1.y() << ", " <<
-            q2.x() << " " << q2.y() << ", " <<
-            p2.x() << " " << p2.y() << "'" <<
-#endif
-
+        svg << "<path id='Segment-" << snapshotVertex.segmentId <<
+            "-" << snapshotVertex.segmentCopyIndex << "'" <<
+            " onmouseenter='onMouseEnterSegment(" <<
+            snapshotVertex.segmentId << "," <<
+            snapshotVertex.segmentCopyIndex << ")'" <<
+            " onmouseleave='onMouseExitSegment()'" <<
             " d='M " <<
             p1.x() << " " << p1.y() << " L " <<
             p2.x() << " " << p2.y() << "'" <<
@@ -657,12 +543,12 @@ void LocalAssemblyGraph::writeSvg(
             // "location.href=\"exploreMode3AssemblyGraphSegment?segmentId=" << segmentId <<
             // "&showSequence=on\";}'"
             "/>"
-            // "</a>"
-            // "</g>"
             "\n";
         svg.precision(oldPrecision);
         svg.flags(oldFlags);
     }
+
+    // End the group containing segments.
     svg << "</g>\n";
 
 
@@ -876,10 +762,11 @@ void LocalAssemblyGraph::computeSegmentTangents(vertex_descriptor v0)
 }
 
 
-// Return the svg color for a vertex.
-string LocalAssemblyGraph::randomSegmentColor(uint64_t vertexId)
+// Return the svg color for a segment.
+// All copies of a segment are alway displayed in the same color.
+string LocalAssemblyGraph::randomSegmentColor(uint64_t segmentId)
 {
-    const uint32_t hue = MurmurHash2(&vertexId, sizeof(vertexId), 231) % 360;
+    const uint32_t hue = MurmurHash2(&segmentId, sizeof(segmentId), 231) % 360;
     return "hsl(" + to_string(hue) + ",50%,50%)";
 }
 
@@ -971,7 +858,7 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         "'>"
 
         "<tr>"
-        "<td>Graph layout method"
+        "<td>Layout method"
         "<td class=left>"
         "<input type=radio name=layoutMethod value=neato"
         << (layoutMethod=="neato" ? " checked=checked" : "") <<
