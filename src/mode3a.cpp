@@ -67,16 +67,19 @@ Assembler::Assembler(
         packedMarkerGraph->links.size() << " links, and " <<
         packedMarkerGraph->segmentSequences.totalSize() <<
         " bases of assembled sequence." << endl;
+    packedMarkerGraph->writeSegments();
     packedMarkerGraph->writeGfa();
 
-    // Create the AssemblyGraph.
-    packedMarkerGraph->createMarkerGraphEdgeTable(threadCount);
+    // For the final PackedMarkerGraph we also need to compute the oriented reads journeys.
+    packedMarkerGraph->createMarkerGraphEdgeTable(threadCount); // Needed to compute the journeys.
     packedMarkerGraph->computeJourneys(threadCount);
+    packedMarkerGraph->markerGraphEdgeTable.remove();           // No longer needed.
     packedMarkerGraph->writeJourneys();
+
+
+    // Create the AssemblyGraph.
     AssemblyGraph assemblyGraph(*packedMarkerGraph);
-    packedMarkerGraph->journeys.shrink_to_fit();
-    packedMarkerGraph->markerGraphEdgeTable.remove();
-    cout << "The initial AssemblyGraph has " <<
+     cout << "The initial AssemblyGraph has " <<
         num_vertices(assemblyGraph) << " segments and " <<
         num_edges(assemblyGraph) << " links." << endl;
 

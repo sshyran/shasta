@@ -49,6 +49,7 @@ public:
     // For each segment, we store its path in the marker graph.
     // The path is a sequence of marker graph edge ids.
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> segments;
+    void writeSegments();
 
     void createSegmentsFromMarkerGraph();
 

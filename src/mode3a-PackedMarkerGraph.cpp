@@ -294,6 +294,19 @@ void PackedMarkerGraph::writeGfa() const
 }
 
 
+void PackedMarkerGraph::writeSegments()
+{
+    ofstream csv(name + "-Segments.csv");
+    csv << "Segment,MarkerGraph edges\n";
+    for(uint64_t segmentId=0; segmentId<segments.size(); segmentId++) {
+        const auto segment = segments[segmentId];
+        for(const uint64_t markerGraphEdgeId: segment) {
+            csv << segmentId << "," << markerGraphEdgeId << "\n";
+        }
+    }
+
+}
+
 
 void PackedMarkerGraph::remove()
 {
