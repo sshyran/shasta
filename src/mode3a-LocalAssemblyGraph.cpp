@@ -565,29 +565,31 @@ void LocalAssemblyGraph::computeLayout(
 {
     LocalAssemblyGraph& localAssemblyGraph = *this;
 
-
-    // Create an auxiliary graph with two vertices for each segment.
+    // Create an auxiliary graph with some vertices for each segment.
     using G = boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS>;
     G g;
-    std::map<vertex_descriptor, array<G::vertex_descriptor, 2> > vertexMap;
+    std::map<vertex_descriptor, vector<G::vertex_descriptor> > vertexMap;
     std::map<G::edge_descriptor, double> edgeLengthMap;
     BGL_FORALL_VERTICES(v, localAssemblyGraph, LocalAssemblyGraph) {
 
         const uint64_t assembledSequenceLength = localAssemblyGraph.getVertexAssembledSequenceLength(v);
-        const double displayLength =
-            options.minimumSegmentLength +
-            double(assembledSequenceLength) * options.additionalSegmentLengthPerBase;
+        const double auxiliaryEdgeLength =
+            (options.minimumSegmentLength +
+            double(assembledSequenceLength) * options.additionalSegmentLengthPerBase) /
+            double(options.auxiliaryVertexCountPerSegment - 1);
 
         // Add the auxiliary vertices.
-        array<G::vertex_descriptor, 2>& auxiliaryVertices = vertexMap[v];
-        for(uint64_t i=0; i<2; i++) {
-            auxiliaryVertices[i] = boost::add_vertex(g);
+        vector<G::vertex_descriptor>& auxiliaryVertices = vertexMap[v];
+        for(uint64_t i=0; i<options.auxiliaryVertexCountPerSegment; i++) {
+            auxiliaryVertices.push_back(boost::add_vertex(g));
         }
 
-        // Add the edge between these auxiliary vertices.
-        G::edge_descriptor e;
-        tie(e, ignore) = boost::add_edge(auxiliaryVertices[0], auxiliaryVertices[1], g);
-        edgeLengthMap.insert(make_pair(e, displayLength));
+        // Add the edges between these auxiliary vertices.
+        for(uint64_t i=1; i<options.auxiliaryVertexCountPerSegment; i++) {
+            G::edge_descriptor e;
+            tie(e, ignore) = boost::add_edge(auxiliaryVertices[i-1], auxiliaryVertices[i], g);
+            edgeLengthMap.insert(make_pair(e, auxiliaryEdgeLength));
+        }
     }
 
 
@@ -642,7 +644,7 @@ void LocalAssemblyGraph::computeLayout(
         // Locate the auxiliary vertices corresponding to this segment.
         auto it = vertexMap.find(v);
         SHASTA_ASSERT(it != vertexMap.end());
-        const array<G::vertex_descriptor, 2>& auxiliaryVertices = it->second;
+        const vector<G::vertex_descriptor>& auxiliaryVertices = it->second;
 
         // Loop over the auxiliary vertices.
         for(const G::vertex_descriptor u: auxiliaryVertices) {
@@ -838,6 +840,7 @@ LocalAssemblyGraph::SvgOptions::SvgOptions(const vector<string>& request)
     HttpServer::getParameterValue(request, "additionalSegmentLengthPerBase", additionalSegmentLengthPerBase);
     HttpServer::getParameterValue(request, "minimumSegmentThickness", minimumSegmentThickness);
     HttpServer::getParameterValue(request, "additionalSegmentThicknessPerUnitCoverage", additionalSegmentThicknessPerUnitCoverage);
+    HttpServer::getParameterValue(request, "auxiliaryVertexCountPerSegment", auxiliaryVertexCountPerSegment);
 
     // Link length and thickness.
     HttpServer::getParameterValue(request, "linkLength", linkLength);
@@ -888,6 +891,11 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         "<td class=left>Additional thickness per unit coverage"
         "<td class=centered><input type=text name=additionalSegmentThicknessPerUnitCoverage size=8 style='text-align:center'"
         " value='" << additionalSegmentThicknessPerUnitCoverage <<
+        "'>"
+        "<tr>"
+        "<td class=left>Auxiliary vertices per segment"
+        "<td class=centered><input type=number min=2 max=6 name=auxiliaryVertexCountPerSegment size=8 style='text-align:center'"
+        " value='" << auxiliaryVertexCountPerSegment <<
         "'>"
         "</table>"
 

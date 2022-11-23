@@ -49,7 +49,7 @@ public:
     // Unit vectors for the outward pointing tangents at the two ends of the segment.
     // The are computed as averages of the directions of the
     // incoming/outgoing links.
-    // They are used to display the segment as a cubic spline.
+    // They are used to display the links as a cubic spline.
     Point t1;
     Point t2;
 };
@@ -107,6 +107,7 @@ public:
         // where coverage is average marker graph edge coverage on the segment path.
         double minimumSegmentThickness = 0.3;
         double additionalSegmentThicknessPerUnitCoverage = 0.005;
+        uint64_t auxiliaryVertexCountPerSegment = 2;
 
         // Link length and thickness.
         double linkLength = 1;
