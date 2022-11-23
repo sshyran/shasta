@@ -182,19 +182,16 @@ void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) con
         function highlightSegment()
         {
             // Get the segment id from the input field.
-            inputField = document.getElementById("highlightInputField");
-            segmentId = inputField.value;
-            inputField.value = "";
+            var segmentId = document.getElementById("highlightSegmentId").value;
+            var segmentCopyIndex = document.getElementById("highlightSegmentCopyIndex").value;
+            var element = document.getElementById("Segment-" + segmentId + "-" + segmentCopyIndex);
 
             // Make it dashed and wider.
-            var element = document.getElementById("Segment-" + segmentId);
             var thickness = element.getAttribute("stroke-width");
             element.style.strokeDasharray = 0.2 * thickness;
             element.setAttribute("stroke-width", 2. * thickness);
         }
         </script>
-        Highlight segment
-        <input id=highlightInputField type=text onchange="highlightSegment()" size=10>
         )stringDelimiter";
 
 
@@ -205,18 +202,11 @@ void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) con
         function zoomToSegment()
         {
             // Get the segment id from the input field.
-            inputField = document.getElementById("zoomInputField");
-            segmentId = inputField.value;
-            inputField.value = "";
-
-            zoomToGivenSegment(segmentId);
-        }
-
-        function zoomToGivenSegment(segmentId)
-        {
+            var segmentId = document.getElementById("zoomSegmentId").value;
+            var segmentCopyIndex = document.getElementById("zoomSegmentCopyIndex").value;
+            var element = document.getElementById("Segment-" + segmentId + "-" + segmentCopyIndex);
 
             // Find the bounding box and its center.
-            var element = document.getElementById("Segment-" + segmentId);
             var box = element.getBBox();
             var xCenter = box.x + 0.5 * box.width;
             var yCenter = box.y + 0.5 * box.height;
@@ -235,8 +225,20 @@ void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) con
 
         }
         </script>
-        <p>Zoom to segment
-        <input id=zoomInputField type=text onchange="zoomToSegment()" size=10>
+
+        <table>
+        <tr><td><th>Segment id<th>Segment<br>copy index
+        <tr><td>Highlight segment
+        <td><input id=highlightSegmentId type=text onchange="highlightSegment()"
+            size=10 style='text-align:center'>
+        <td><input id=highlightSegmentCopyIndex type=text onchange="highlightSegment()"
+            size=10 style='text-align:center' value='0'>
+        <tr><td>Zoom to segment
+        <td><input id=zoomSegmentId type=text onchange="zoomToSegment()"
+            size=10 style='text-align:center'>
+        <td><input id=zoomSegmentCopyIndex type=text onchange="zoomToSegment()"
+            size=10 style='text-align:center' value='0'>
+        </table>
         )stringDelimiter";
 
 
