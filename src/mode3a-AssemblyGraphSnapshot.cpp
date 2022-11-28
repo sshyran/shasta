@@ -234,6 +234,8 @@ void AssemblyGraphSnapshot::write() const
 {
     writePaths();
     writePathEntries();
+    writeTransitions();
+
     for(uint64_t minLinkCoverage=2; minLinkCoverage<=6; minLinkCoverage++) {
         writeGfa(minLinkCoverage);
     }
@@ -308,4 +310,28 @@ void AssemblyGraphSnapshot::writePathEntries() const
     }
 
 }
+
+
+
+void AssemblyGraphSnapshot::writeTransitions() const
+{
+    ofstream csv(name + "-transitions.csv");
+    csv << "LinkId,SegmentIdReplica0,SegmentReplica1,OrientedReadId,Position0,Position1\n";
+
+    vector<Transition> transitions;
+    for(uint64_t edgeId=0; edgeId<edgeVector.size(); edgeId++) {
+        const Edge& edge = edgeVector[edgeId];
+        getEdgeTransitions(edgeId, transitions);
+        for(const Transition& transition: transitions) {
+            csv << edgeId << ",";
+            csv << vertexVector[edge.vertexId0].stringId() << ",";
+            csv << vertexVector[edge.vertexId1].stringId() << ",";
+            csv << transition.orientedReadId << ",";
+            csv << transition.position << ",";
+            csv << transition.position + 1 << "\n";
+        }
+
+    }
+}
+
 
