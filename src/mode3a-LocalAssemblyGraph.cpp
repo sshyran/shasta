@@ -536,10 +536,10 @@ void LocalAssemblyGraph::writeSvg(
         const auto oldPrecision = svg.precision(1);
         const auto oldFlags = svg.setf(std::ios_base::fixed, std::ios_base::floatfield);
         svg << "<path id='Segment-" << snapshotVertex.segmentId <<
-            "-" << snapshotVertex.segmentCopyIndex << "'" <<
+            "-" << snapshotVertex.segmentReplicaIndex << "'" <<
             " onmouseenter='onMouseEnterSegment(" <<
             snapshotVertex.segmentId << "," <<
-            snapshotVertex.segmentCopyIndex << ")'" <<
+            snapshotVertex.segmentReplicaIndex << ")'" <<
             " onmouseleave='onMouseExitSegment()'" <<
             " d='M " <<
             p1.x() << " " << p1.y() << " L " <<

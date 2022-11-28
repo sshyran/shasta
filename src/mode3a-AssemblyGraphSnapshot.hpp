@@ -50,20 +50,20 @@ public:
     // The MarkerGraph and PackedMarkerGraph that this AssemblyGraphSnapshot refers to.
     const PackedMarkerGraph& packedMarkerGraph;
 
-    // Class Vertex stores segmentId and id from AssemblyGraphVertex.
+    // Class Vertex stores the segmentId and segmentReplicaIndex from AssemblyGraphVertex.
     // For the purpose of the snapshot, the index into this vector
     // is used as a vertex id.
     class Vertex {
     public:
         uint64_t segmentId;
-        uint64_t segmentCopyIndex;
+        uint64_t segmentReplicaIndex;
         Vertex(const AssemblyGraphVertex&);
         Vertex() {}
         string stringId() const
         {
             string s = to_string(segmentId);
-            if(segmentCopyIndex != 0) {
-                s += "." + to_string(segmentCopyIndex);
+            if(segmentReplicaIndex != 0) {
+                s += "." + to_string(segmentReplicaIndex);
             }
             return s;
         }

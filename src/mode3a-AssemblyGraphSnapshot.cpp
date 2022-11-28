@@ -99,10 +99,10 @@ void AssemblyGraphSnapshot::createVertexTable(
     for(uint64_t vertexId=0; vertexId<vertexVector.size(); vertexId++) {
         const Vertex& vertex = vertexVector[vertexId];
         auto& v = tmpVertexTable[vertex.segmentId];
-        if(v.size() <= vertex.segmentCopyIndex) {
-            v.resize(vertex.segmentCopyIndex + 1, invalid<uint64_t>);
+        if(v.size() <= vertex.segmentReplicaIndex) {
+            v.resize(vertex.segmentReplicaIndex + 1, invalid<uint64_t>);
         }
-        v[vertex.segmentCopyIndex] = vertexId;
+        v[vertex.segmentReplicaIndex] = vertexId;
     }
 
     // Now copy it to its permanent location.
@@ -136,7 +136,7 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
 
 AssemblyGraphSnapshot::Vertex::Vertex(const AssemblyGraphVertex& vertex) :
     segmentId(vertex.segmentId),
-    segmentCopyIndex(vertex.segmentCopyIndex)
+    segmentReplicaIndex(vertex.segmentReplicaIndex)
 {}
 
 

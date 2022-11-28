@@ -27,8 +27,8 @@ void Assembler::exploreMode3aAssemblyGraph(
     uint64_t startSegmentId;
     const bool startSegmentIdIsPresent = getParameterValue(request, "startSegmentId", startSegmentId);
 
-    uint64_t startSegmentCopyIndex = 0;
-    getParameterValue(request, "startSegmentCopyIndex", startSegmentCopyIndex);
+    uint64_t startSegmentReplicaIndex = 0;
+    getParameterValue(request, "startSegmentReplicaIndex", startSegmentReplicaIndex);
 
     double timeout = 30.;
     getParameterValue(request, "timeout", timeout);
@@ -54,9 +54,9 @@ void Assembler::exploreMode3aAssemblyGraph(
         "<input type=text required name=startSegmentId size=8 style='text-align:center'"
         " value='" << (startSegmentIdIsPresent ? to_string(startSegmentId) : "") <<
         "'>"
-        "<br>Copy index "
-        "<input type=text required name=startSegmentCopyIndex size=8 style='text-align:center'"
-        " value='" << startSegmentCopyIndex <<
+        "<br>Start segment replica index "
+        "<input type=text required name=startSegmentReplicaIndex size=8 style='text-align:center'"
+        " value='" << startSegmentReplicaIndex <<
         "'>"
 
         "<tr>"
@@ -108,8 +108,8 @@ void Assembler::exploreMode3aAssemblyGraph(
         return;
     }
     auto v = snapshot.vertexTable[startSegmentId];
-    if(startSegmentCopyIndex >= v.size() or v[startSegmentCopyIndex] == invalid<uint64_t> ) {
-        html << "<br>Invalid segment copy index.<br>Valid segment copy indexes for this segment are:";
+    if(startSegmentReplicaIndex >= v.size() or v[startSegmentReplicaIndex] == invalid<uint64_t> ) {
+        html << "<br>Invalid segment replica index.<br>Valid segment copy indexes for this segment are:";
         for(uint64_t segmentCopyIndex=0; segmentCopyIndex<v.size(); segmentCopyIndex++) {
             if(v[segmentCopyIndex] != invalid<uint64_t>) {
                 html << " " << segmentCopyIndex;
@@ -117,14 +117,14 @@ void Assembler::exploreMode3aAssemblyGraph(
         }
         return;
     }
-    const uint64_t startVertexId = v[startSegmentCopyIndex];
+    const uint64_t startVertexId = v[startSegmentReplicaIndex];
     SHASTA_ASSERT(startVertexId < snapshot.vertexVector.size());
     const AssemblyGraphSnapshot::Vertex& startVertex = snapshot.vertexVector[startVertexId];
     SHASTA_ASSERT(startVertex.segmentId == startSegmentId);
-    SHASTA_ASSERT(startVertex.segmentCopyIndex == startSegmentCopyIndex);
+    SHASTA_ASSERT(startVertex.segmentReplicaIndex == startSegmentReplicaIndex);
 
     html << "<h1>Local assembly graph near segment " << startSegmentId <<
-        " copy " << startSegmentCopyIndex << "</h1>";
+        " replica " << startSegmentReplicaIndex << "</h1>";
 
     // Create this local assembly graph.
     mode3a::LocalAssemblyGraph localAssemblyGraph(snapshot, startVertexId, maxDistance, minLinkCoverage);

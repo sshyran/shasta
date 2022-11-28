@@ -30,24 +30,24 @@ namespace shasta {
 
 
 
-// Each vertex represents a segment.
+// Each vertex represents a segment replica.
 class shasta::mode3a::AssemblyGraphVertex {
 public:
 
     // The PackedMarkerGraph segment that this vertex corresponds to.
     uint64_t segmentId;
 
-    // Serial number among all vertices with the same segmentId.
-    uint64_t segmentCopyIndex;
+    // Replica index among all vertices with the same segmentId.
+    uint64_t segmentReplicaIndex;
 
-    AssemblyGraphVertex(uint64_t segmentId, uint64_t segmentCopyIndex=0) :
-        segmentId(segmentId), segmentCopyIndex(segmentCopyIndex) {}
+    AssemblyGraphVertex(uint64_t segmentId, uint64_t segmentReplicaIndex=0) :
+        segmentId(segmentId), segmentReplicaIndex(segmentReplicaIndex) {}
 
     string stringId() const
     {
         string s = to_string(segmentId);
-        if(segmentCopyIndex != 0) {
-            s += "." + to_string(segmentCopyIndex);
+        if(segmentReplicaIndex != 0) {
+            s += "." + to_string(segmentReplicaIndex);
         }
         return s;
     }
