@@ -5,7 +5,8 @@
 // snapshot of the mode3a::Assembly graph.
 // It is stored using MemoryMapped classes.
 
-// Shasta
+// Shasta.
+#include "mode3a-AssemblyGraph.hpp"
 #include "MappedMemoryOwner.hpp"
 #include "MemoryMappedVector.hpp"
 #include "MemoryMappedVectorOfVectors.hpp"
@@ -79,16 +80,11 @@ public:
     MemoryMapped::Vector<Edge> edgeVector;  // Can't call it edges due to boost graph macros.
 
     // The path of each oriented read, stored as a sequence of vertex ids
-    // (that is,indexes into the segments vector above).
+    // (that is, indexes into the segments vector above).
     // Indexed by OrientedRead::getValue().
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> paths;
 
     // The path entries for each vertex.
-    class PathEntry {
-    public:
-        OrientedReadId orientedReadId;
-        uint64_t position;  // The position i the path for this oriented read
-    };
     MemoryMapped::VectorOfVectors<PathEntry, uint64_t> vertexPathEntries;
 
     // The transitions of each edge (link) don't need to be stored.

@@ -24,9 +24,24 @@ namespace shasta {
             boost::listS, boost::listS, boost::bidirectionalS,
             AssemblyGraphVertex, AssemblyGraphEdge>;
 
+        class PathEntry;
+        class Transition;
+        class TransitionInfo;
+
         class PackedMarkerGraph;
     }
 }
+
+
+
+// An entry in the path of an oriented read.
+class shasta::mode3a::PathEntry {
+public:
+    OrientedReadId orientedReadId;
+
+    // The position in the path for this oriented read.
+    uint64_t position;
+};
 
 
 
@@ -53,17 +68,40 @@ public:
     }
 
     // The path entries that go through this vertex.
-    class PathEntry {
-    public:
-        OrientedReadId orientedReadId;
-        std::list<AssemblyGraphBaseClass::vertex_descriptor>::iterator it;
-
-        PathEntry(
-            OrientedReadId orientedReadId,
-            std::list<AssemblyGraphBaseClass::vertex_descriptor>::iterator it) :
-            orientedReadId(orientedReadId), it(it) {}
-    };
     vector<PathEntry> pathEntries;
+};
+
+
+
+// A transition of an oriented read from a segment to the next.
+class shasta::mode3a::Transition {
+public:
+    uint64_t position0;
+    uint64_t position1;
+    OrientedReadId orientedReadId;
+
+    bool operator<(const Transition& that) const
+    {
+        return
+            tie(orientedReadId, position0, position1) <
+            tie(that.orientedReadId, that.position0, that.position1);
+    }
+};
+
+
+
+class shasta::mode3a::TransitionInfo {
+public:
+    AssemblyGraphBaseClass::vertex_descriptor v0;
+    AssemblyGraphBaseClass::vertex_descriptor v1;
+    Transition transition;
+
+    bool operator<(const TransitionInfo& that) const
+    {
+        return
+            tie(v0, v1, transition) <
+            tie(that.v0, that.v1, that.transition);
+    }
 };
 
 
@@ -71,19 +109,6 @@ public:
 // Each edge represents a link.
 class shasta::mode3a::AssemblyGraphEdge {
 public:
-
-    // A transition of an oriented read from a segment to the next.
-    class Transition {
-    public:
-        std::list<AssemblyGraphBaseClass::vertex_descriptor>::iterator it0;
-        std::list<AssemblyGraphBaseClass::vertex_descriptor>::iterator it1;
-        OrientedReadId orientedReadId;
-
-        bool operator<(const Transition& that) const
-        {
-            return tie(*it0, *it1, orientedReadId) < tie(*that.it0, *that.it1, that.orientedReadId);
-        }
-    };
 
     vector<Transition> transitions;
 
@@ -105,7 +130,7 @@ public:
     // Initially, we construct it from the corresponding journey
     // in the PackedMarkerGraph.
     // Indexed by OrientedReadId::getValue().
-    vector< std::list<vertex_descriptor> > paths;
+    vector< vector<vertex_descriptor> > paths;
 
     // Each segment in the AssemblyGraph corresponds to a segment in
     // this PackedMarkerGraph.

@@ -26,10 +26,13 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
 {
     // Store the segments.
     createNew(vertexVector, name + "-vertices");
+    createNew(vertexPathEntries, name + "-vertexPathEntries");
     std::map<AssemblyGraph::vertex_descriptor, uint64_t> vertexMap;
     BGL_FORALL_VERTICES(v, assemblyGraph, AssemblyGraph) {
+        const AssemblyGraphVertex& assemblyGraphVertex = assemblyGraph[v];
         vertexMap.insert(make_pair(v, vertexVector.size()));
-        vertexVector.push_back(Vertex(assemblyGraph[v]));
+        vertexVector.push_back(Vertex(assemblyGraphVertex));
+        vertexPathEntries.appendVector(assemblyGraphVertex.pathEntries);
     }
 
     // Store the edges.
@@ -42,24 +45,18 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
         edgeVector.push_back({vertexMap[v0], vertexMap[v1]});
     }
 
-    // Create the paths and the path entries for each vertex.
+
+
+    // Copy the paths to the snapshot.
     createNew(paths, name + "-paths");
-    vector< vector<PathEntry> > pathEntries(vertexVector.size());
     for(uint64_t i=0; i<assemblyGraph.paths.size(); i++) {
-        const OrientedReadId orientedReadId = OrientedReadId::fromValue(ReadId(i));
-        const auto assemblyGraphPath = assemblyGraph.paths[i];
+        const vector<AssemblyGraph::vertex_descriptor>& assemblyGraphPath = assemblyGraph.paths[i];
         paths.appendVector();
-        uint64_t position = 0;
         for(const AssemblyGraph::vertex_descriptor v: assemblyGraphPath) {
-            const uint64_t vertexId = vertexMap[v];
-            paths.append(vertexId);
-            pathEntries[vertexId].push_back({orientedReadId, position++});
+            paths.append(vertexMap[v]);
         }
     }
-    createNew(vertexPathEntries, name + "-vertexPathEntries");
-    for(const vector<PathEntry>& v: pathEntries) {
-        vertexPathEntries.appendVector(v);
-    }
+
 
 
     // Compute connectivity.
