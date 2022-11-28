@@ -119,6 +119,7 @@ public:
     void write() const;
     void writeGfa(uint64_t minLinkCoverage) const;
     void writePaths() const;
+    void writePathEntries() const;
 };
 
 #endif

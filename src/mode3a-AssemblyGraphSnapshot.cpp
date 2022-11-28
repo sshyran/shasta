@@ -233,6 +233,7 @@ bool AssemblyGraphSnapshot::segmentsAreAdjacent(uint64_t edgeId) const
 void AssemblyGraphSnapshot::write() const
 {
     writePaths();
+    writePathEntries();
     for(uint64_t minLinkCoverage=2; minLinkCoverage<=6; minLinkCoverage++) {
         writeGfa(minLinkCoverage);
     }
@@ -281,6 +282,29 @@ void AssemblyGraphSnapshot::writePaths() const
             csv << vertexVector[vertexId].stringId() << ",";
         }
         csv << "\n";
+    }
+
+}
+
+
+
+void AssemblyGraphSnapshot::writePathEntries() const
+{
+    ofstream csv(name + "-pathEntries.csv");
+    csv << "VertexId,SegmentId,Replica,OrientedReadId,Position\n";
+
+    for(uint64_t vertexId=0; vertexId<vertexPathEntries.size(); vertexId++)
+    {
+        const Vertex& vertex = vertexVector[vertexId];
+        const auto pathEntries = vertexPathEntries[vertexId];
+
+        for(const PathEntry& pathEntry: pathEntries) {
+            csv << vertexId << ",";
+            csv << vertex.segmentId << ",";
+            csv << vertex.segmentReplicaIndex << ",";
+            csv << pathEntry.orientedReadId << ",";
+            csv << pathEntry.position << "\n";
+        }
     }
 
 }
