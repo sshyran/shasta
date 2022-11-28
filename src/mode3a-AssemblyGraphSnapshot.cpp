@@ -316,7 +316,7 @@ void AssemblyGraphSnapshot::writePathEntries() const
 void AssemblyGraphSnapshot::writeTransitions() const
 {
     ofstream csv(name + "-transitions.csv");
-    csv << "LinkId,SegmentIdReplica0,SegmentReplica1,OrientedReadId,Position0,Position1\n";
+    csv << "LinkId,SegmentReplica0,SegmentReplica1,OrientedReadId,Position0,Position1\n";
 
     vector<Transition> transitions;
     for(uint64_t edgeId=0; edgeId<edgeVector.size(); edgeId++) {
@@ -334,4 +334,44 @@ void AssemblyGraphSnapshot::writeTransitions() const
     }
 }
 
+
+
+// Compute the tangle matrix at a vertex.
+// On return, tangle_matrix[make_pair(vertexId0, vertexId2)] is
+// the number of oriented reads that:
+// - Visit vertexId0 immediately before vertexId1, and
+// - Visit vertexId2 immediately after  vertexId1.
+// That could include entries for which vertexId0 and/or vertexId2
+// are invalid<uint64_t>, if vertexId1 is the first or last
+// vertex of one or more oriented read paths.
+void AssemblyGraphSnapshot::computeTangleMatrix(
+    uint64_t vertexId1,
+    std::map< pair<uint64_t, uint64_t>, uint64_t>& tangleMatrix) const
+{
+    tangleMatrix.clear();
+
+    // Loop over the path entries for this vertex.
+    for(const PathEntry& pathEntry: vertexPathEntries[vertexId1]) {
+        const OrientedReadId orientedReadId = pathEntry.orientedReadId;
+        const uint64_t position1 = pathEntry.position;
+        const auto path = paths[orientedReadId.getValue()];
+
+        // Find the vertex this oriented read visits before vertexId1.
+        uint64_t vertexId0 = invalid<uint64_t>;
+        if(position1 > 0) {
+            const uint64_t position0 = position1 - 1;
+            vertexId0 = path[position0];
+        }
+
+        // Find the vertex this oriented read visits after vertexId1.
+        uint64_t vertexId2 = invalid<uint64_t>;
+        if(position1 < path.size() - 1) {
+            const uint64_t position2 = position1 + 1;
+            vertexId2 = path[position2];
+        }
+
+        // Increment the tangle matrix.
+        ++tangleMatrix[make_pair(vertexId0, vertexId2)];
+    }
+}
 

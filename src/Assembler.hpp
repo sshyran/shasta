@@ -2422,6 +2422,7 @@ public:
     Mode3aAssemblyData mode3aAssemblyData;
     void accessMode3aAssemblyData();
     void exploreMode3aAssemblyGraph(const vector<string>& request, ostream& html);
+    void exploreMode3aTangleMatrix(const vector<string>& request, ostream& html);
 
 
 public:

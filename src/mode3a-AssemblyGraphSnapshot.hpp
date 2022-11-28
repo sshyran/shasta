@@ -116,6 +116,19 @@ public:
     // Get the length of assembled sequence for a vertex.
     uint64_t getVertexAssembledSequenceLength(uint64_t vertexId) const;
 
+    // Compute the tangle matrix at a vertex.
+    // On return, tangle_matrix[make_pair(vertexId0, vertexId2)] is
+    // the number of oriented reads that:
+    // - Visit vertexId0 immediately before vertexId1, and
+    // - Visit vertexId2 immediately after  vertexId1.
+    // That could include entries for which vertexId0 and/or vertexId2
+    // are invalid<uint64_t>, if vertexId1 is the first or last
+    // vertex of one or more oriented read paths.
+    void computeTangleMatrix(
+        uint64_t vertexId1,
+        std::map< pair<uint64_t, uint64_t>, uint64_t>& tangleMatrix) const;
+
+
     void write() const;
     void writeGfa(uint64_t minLinkCoverage) const;
     void writePaths() const;
