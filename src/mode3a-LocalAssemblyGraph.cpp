@@ -203,8 +203,8 @@ void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) con
         {
             // Get the segment id from the input field.
             var segmentId = document.getElementById("zoomSegmentId").value;
-            var segmentCopyIndex = document.getElementById("zoomSegmentCopyIndex").value;
-            var element = document.getElementById("Segment-" + segmentId + "-" + segmentCopyIndex);
+            var segmentReplicaIndex = document.getElementById("zoomSegmentReplicaIndex").value;
+            var element = document.getElementById("Segment-" + segmentId + "-" + segmentReplicaIndex);
 
             // Find the bounding box and its center.
             var box = element.getBBox();
@@ -227,7 +227,7 @@ void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) con
         </script>
 
         <table>
-        <tr><td><th>Segment id<th>Segment<br>copy index
+        <tr><td><th>Segment id<th>Segment<br>replica index
         <tr><td>Highlight segment
         <td><input id=highlightSegmentId type=text onchange="highlightSegment()"
             size=10 style='text-align:center'>
@@ -236,7 +236,7 @@ void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) con
         <tr><td>Zoom to segment
         <td><input id=zoomSegmentId type=text onchange="zoomToSegment()"
             size=10 style='text-align:center'>
-        <td><input id=zoomSegmentCopyIndex type=text onchange="zoomToSegment()"
+        <td><input id=zoomSegmentReplicaIndex type=text onchange="zoomToSegment()"
             size=10 style='text-align:center' value='0'>
         </table>
         )stringDelimiter";
@@ -250,22 +250,22 @@ Hover on a segment to populate the table below.
 <p>
 <table style='font-size:9'>
 <tr><th class='left'>Segment id<td id='segmentIdCell' class=centered style='width:8em'>
-<tr><th class='left'>Segment copy index<td id='segmentCopyIndexCell' class=centered style='width:8em'>
+<tr><th class='left'>Segment replica index<td id='segmentReplicaIndexCell' class=centered style='width:8em'>
 </table>
 
 <script>
 function onMouseEnterSegment(
     segmentId,
-    segmentCopyIndex
+    segmentReplicaIndex
 )
 {
     document.getElementById('segmentIdCell').innerHTML = segmentId;
-    document.getElementById('segmentCopyIndexCell').innerHTML = segmentCopyIndex;
+    document.getElementById('segmentReplicaIndexCell').innerHTML = segmentReplicaIndex;
 }
 function onMouseExitSegment()
 {
     document.getElementById('segmentIdCell').innerHTML = '';
-    document.getElementById('segmentCopyIndexCell').innerHTML = '';
+    document.getElementById('segmentReplicaIndexCell').innerHTML = '';
 }
 </script>
     )zzz";

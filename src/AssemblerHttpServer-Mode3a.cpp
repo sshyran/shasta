@@ -109,7 +109,7 @@ void Assembler::exploreMode3aAssemblyGraph(
     }
     auto v = snapshot.vertexTable[startSegmentId];
     if(startSegmentReplicaIndex >= v.size() or v[startSegmentReplicaIndex] == invalid<uint64_t> ) {
-        html << "<br>Invalid segment replica index.<br>Valid segment copy indexes for this segment are:";
+        html << "<br>Invalid segment replica index.<br>Valid segment replica indexes for this segment are:";
         for(uint64_t segmentCopyIndex=0; segmentCopyIndex<v.size(); segmentCopyIndex++) {
             if(v[segmentCopyIndex] != invalid<uint64_t>) {
                 html << " " << segmentCopyIndex;
