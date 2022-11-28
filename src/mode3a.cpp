@@ -71,11 +71,8 @@ Assembler::Assembler(
     packedMarkerGraph->writeGfa();
 
     // For the final PackedMarkerGraph we also need to compute the oriented reads journeys.
-    packedMarkerGraph->createMarkerGraphEdgeTable(threadCount); // Needed to compute the journeys.
     packedMarkerGraph->computeJourneys(threadCount);
-    packedMarkerGraph->markerGraphEdgeTable.remove();           // No longer needed.
     packedMarkerGraph->writeJourneys();
-
 
     // Create the AssemblyGraph.
     AssemblyGraph assemblyGraph(*packedMarkerGraph);

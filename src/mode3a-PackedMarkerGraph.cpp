@@ -4,6 +4,7 @@
 #include "AssembledSegment.hpp"
 #include "invalid.hpp"
 #include "MarkerGraph.hpp"
+#include "orderPairs.hpp"
 using namespace shasta;
 using namespace mode3a;
 
@@ -331,13 +332,15 @@ void PackedMarkerGraph::remove()
 
 void PackedMarkerGraph::createMarkerGraphEdgeTable(uint64_t threadCount)
 {
+    // Shorthand for the marker graph edge table.
+    auto& table = computeJourneysData.markerGraphEdgeTable;
 
-    // Initialize the marker graph edge table.
-    createNew(markerGraphEdgeTable, name + "-MarkerGraphEdgeTable");
-    markerGraphEdgeTable.resize(markerGraph.edges.size());
-    fill(markerGraphEdgeTable.begin(), markerGraphEdgeTable.end(), invalid<uint64_t>);
+    // Initialize the table.
+    createNew(table, name + "-MarkerGraphEdgeTable");
+    table.resize(markerGraph.edges.size());
+    fill(table.begin(), table.end(), invalid<uint64_t>);
 
-    // Fill in the marker graph edge table.
+    // Fill it in.
     const uint64_t batchSize = 100;
     setupLoadBalancing(segments.size(), batchSize);
     runThreads(&PackedMarkerGraph::createMarkerGraphEdgeTableThreadFunction, threadCount);
@@ -347,6 +350,7 @@ void PackedMarkerGraph::createMarkerGraphEdgeTable(uint64_t threadCount)
 
 void PackedMarkerGraph::createMarkerGraphEdgeTableThreadFunction(uint64_t threadId)
 {
+    auto& table = computeJourneysData.markerGraphEdgeTable;
 
     // Loop over all batches assigned to this thread.
     uint64_t begin, end;
@@ -358,7 +362,7 @@ void PackedMarkerGraph::createMarkerGraphEdgeTableThreadFunction(uint64_t thread
 
             // Loop over the marker graph path of this segment.
             for(const uint64_t markerGraphEdgeId: segment) {
-                markerGraphEdgeTable[markerGraphEdgeId] = segmentId;
+                table[markerGraphEdgeId] = segmentId;
             }
         }
     }
@@ -366,6 +370,8 @@ void PackedMarkerGraph::createMarkerGraphEdgeTableThreadFunction(uint64_t thread
 
 
 
+#if 0
+// Old code, buggy.
 void PackedMarkerGraph::computeJourneys(uint64_t threadCount)
 {
     journeys.clear();   // Just in case.
@@ -443,6 +449,131 @@ void PackedMarkerGraph::computeJourney(
         }
     }
 }
+#endif
+
+
+
+void PackedMarkerGraph::computeJourneys(uint64_t threadCount)
+{
+    auto& data = computeJourneysData;
+
+    // The marker graph edge table gives the segmentId that each
+    // marker graph edge is on, or invalid<uint64_t> if none.
+    createMarkerGraphEdgeTable(threadCount);
+
+    // Compute the journey pairs for each oriented read id.
+    const uint64_t orientedReadCount = markers.size();
+    createNew(data.journeyPairs, name + "-JourneyPairs");
+    data.journeyPairs.beginPass1(orientedReadCount);
+    const uint64_t batchSize = 100;
+    setupLoadBalancing(segments.size(), batchSize);
+    runThreads(&PackedMarkerGraph::computeJourneysPass1ThreadFunction, threadCount);
+    data.journeyPairs.beginPass2();
+    setupLoadBalancing(segments.size(), batchSize);
+    runThreads(&PackedMarkerGraph::computeJourneysPass2ThreadFunction, threadCount);
+    data.journeyPairs.endPass2(true, true);
+
+    // We no longer need the marker graph edge table.
+    data.markerGraphEdgeTable.remove();
+
+    // For each oriented read, sort the journey pairs and use them to compute the journeys.
+    // The journeys are temporarily stored in data.journeys.
+    data.journeys.resize(orientedReadCount);
+    setupLoadBalancing(orientedReadCount, batchSize);
+    runThreads(&PackedMarkerGraph::computeJourneysPass3ThreadFunction, threadCount);
+
+    // We no longer need the journey pairs.
+    data.journeyPairs.remove();
+
+    // Copy the journeys to their permanent location in mapped memory.
+    createNew(journeys, name + "-Journeys");
+    for(const auto& journey: data.journeys) {
+        journeys.appendVector(journey);
+    }
+
+    // We no longer need the temporary copy of the journeys.
+    data.journeys.clear();
+    data.journeys.shrink_to_fit();
+}
+
+
+
+void PackedMarkerGraph::computeJourneysPass1ThreadFunction(uint64_t threadId)
+{
+    computeJourneysPass12ThreadFunction(1);
+}
+
+
+
+void PackedMarkerGraph::computeJourneysPass2ThreadFunction(uint64_t threadId)
+{
+    computeJourneysPass12ThreadFunction(2);
+}
+
+
+
+// This is used to compute data.journeyPairs for each oriented read.
+void PackedMarkerGraph::computeJourneysPass12ThreadFunction(uint64_t pass)
+{
+    auto& data = computeJourneysData;
+
+    // Loop over batches assigned to this thread.
+    uint64_t begin, end;
+    while(getNextBatch(begin, end)) {
+
+        // Loop over segments assigned to this batch.
+        for(uint64_t segmentId=begin; segmentId!=end; segmentId++) {
+            const auto segment = segments[segmentId];
+
+            // Loop over marker graph edges of this segment.
+            for(uint64_t edgeId: segment) {
+
+                // Loop over marker intervals of this edge.
+                for(const MarkerInterval& markerInterval: markerGraph.edgeMarkerIntervals[edgeId]) {
+
+                    if(pass == 1) {
+                        data.journeyPairs.incrementCountMultithreaded(
+                            markerInterval.orientedReadId.getValue());
+                    } else {
+                        data.journeyPairs.storeMultithreaded(
+                            markerInterval.orientedReadId.getValue(),
+                            make_pair(markerInterval.ordinals[0], segmentId));
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+// In pass 3 we use the journey pairs to compute journeys for each oriented read
+// and we store them temporarily in data.journeys.
+void PackedMarkerGraph::computeJourneysPass3ThreadFunction(uint64_t threadId)
+{
+    auto& data = computeJourneysData;
+
+    // Loop over batches assigned to this thread.
+    uint64_t begin, end;
+    while(getNextBatch(begin, end)) {
+
+        // Loop over oriented reads in this batch.
+        for(uint64_t i=begin; i!=end; ++i) {
+
+            // Sort by marker ordinal the journey pairs for each read.
+            auto journeyPairs = data.journeyPairs[i];
+            sort(journeyPairs.begin(), journeyPairs.end(), OrderPairsByFirstOnly<uint32_t, uint64_t>());
+
+            vector<uint64_t>& journey = data.journeys[i];
+            for(const auto& journeyPair: journeyPairs) {
+                const uint64_t segmentId = journeyPair.second;
+                if(journey.empty() or segmentId != journey.back()) {
+                    journey.push_back(segmentId);
+                }
+            }
+        }
+    }
+}
 
 
 
@@ -452,7 +583,7 @@ void PackedMarkerGraph::writeJourneys() const
     for(uint64_t i=0; i<journeys.size(); i++) {
         const OrientedReadId orientedReadId = OrientedReadId::fromValue(ReadId(i));
         csv << orientedReadId << ",";
-        const vector<uint64_t>& journey = journeys[i];
+        const auto journey = journeys[i];
         for(const uint64_t segmentId: journey) {
             csv << segmentId << ",";
         }

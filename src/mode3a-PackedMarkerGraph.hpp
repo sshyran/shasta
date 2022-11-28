@@ -8,8 +8,10 @@
 #include "MappedMemoryOwner.hpp"
 #include "MemoryMappedVectorOfVectors.hpp"
 #include "MultithreadedObject.hpp"
+#include "ReadId.hpp"
 
 // Standard library.
+#include "memory.hpp"
 #include "string.hpp"
 
 namespace shasta {
@@ -102,25 +104,44 @@ public:
 
     void remove();
 
-    // Keep track of the segment each marker graph edge corresponds to.
-    // For each marker graph edge, store in the marker graph edge table
-    // the corresponding segment id, if any.
-    // Indexed by the edge id in the marker graph.
-    // This is needed when computing oriented read journeys below.
-    MemoryMapped::Vector<uint64_t> markerGraphEdgeTable;
-    void createMarkerGraphEdgeTable(uint64_t threadCount);
-    void createMarkerGraphEdgeTableThreadFunction(uint64_t threadId);
+
 
     // The journey of an oriented read is the sequence of segments it encounters.
     // Indexed by OrientedReadId::getValue().
-    // Their computation uses the markerGraphEdgeTable above.
-    vector< vector<uint64_t> > journeys;
+    MemoryMapped::VectorOfVectors<uint64_t, uint64_t> journeys;
     void computeJourneys(uint64_t threadCount);
-    void computeJourneysThreadFunction(uint64_t threadId);
-    void computeJourney(
-        OrientedReadId,
-        vector<uint64_t>& markerGraphVertices,
-        vector<uint64_t>& edges);
+    class ComputeJourneysData {
+    public:
+
+        // Keep track of the segment each marker graph edge corresponds to.
+        // For each marker graph edge, store in the marker graph edge table
+        // the corresponding segment id, if any.
+        // Indexed by the edge id in the marker graph.
+        // This is needed when computing oriented read journeys below.
+        MemoryMapped::Vector<uint64_t> markerGraphEdgeTable;
+
+        // In passes 1 and 2, we create pairs(ordinal, segmentId)
+        // for each oriented read.
+        // Indexed by OrientedReadId::getValue().
+        // We do this by looping over the marker graph edges of each segment.
+        // Pass 1 is for counting and pass 2 is for storing.
+        // These pairs can contain duplicates.
+        MemoryMapped::VectorOfVectors<pair<uint32_t, uint64_t>, uint64_t> journeyPairs;
+
+        // Temporary storage of the journeys of each oriented read.
+        // Indexed by OrientedReadId::getValue().
+        // This is created in pass 3.
+        vector< vector<uint64_t> > journeys;
+    };
+    ComputeJourneysData computeJourneysData;
+    void createMarkerGraphEdgeTable(uint64_t threadCount);
+    void createMarkerGraphEdgeTableThreadFunction(uint64_t threadId);
+    void computeJourneysPass1ThreadFunction(uint64_t threadId);
+    void computeJourneysPass2ThreadFunction(uint64_t threadId);
+    void computeJourneysPass12ThreadFunction(uint64_t pass);
+    void computeJourneysPass3ThreadFunction(uint64_t threadId);
+
+
     void writeJourneys() const;
 
 

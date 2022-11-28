@@ -40,7 +40,7 @@ void AssemblyGraph::createSegmentsAndPaths()
     paths.resize(packedMarkerGraph.journeys.size());
     for(uint64_t i=0; i<paths.size(); i++) {
         const OrientedReadId orientedReadId = OrientedReadId::fromValue(ReadId(i));
-        const auto& journey = packedMarkerGraph.journeys[i];
+        const auto journey = packedMarkerGraph.journeys[i];
         auto& path = paths[i];
         for(const uint64_t segmentId: journey) {
             const vertex_descriptor v = vertexTable[segmentId];
