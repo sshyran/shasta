@@ -62,7 +62,6 @@ public:
     // Assembled sequence of each segment.
     MemoryMapped::VectorOfVectors<Base, uint64_t> segmentSequences;
     void assembleSegmentSequences();
-    void accessSegmentSequences();
 
     // The segmentSequences stores, for each segment,
     // the entire sequence from the AssembledSegment.
@@ -93,7 +92,9 @@ public:
     void createLinks();
 
     void accessSegments();
+    void accessSegmentSequences();
     void accessLinks();
+    void accessJourneys();
 
     // Given the links, create the connectivity.
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> linksBySource;

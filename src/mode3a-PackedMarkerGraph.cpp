@@ -18,7 +18,6 @@ template class MultithreadedObject<PackedMarkerGraph>;
 
 
 
-// Initial creation from the marker graph.
 PackedMarkerGraph::PackedMarkerGraph(
     const MappedMemoryOwner& mappedMemoryOwner,
     const string& name,
@@ -37,7 +36,9 @@ PackedMarkerGraph::PackedMarkerGraph(
         accessSegments();
         accessLinks();
         accessSegmentSequences();
+        accessJourneys();
     } else {
+        // Initial creation from the marker graph.
         createSegmentsFromMarkerGraph();
         createLinks();
         assembleSegmentSequences();
@@ -494,6 +495,13 @@ void PackedMarkerGraph::computeJourneys(uint64_t threadCount)
     // We no longer need the temporary copy of the journeys.
     data.journeys.clear();
     data.journeys.shrink_to_fit();
+}
+
+
+
+void PackedMarkerGraph::accessJourneys()
+{
+    accessExistingReadOnly(journeys, name + "-Journeys");
 }
 
 
