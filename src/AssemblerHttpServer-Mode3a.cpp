@@ -228,29 +228,105 @@ void Assembler::exploreMode3aTangleMatrix(
     html << "<h1>Tangle matrix at segment " << segmentId <<
         " replica " << segmentReplicaIndex << "</h1>";
 
-    // Compute the tangle matrix at this vertex.
+    // Analyze the simple tangle at this vertex.
+    vector<uint64_t> inVertices;
+    vector<uint64_t> outVertices;
+    std::map<uint64_t, uint64_t> inCoverage;
+    std::map<uint64_t, uint64_t> outCoverage;
     std::map< pair<uint64_t, uint64_t>, uint64_t> tangleMatrix;
-    snapshot.computeTangleMatrix(vertexId, tangleMatrix);
+    snapshot.analyzeSimpleTangleAtVertex(
+        vertexId,
+        inVertices,
+        outVertices,
+        inCoverage,
+        outCoverage,
+        tangleMatrix);
 
-    if(tangleMatrix.empty()) {
-        html << "The tangle matrix is empty.";
+    // Check if the tangle at this vertex is trivial.
+    bool isTrivial = false;
+    if(inCoverage.empty()) {
+        html << "<br>There are no incoming vertices.";
+        isTrivial = true;
+    }
+    if(outCoverage.empty()) {
+        html << "<br>There are no outgoing vertices.";
+        isTrivial = true;
+    }
+    if(isTrivial) {
+        SHASTA_ASSERT(tangleMatrix.empty());
         return;
     }
+    SHASTA_ASSERT(not tangleMatrix.empty());
 
 
 
-    // For now write it out in flat form.
-    for(const auto& p: tangleMatrix) {
-        const auto& vertexIds = p.first;
-        const uint64_t coverage = p.second;
-        const uint64_t vertexId0 = vertexIds.first;
-        const uint64_t vertexId1 = vertexIds.second;
-        const auto& vertex0 = snapshot.vertexVector[vertexId0];
-        const auto& vertex1 = snapshot.vertexVector[vertexId1];
+    // Display the tangle matrix.
 
-        html << "<br>From " << vertex0.stringId() << " to " << vertex1.stringId() <<
-            " coverage " << coverage;
-
+    // Header.
+    html <<
+        "<table>" <<
+        "<tr><td rowspan=2 colspan=2>" <<
+        "<th colspan=" << outCoverage.size() << ">Out" <<
+        "<td>" <<
+        "<tr>";
+    for(const auto& p: outCoverage) {
+        const uint64_t vertexId = p.first;
+        html << "<th style='background-color:PaleGreen'>" << snapshot.vertexStringId(vertexId);
     }
+    html << "<th style='background-color:LightPink'>Total";
+
+    // One row for each in-vertex.
+    html << "<tr><th rowspan=" << inCoverage.size() << ">In";
+    bool isFirstRow = true;
+    for(const auto& p: inCoverage) {
+        const uint64_t vertexId0 = p.first;
+        const uint64_t coverage = p.second;
+        if(isFirstRow) {
+            isFirstRow = false;
+        } else {
+            html << "<tr>";
+        }
+        html << "<th style='background-color:PaleGreen'>" << snapshot.vertexStringId(vertexId0);
+        for(const auto& p: outCoverage) {
+            const uint64_t vertexId2 = p.first;
+            const uint64_t m = tangleMatrix[make_pair(vertexId0, vertexId2)];
+            html << "<td class=centered>";
+            if(m > 0) {
+                html << m;
+            }
+        }
+        html << "<td class=centered style='background-color:LightPink'>" << coverage;
+    }
+
+    // Final row.
+    html << "<tr><td><th style='background-color:LightPink'>Total";
+    uint64_t sum = 0;
+    for(const auto& p: outCoverage) {
+        const uint64_t coverage = p.second;
+        html << "<td class=centered style='background-color:LightPink'>" << coverage;
+        sum += coverage;
+    }
+    html << "<td class=centered style='background-color:LightCoral'>" << sum << "</table>";
+
+
+
+
+    // Write out previous vertices and last vertices.
+    html << "<h3>Tangle details</h3><p>";
+    html << "<table><tr>" <<
+        "<th>Oriented<br>read<th>VertexId0<th>VertexId1<th>VertexId2";
+    auto pathEntries = snapshot.vertexPathEntries[vertexId];
+    SHASTA_ASSERT(inVertices.size()  == pathEntries.size());
+    SHASTA_ASSERT(outVertices.size() == pathEntries.size());
+    for(uint64_t i=0; i<pathEntries.size(); i++) {
+        const PathEntry& pathEntry = pathEntries[i];
+        const uint64_t vertexId0 = inVertices[i];
+        const uint64_t vertexId2 = outVertices[i];
+        html << "<tr><td class=centered>" << pathEntry.orientedReadId;
+        html << "<td class=centered>" << snapshot.vertexStringId(vertexId0);
+        html << "<td class=centered>" << snapshot.vertexStringId(vertexId);
+        html << "<td class=centered>" << snapshot.vertexStringId(vertexId2);
+    }
+    html << "</table>";
 }
 

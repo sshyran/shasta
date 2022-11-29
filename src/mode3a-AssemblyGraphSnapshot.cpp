@@ -136,6 +136,19 @@ AssemblyGraphSnapshot::Vertex::Vertex(const AssemblyGraphVertex& vertex) :
     segmentReplicaIndex(vertex.segmentReplicaIndex)
 {}
 
+// Get the stringId for a given vertexId, or "None" if vertexId is invalid<uint64_t>.
+string AssemblyGraphSnapshot::vertexStringId(uint64_t vertexId) const
+{
+    if(vertexId == invalid<uint64_t>) {
+        return "None";
+    } else {
+        SHASTA_ASSERT(vertexId < vertexVector.size());
+        const Vertex& vertex = vertexVector[vertexId];
+        return vertex.stringId();
+    }
+
+}
+
 
 
 // Get the length of assembled sequence for a vertex.
@@ -336,22 +349,47 @@ void AssemblyGraphSnapshot::writeTransitions() const
 
 
 
-// Compute the tangle matrix at a vertex.
-// On return, tangle_matrix[make_pair(vertexId0, vertexId2)] is
-// the number of oriented reads that:
-// - Visit vertexId0 immediately before vertexId1, and
-// - Visit vertexId2 immediately after  vertexId1.
-// That could include entries for which vertexId0 and/or vertexId2
+// Analyze the simple tangle at a given vertex vertexId1 by
+// "following the reads" one step forward or backward.
+// On return:
+// - The previousVertices and nextVertices vectors
+//   have size equal to the number of path entries for vertexId1,
+//   and contain the vertices vertexId0 and vertexId2 each of
+//   the oriented reads visits immediately before/after visiting vertexId1.
+//   This can be invalid<uint64_t> if vertexId1 is the
+//   first or last vertex of a path.
+// - inCoverage[vertexId0] gives the number of oriented reads that
+//   visit vertexId0 immediately before visiting vertexId1.
+// - outCoverage[vertexId2] gives the number of oriented reads that
+//   visit vertexId0 immediately after visiting vertexId1.
+// - tangle_matrix[make_pair(vertexId0, vertexId2)] is
+//   the number of oriented reads that visit vertexId0 immediately before vertexId1, and
+//   visit vertexId2 immediately after  vertexId1.
+// The three maps can include entries for which vertexId0 and/or vertexId2
 // are invalid<uint64_t>, if vertexId1 is the first or last
 // vertex of one or more oriented read paths.
-void AssemblyGraphSnapshot::computeTangleMatrix(
+void AssemblyGraphSnapshot::analyzeSimpleTangleAtVertex(
     uint64_t vertexId1,
+    vector<uint64_t>& inVertices,
+    vector<uint64_t>& outVertices,
+    std::map<uint64_t, uint64_t>& inCoverage,
+    std::map<uint64_t, uint64_t>& outCoverage,
     std::map< pair<uint64_t, uint64_t>, uint64_t>& tangleMatrix) const
 {
+    // Access the path entries for vertexId1.
+    auto pathEntries = vertexPathEntries[vertexId1];
+
+    // Initialize output arguments.
+    inVertices.clear();
+    inVertices.reserve(pathEntries.size());
+    outVertices.clear();
+    outVertices.reserve(pathEntries.size());
+    inCoverage.clear();
+    outCoverage.clear();
     tangleMatrix.clear();
 
     // Loop over the path entries for this vertex.
-    for(const PathEntry& pathEntry: vertexPathEntries[vertexId1]) {
+    for(const PathEntry& pathEntry: pathEntries) {
         const OrientedReadId orientedReadId = pathEntry.orientedReadId;
         const uint64_t position1 = pathEntry.position;
         const auto path = paths[orientedReadId.getValue()];
@@ -370,7 +408,13 @@ void AssemblyGraphSnapshot::computeTangleMatrix(
             vertexId2 = path[position2];
         }
 
-        // Increment the tangle matrix.
+        // Store vertexId0 and vertexId2.
+        inVertices.push_back(vertexId0);
+        outVertices.push_back(vertexId2);
+
+        // Increment the output maps.
+        ++inCoverage[vertexId0];
+        ++outCoverage[vertexId2];
         ++tangleMatrix[make_pair(vertexId0, vertexId2)];
     }
 }
