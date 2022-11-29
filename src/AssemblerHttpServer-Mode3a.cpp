@@ -160,6 +160,9 @@ void Assembler::exploreMode3aTangleMatrix(
     uint64_t segmentReplicaIndex = 0;
     getParameterValue(request, "segmentReplicaIndex", segmentReplicaIndex);
 
+    uint64_t minLinkCoverage = 4;
+    getParameterValue(request, "minLinkCoverage", minLinkCoverage);
+
 
     // Write the form.
     html <<
@@ -181,6 +184,10 @@ void Assembler::exploreMode3aTangleMatrix(
         "<tr><td class=left>Segment replica index<td>"
         "<input type=text required name=segmentReplicaIndex size=8 style='text-align:center'"
         " value='" << segmentReplicaIndex <<
+        "'>"
+        "<tr><td class=left>Minimum link coverage<br>(for highlighting)<td>"
+        "<input type=text required name=minLinkCoverage size=8 style='text-align:center'"
+        " value='" << minLinkCoverage <<
         "'>"
         "</table>"
         "<br><input type=submit value='Display'>"
@@ -280,7 +287,7 @@ void Assembler::exploreMode3aTangleMatrix(
     bool isFirstRow = true;
     for(const auto& p: inCoverage) {
         const uint64_t vertexId0 = p.first;
-        const uint64_t coverage = p.second;
+        const uint64_t coverage0 = p.second;
         if(isFirstRow) {
             isFirstRow = false;
         } else {
@@ -289,21 +296,30 @@ void Assembler::exploreMode3aTangleMatrix(
         html << "<th style='background-color:PaleGreen'>" << snapshot.vertexStringId(vertexId0);
         for(const auto& p: outCoverage) {
             const uint64_t vertexId2 = p.first;
+            const uint64_t coverage2 = p.second;
             const uint64_t m = tangleMatrix[make_pair(vertexId0, vertexId2)];
-            html << "<td class=centered>";
+            html << "<td class=centered";
+            if(vertexId0 != invalid<uint64_t> and vertexId2 != invalid<uint64_t>
+                and coverage0 >= minLinkCoverage and coverage2 >= minLinkCoverage) {
+                html << " style='background-color:LightBlue'";
+            }
+            html << ">";
             if(m > 0) {
                 html << m;
             }
         }
-        html << "<td class=centered style='background-color:LightPink'>" << coverage;
+        const string highlightColor = (vertexId0 != invalid<uint64_t> and coverage0 >= minLinkCoverage) ? "LightBlue" : "LightPink";
+        html << "<td class=centered style='background-color:" << highlightColor << "'>" << coverage0;
     }
 
     // Final row.
     html << "<tr><td><th style='background-color:LightPink'>Total";
     uint64_t sum = 0;
     for(const auto& p: outCoverage) {
+        const uint64_t vertexId2 = p.first;
         const uint64_t coverage = p.second;
-        html << "<td class=centered style='background-color:LightPink'>" << coverage;
+        const string highlightColor = (vertexId2 != invalid<uint64_t> and coverage >= minLinkCoverage) ? "LightBlue" : "LightPink";
+        html << "<td class=centered style='background-color:" << highlightColor << "'>" << coverage;
         sum += coverage;
     }
     html << "<td class=centered style='background-color:LightCoral'>" << sum << "</table>";
