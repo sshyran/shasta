@@ -26,7 +26,6 @@ namespace shasta {
 
         class PathEntry;
         class Transition;
-        class TransitionInfo;
 
         class PackedMarkerGraph;
     }
@@ -86,21 +85,11 @@ public:
             tie(orientedReadId, position0, position1) <
             tie(that.orientedReadId, that.position0, that.position1);
     }
-};
-
-
-
-class shasta::mode3a::TransitionInfo {
-public:
-    AssemblyGraphBaseClass::vertex_descriptor v0;
-    AssemblyGraphBaseClass::vertex_descriptor v1;
-    Transition transition;
-
-    bool operator<(const TransitionInfo& that) const
+    bool operator==(const Transition& that) const
     {
         return
-            tie(v0, v1, transition) <
-            tie(that.v0, that.v1, that.transition);
+            tie(orientedReadId, position0, position1) ==
+            tie(that.orientedReadId, that.position0, that.position1);
     }
 };
 
@@ -109,13 +98,6 @@ public:
 // Each edge represents a link.
 class shasta::mode3a::AssemblyGraphEdge {
 public:
-
-    vector<Transition> transitions;
-
-    uint64_t coverage() const
-    {
-        return transitions.size();
-    }
 };
 
 
@@ -144,6 +126,10 @@ private:
 
     void createSegmentsAndPaths();
     void createLinks();
+
+    // Get the transitions for an edge.
+    void getEdgeTransitions(edge_descriptor, vector<Transition>&) const;
+    uint64_t edgeCoverage(edge_descriptor) const;
 
     void writeGfa(const string& name, uint64_t minLinkCoverage) const;
     void writeLinkCoverageHistogram(const string& name) const;

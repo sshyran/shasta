@@ -1,6 +1,7 @@
 // Shasta
 #include "mode3a-AssemblyGraph.hpp"
 #include "mode3a-PackedMarkerGraph.hpp"
+#include "deduplicate.hpp"
 using namespace shasta;
 using namespace mode3a;
 
@@ -58,51 +59,107 @@ void AssemblyGraph::createLinks()
     AssemblyGraph& assemblyGraph = *this;
 
     // Gather transitions for all oriented reads.
-    vector<TransitionInfo> transitions;
-    Transition transition;
+    vector< pair<vertex_descriptor, vertex_descriptor> > transitions;
     for(uint64_t i=0; i<paths.size(); i++) {
-        transition.orientedReadId = OrientedReadId::fromValue(ReadId(i));
 
         // Loop over the path for this oriented read.
         const auto& path = paths[i];
         for(uint64_t position1=1; position1<path.size(); position1++) {
             const uint64_t position0 = position1 - 1;
-            transition.position0 = position0;
-            transition.position1 = position1;
-            transitions.push_back({path[position0], path[position1], transition});
+            transitions.push_back({path[position0], path[position1]});
         }
     }
-    sort(transitions.begin(), transitions.end());
+    deduplicate(transitions);
+
+    for(const pair<vertex_descriptor, vertex_descriptor>& transition: transitions) {
+        const vertex_descriptor v0 = transition.first;
+        const vertex_descriptor v1 = transition.second;
+        add_edge(v0, v1, assemblyGraph);
+    }
+}
 
 
 
-    // Each streak of transitions with the same vertices generates a link.
-    for(auto it=transitions.begin(); it!=transitions.end(); /* Increment later */) {
-        const vertex_descriptor v0 = it->v0;
-        const vertex_descriptor v1 = it->v1;
+// Get the transitions for an edge.
+void AssemblyGraph::getEdgeTransitions(
+    edge_descriptor e,
+    vector<Transition>& transitions) const
+{
+    const AssemblyGraph& assemblyGraph = *this;
 
-        // Find the streak for these two vertices.
-        auto streakBegin = it;
-        auto streakEnd = it;
-        ++streakEnd;
-        while(streakEnd != transitions.end()) {
-            if(streakEnd->v0 != v0 or streakEnd->v1 != v1) {
-                break;
-            }
-            ++streakEnd;
+    // Access the vertices of this edge.
+    const vertex_descriptor v0 = source(e, assemblyGraph);
+    const vertex_descriptor v1 = target(e, assemblyGraph);
+    const AssemblyGraphVertex& vertex1 = assemblyGraph[v1];
+
+
+
+    // Loop over path entries of vertex1.
+    transitions.clear();
+    for(const PathEntry& pathEntry: vertex1.pathEntries) {
+        const uint64_t position1 = pathEntry.position;
+        if(position1 == 0) {
+            // v1 is at the beginning of the path.
+            // There is no previous vertex in the path.
+            continue;
+        }
+        const uint64_t position0 = position1 - 1;
+
+        // Access the path for this oriented read.
+        const OrientedReadId orientedReadId = pathEntry.orientedReadId;
+        const vector<vertex_descriptor>& path = paths[orientedReadId.getValue()];
+
+        // If the previous entry is not on v0, this does not
+        // correspond to a transiton for the edge we are working on.
+        if(path[position0] != v0) {
+            continue;
         }
 
-        // The transitions of this streak generate an edge.
-        edge_descriptor e;
-        tie(e, ignore) = add_edge(v0, v1, assemblyGraph);
-        AssemblyGraphEdge& edge = assemblyGraph[e];
-        for(auto jt=streakBegin; jt!=streakEnd; ++jt) {
-            edge.transitions.push_back(jt->transition);
+        // Store this transition.
+        transitions.push_back({position0, position1, orientedReadId});
+    }
+}
+
+
+
+// This is similar to getTransitions above, but it
+// just counts the transitions instead of storing them.
+uint64_t AssemblyGraph::edgeCoverage(edge_descriptor e) const
+{
+    const AssemblyGraph& assemblyGraph = *this;
+
+    // Access the vertices of this edge.
+    const vertex_descriptor v0 = source(e, assemblyGraph);
+    const vertex_descriptor v1 = target(e, assemblyGraph);
+    const AssemblyGraphVertex& vertex1 = assemblyGraph[v1];
+
+
+
+    // Loop over path entries of vertex1.
+    uint64_t coverage = 0;
+    for(const PathEntry& pathEntry: vertex1.pathEntries) {
+        const uint64_t position1 = pathEntry.position;
+        if(position1 == 0) {
+            // v1 is at the beginning of the path.
+            // There is no previous vertex in the path.
+            continue;
+        }
+        const uint64_t position0 = position1 - 1;
+
+        // Access the path for this oriented read.
+        const OrientedReadId orientedReadId = pathEntry.orientedReadId;
+        const vector<vertex_descriptor>& path = paths[orientedReadId.getValue()];
+
+        // If the previous entry is not on v0, this does not
+        // correspond to a transiton for the edge we are working on.
+        if(path[position0] != v0) {
+            continue;
         }
 
-        it = streakEnd;
+        ++coverage;
     }
 
+    return coverage;
 }
 
 
@@ -124,7 +181,7 @@ void AssemblyGraph::writeLinkCoverageHistogram(const string& name) const
 
     vector<uint64_t> histogram;
     BGL_FORALL_EDGES(e, assemblyGraph, AssemblyGraph) {
-        const uint64_t coverage = assemblyGraph[e].transitions.size();
+        const uint64_t coverage = edgeCoverage(e);
         if(histogram.size() <= coverage) {
             histogram.resize(coverage+1, 0);
         }
@@ -176,7 +233,7 @@ void AssemblyGraph::writeGfa(const string& name, uint64_t minLinkCoverage) const
 
     // Write the links.
     BGL_FORALL_EDGES(e, assemblyGraph, AssemblyGraph) {
-        if(assemblyGraph[e].coverage() < minLinkCoverage) {
+        if(edgeCoverage(e) < minLinkCoverage) {
             continue;
         }
         const vertex_descriptor v0 = source(e, assemblyGraph);
