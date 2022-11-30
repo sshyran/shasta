@@ -266,7 +266,10 @@ void AssemblyGraphSnapshot::writeGfa(uint64_t minLinkCoverage) const
 
     // Write the vertices.
     for(const Vertex& vertex: vertexVector) {
-        gfa <<"S\t" << vertex.stringId() << "\t*\n";
+        const span<const Base> sequence = packedMarkerGraph.clippedSequence(vertex.segmentId);
+        gfa <<"S\t" << vertex.stringId() << "\t";
+        copy(sequence.begin(), sequence.end(), ostream_iterator<Base>(gfa));
+        gfa << "\n";
     }
 
     // Write the edges.
