@@ -12,6 +12,7 @@
 // Standard library.
 #include <list>
 #include "tuple.hpp"
+#include "utility.hpp"
 #include "vector.hpp"
 
 namespace shasta {
@@ -134,6 +135,29 @@ private:
     void writeGfa(const string& name, uint64_t minLinkCoverage) const;
     void writeLinkCoverageHistogram(const string& name) const;
     void writePaths(const string& name) const;
+
+    // Simple detangling, one vertex at a time, looking only
+    // at immediate parent and children.
+public:
+    void simpleDetangle(
+        uint64_t minLinkCoverage,
+        uint64_t minTangleCoverage);
+private:
+    void simpleDetangle(
+        vertex_descriptor,
+        uint64_t minLinkCoverage,
+        uint64_t minTangleCoverage);
+
+    // Find the previous and next vertex for each PathEntry in a given vertex.
+    // On return, adjacentVertices contains a pair of vertex descriptors for
+    // each PathEntry in vertex v, in the same order.
+    // Those vertex descriptors are the previous and next vertex visited
+    // by the oriented read for that PathEntry, and can be null_vertex()
+    // if v is at the beginning or end of the path of an oriented read.
+    void findAdjacentVertices(
+        vertex_descriptor v,
+        vector< pair<vertex_descriptor, vertex_descriptor> >& adjacentVertices
+    ) const;
 };
 
 #endif

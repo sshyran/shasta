@@ -28,6 +28,9 @@ Assembler::Assembler(
     markers(markers),
     markerGraph(markerGraph)
 {
+    // EXPOSE WHEN CODE STABILIZES.
+    const uint64_t minLinkCoverage = 6;
+    const uint64_t minTangleCoverage = 4;
 
     // This requires the marker length k to be even.
     SHASTA_ASSERT((k % 2) == 0);
@@ -80,9 +83,17 @@ Assembler::Assembler(
         num_vertices(assemblyGraph) << " segments and " <<
         num_edges(assemblyGraph) << " links." << endl;
 
-    // Create a persistent snapshot.
+    // Create a snapshot.
     AssemblyGraphSnapshot snapshot0(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-0", *this);
     snapshot0.write();
+
+    // Simple detangle.
+    assemblyGraph.simpleDetangle(minLinkCoverage, minTangleCoverage);
+
+    // Create a snapshot.
+    AssemblyGraphSnapshot snapshot1(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-1", *this);
+    snapshot1.write();
+
 }
 
 

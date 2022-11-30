@@ -244,3 +244,173 @@ void AssemblyGraph::writeGfa(const string& name, uint64_t minLinkCoverage) const
     }
 }
 
+
+
+void AssemblyGraph::simpleDetangle(
+    uint64_t minLinkCoverage,
+    uint64_t minTangleCoverage)
+{
+    AssemblyGraph& assemblyGraph = *this;
+
+    // Iterate over vertices, being careful because we are removing
+    // and creating vertices at the same time.
+    // Instead of using BGL_FORALL_VERTICES, we explicitly construct
+    // and increment vertex iterators in a safe way.
+    // The loop as written only iterates over vertices that were
+    // present when the loop started.
+    vertex_iterator itBegin, itEnd;
+    tie(itBegin, itEnd) = vertices(assemblyGraph);
+    for(vertex_iterator it=itBegin; it!=itEnd; /* Increment later */) {
+        const vertex_descriptor v = *it;
+
+        // Create an iterator to the next vertex.
+        // This is not invalidated when we remove the current vertex.
+        vertex_iterator itNext = it;
+        ++itNext;
+
+        // Simple detangling of this vertex.
+        simpleDetangle(v, minLinkCoverage, minTangleCoverage);
+
+        // Prepare to process the next vertex.
+        it = itNext;
+    }
+}
+
+
+
+void AssemblyGraph::simpleDetangle(
+    vertex_descriptor v1,
+    uint64_t minLinkCoverage,
+    uint64_t minTangleCoverage)
+{
+    const bool debug = true;
+
+    AssemblyGraph& assemblyGraph = *this;
+    const AssemblyGraphVertex& vertex1 = assemblyGraph[v1];
+
+    // Find adjacent vertices by following the reads.
+    vector< pair<vertex_descriptor, vertex_descriptor> > adjacentVertices;
+    findAdjacentVertices(v1, adjacentVertices);
+
+    // Group them.
+    // Store path entry indexes, that is indexes into the pathEntries vector
+    // of v1 and into the adjacentVertices vector.
+    std::map<vertex_descriptor, vector<uint64_t> > map0;  // By previous vertex
+    std::map<vertex_descriptor, vector<uint64_t> > map2;  // By next vertex.
+    std::map< pair<vertex_descriptor, vertex_descriptor>, vector<uint64_t> > map02;    // By previous and next vertex.
+    for(uint64_t i=0; i<adjacentVertices.size(); i++) {
+        const pair<vertex_descriptor, vertex_descriptor>& v02 = adjacentVertices[i];
+        const vertex_descriptor v0 = v02.first;
+        const vertex_descriptor v2 = v02.second;
+        map0[v0].push_back(i);
+        map2[v2].push_back(i);
+        map02[v02].push_back(i);
+    }
+
+    // For detangling, we only consider parent/children
+    // that are not null_vertex() and with at least minLinkCoverage
+    // oriented reads.
+    vector<vertex_descriptor> parents;
+    for(const auto& p: map0) {
+        const vertex_descriptor v0 = p.first;
+        if(v0 != null_vertex() and p.second.size() >= minLinkCoverage) {
+            parents.push_back(v0);
+        }
+    }
+    vector<vertex_descriptor> children;
+    for(const auto& p: map2) {
+        const vertex_descriptor v2 = p.first;
+        if(v2 != null_vertex() and p.second.size() >= minLinkCoverage) {
+            children.push_back(v2);
+        }
+    }
+
+    // For now we only attempt detangling if there are at least two
+    // parents and two children.
+    if(parents.size() < 2 or children.size() < 2){
+        return;
+    }
+
+    if(debug) {
+        cout << "Detangling " << vertex1.stringId() << " with " <<
+            parents.size() << " parents and " <<
+            children.size() << " children.\n";
+        cout << "Parents: ";
+        for(const vertex_descriptor parent: parents) {
+            cout << " " << assemblyGraph[parent].stringId();
+        }
+        cout << "\n";
+        cout << "Children: ";
+        for(const vertex_descriptor child: children) {
+            cout << " " << assemblyGraph[child].stringId();
+        }
+        cout << "\n";
+    }
+
+
+    // Find the pairs that will generate a new vertex.
+    // These are called the "active pairs" here.
+    // They are the ones for which map02 contains at least
+    // minTangleCoverage entries.
+    vector< pair<vertex_descriptor, vertex_descriptor> > activePairs;
+    for(const auto& p: map02) {
+        const auto& v02 = p.first;
+        const vertex_descriptor v0 = v02.first;
+        const vertex_descriptor v2 = v02.second;
+        if(v0 != null_vertex() and v2 != null_vertex() and p.second.size() >= minTangleCoverage) {
+            activePairs.push_back(v02);
+        }
+    }
+    if(debug) {
+        cout << "Active pairs:\n";
+        for(const auto& v02: activePairs) {
+            const vertex_descriptor v0 = v02.first;
+            const vertex_descriptor v2 = v02.second;
+            cout << assemblyGraph[v0].stringId() << " ";
+            cout << assemblyGraph[v2].stringId() << "\n";
+        }
+    }
+}
+
+
+
+// Find the previous and next vertex for each PathEntry in a given vertex.
+// On return, adjacentVertices contains a pair of vertex descriptors for
+// each PathEntry in vertex v, in the same order.
+// Those vertex descriptors are the previous and next vertex visited
+// by the oriented read for that PathEntry, and can be null_vertex()
+// if v is at the beginning or end of the path of an oriented read.
+void AssemblyGraph::findAdjacentVertices(
+    vertex_descriptor v,
+    vector< pair<vertex_descriptor, vertex_descriptor> >& adjacentVertices
+) const
+{
+    const AssemblyGraph& assemblyGraph = *this;
+    const AssemblyGraphVertex& vertex = assemblyGraph[v];
+
+    adjacentVertices.clear();
+    for(const PathEntry& pathEntry: vertex.pathEntries) {
+        const OrientedReadId orientedReadId = pathEntry.orientedReadId;
+        const vector<vertex_descriptor>& path = paths[orientedReadId.getValue()];
+
+        const uint64_t position1 = pathEntry.position;
+
+        // Find the previous vertex visited by this path, if any.
+        vertex_descriptor v0 = null_vertex();
+        if(position1 > 0) {
+            const uint64_t position0 = position1 - 1;
+            v0 = path[position0];
+        }
+
+        // Find the next vertex visited by this path, if any.
+        vertex_descriptor v2 = null_vertex();
+        const uint64_t position2 = position1 + 1;
+        if(position2 < path.size()) {
+            v2 = path[position2];
+        }
+
+        // Store this pair of adjacent vertices.
+        adjacentVertices.push_back({v0, v2});
+    }
+}
+
