@@ -89,6 +89,9 @@ Assembler::Assembler(
 
     // Simple detangle.
     assemblyGraph.simpleDetangle(minLinkCoverage, minTangleCoverage);
+    cout << "After simple detangling, the AssemblyGraph has " <<
+       num_vertices(assemblyGraph) << " segments and " <<
+       num_edges(assemblyGraph) << " links." << endl;
 
     // Create a snapshot.
     AssemblyGraphSnapshot snapshot1(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-1", *this);

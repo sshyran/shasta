@@ -252,27 +252,12 @@ void AssemblyGraph::simpleDetangle(
 {
     AssemblyGraph& assemblyGraph = *this;
 
-    // Iterate over vertices, being careful because we are removing
-    // and creating vertices at the same time.
-    // Instead of using BGL_FORALL_VERTICES, we explicitly construct
-    // and increment vertex iterators in a safe way.
-    // The loop as written only iterates over vertices that were
-    // present when the loop started.
-    vertex_iterator itBegin, itEnd;
-    tie(itBegin, itEnd) = vertices(assemblyGraph);
-    for(vertex_iterator it=itBegin; it!=itEnd; /* Increment later */) {
-        const vertex_descriptor v = *it;
-
-        // Create an iterator to the next vertex.
-        // This is not invalidated when we remove the current vertex.
-        vertex_iterator itNext = it;
-        ++itNext;
-
-        // Simple detangling of this vertex.
+    vector<vertex_descriptor> allVertices;
+    BGL_FORALL_VERTICES(v, assemblyGraph, AssemblyGraph) {
+        allVertices.push_back(v);
+    }
+    for(const vertex_descriptor v: allVertices) {
         simpleDetangle(v, minLinkCoverage, minTangleCoverage);
-
-        // Prepare to process the next vertex.
-        it = itNext;
     }
 }
 
@@ -345,6 +330,15 @@ void AssemblyGraph::simpleDetangle(
             cout << " " << assemblyGraph[child].stringId();
         }
         cout << "\n";
+
+        if(false) {
+            cout << "Details of path entries:\n";
+            for(uint64_t i=0; i<vertex1.pathEntries.size(); i++) {
+                cout << i << " " << vertex1.pathEntries[i].orientedReadId << " " <<
+                    assemblyGraph[adjacentVertices[i].first].stringId() << " " <<
+                    assemblyGraph[adjacentVertices[i].second].stringId() << "\n";
+            }
+        }
     }
 
 
@@ -361,15 +355,90 @@ void AssemblyGraph::simpleDetangle(
             activePairs.push_back(v02);
         }
     }
-    if(debug) {
+
+
+    // Each active pair generates a new vertex with the same segmentId as v1.
+    vector<vertex_descriptor> newVertices;
+    const uint64_t segmentId1 = vertex1.segmentId;
+    for(uint64_t i=0; i<activePairs.size(); i++) {
+        const vertex_descriptor vNew = add_vertex(
+            AssemblyGraphVertex(segmentId1, vertexCountBySegment[segmentId1]++),
+            assemblyGraph);
+        newVertices.push_back(vNew);
+    }
+    if(false) {
         cout << "Active pairs:\n";
-        for(const auto& v02: activePairs) {
+        for(uint64_t i=0; i<activePairs.size(); i++) {
+            const auto& v02 = activePairs[i];
             const vertex_descriptor v0 = v02.first;
             const vertex_descriptor v2 = v02.second;
-            cout << assemblyGraph[v0].stringId() << " ";
-            cout << assemblyGraph[v2].stringId() << "\n";
+            cout << assemblyGraph[v0].stringId() << " " <<
+                assemblyGraph[v2].stringId() << " new vertex " <<
+                assemblyGraph[newVertices[i]].stringId() << "\n";
         }
     }
+
+    // In addition, we create a vertex that will receive path entries
+    // that are not in active pairs.
+    const vertex_descriptor vNew = add_vertex(
+        AssemblyGraphVertex(segmentId1, vertexCountBySegment[segmentId1]++),
+        assemblyGraph);
+    if(false) {
+        cout << "New vertex not associated with an active pair: " << assemblyGraph[vNew].stringId() << endl;
+    }
+
+
+
+    // Assign each path entry of v1 to one of the new vertices we just created.
+    for(uint64_t i=0; i<vertex1.pathEntries.size(); i++) {
+        const PathEntry& pathEntry = vertex1.pathEntries[i];
+        const auto& v02 = adjacentVertices[i];
+        const vertex_descriptor v0 = v02.first;
+        const vertex_descriptor v2 = v02.second;
+        if(false) {
+            cout << "Assigning path entry " << i << " " << flush <<
+            assemblyGraph[v0].stringId() << " " << flush <<
+            assemblyGraph[v2].stringId() << " to a new vertex." << endl;
+        }
+
+        // Look it up in the active pairs.
+        auto it = find(activePairs.begin(), activePairs.end(), v02);
+
+        // Find the vertex we are going to add this PathEntry to.
+        const vertex_descriptor v = (it == activePairs.end()) ? vNew : newVertices[it - activePairs.begin()];
+        if(false) {
+            cout << "This path entry will be assigned to vertex " << assemblyGraph[v].stringId() << endl;
+        }
+
+        // Add the Path entry to this vertex.
+        assemblyGraph[v].pathEntries.push_back(pathEntry);
+
+        // Update the path to reflect this change.
+        paths[pathEntry.orientedReadId.getValue()][pathEntry.position] = v;
+
+        // Make sure the edges v0->v and v->v2 exist.
+        if(v0 != null_vertex()) {
+            edge_descriptor e;
+            bool edgeExists = false;
+            tie(e, edgeExists) = boost::edge(v0, v, assemblyGraph);
+            if(not edgeExists) {
+                add_edge(v0, v, assemblyGraph);
+            }
+        }
+        if(v2 != null_vertex()) {
+            edge_descriptor e;
+            bool edgeExists = false;
+            tie(e, edgeExists) = boost::edge(v, v2, assemblyGraph);
+            if(not edgeExists) {
+                add_edge(v, v2, assemblyGraph);
+            }
+        }
+    }
+
+    // Now we can remove v1.
+    clear_vertex(v1, assemblyGraph);
+    remove_vertex(v1, assemblyGraph);
+
 }
 
 
