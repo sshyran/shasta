@@ -47,13 +47,13 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
 
 
 
-    // Copy the paths to the snapshot.
-    createNew(paths, name + "-paths");
+    // Copy the journeys to the snapshot.
+    createNew(journeys, name + "-journeys");
     for(uint64_t i=0; i<assemblyGraph.journeys.size(); i++) {
         const vector<AssemblyGraph::vertex_descriptor>& assemblyGraphJourney = assemblyGraph.journeys[i];
-        paths.appendVector();
+        journeys.appendVector();
         for(const AssemblyGraph::vertex_descriptor v: assemblyGraphJourney) {
-            paths.append(vertexMap[v]);
+            journeys.append(vertexMap[v]);
         }
     }
 
@@ -122,7 +122,7 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
 {
     accessExistingReadOnly(vertexVector, name + "-vertices");
     accessExistingReadOnly(edgeVector, name + "-edges");
-    accessExistingReadOnly(paths, name + "-paths");
+    accessExistingReadOnly(journeys, name + "-journeys");
     accessExistingReadOnly(vertexPathEntries, name + "-vertexPathEntries");
     accessExistingReadOnly(edgesBySource, name + "-edgesBySource");
     accessExistingReadOnly(edgesByTarget, name + "-edgesByTarget");
@@ -174,9 +174,9 @@ void AssemblyGraphSnapshot::getEdgeTransitions(
         const OrientedReadId orientedReadId = pathEntry.orientedReadId;
         const uint64_t position0 = pathEntry.position;
         const uint64_t position1 = position0 + 1;
-        const auto path = paths[orientedReadId.getValue()];
-        if(position1 < path.size()) {
-            if(path[position1] == vertexId1) {
+        const auto journey = journeys[orientedReadId.getValue()];
+        if(position1 < journey.size()) {
+            if(journey[position1] == vertexId1) {
                 transitions.push_back({orientedReadId, position0});
             }
         }
@@ -198,9 +198,9 @@ uint64_t AssemblyGraphSnapshot::getEdgeCoverage(uint64_t edgeId) const
         const OrientedReadId orientedReadId = pathEntry.orientedReadId;
         const uint64_t position0 = pathEntry.position;
         const uint64_t position1 = position0 + 1;
-        const auto path = paths[orientedReadId.getValue()];
-        if(position1 < path.size()) {
-            if(path[position1] == vertexId1) {
+        const auto journey = journeys[orientedReadId.getValue()];
+        if(position1 < journey.size()) {
+            if(journey[position1] == vertexId1) {
                 ++coverage;
             }
         }
@@ -245,7 +245,7 @@ bool AssemblyGraphSnapshot::segmentsAreAdjacent(uint64_t edgeId) const
 
 void AssemblyGraphSnapshot::write() const
 {
-    writePaths();
+    writeJourneys();
     writePathEntries();
     writeTransitions();
 
@@ -287,16 +287,16 @@ void AssemblyGraphSnapshot::writeGfa(uint64_t minLinkCoverage) const
 
 
 
-void AssemblyGraphSnapshot::writePaths() const
+void AssemblyGraphSnapshot::writeJourneys() const
 {
-    ofstream csv(name + "-paths.csv");
+    ofstream csv(name + "-journeys.csv");
 
-    for(uint64_t i=0; i<paths.size(); i++) {
+    for(uint64_t i=0; i<journeys.size(); i++) {
         const OrientedReadId orientedReadId = OrientedReadId::fromValue(ReadId(i));
-        const auto path = paths[orientedReadId.getValue()];
+        const auto journey = journeys[orientedReadId.getValue()];
 
         csv << orientedReadId << ",";
-        for(const uint64_t vertexId: path) {
+        for(const uint64_t vertexId: journey) {
             csv << vertexVector[vertexId].stringId() << ",";
         }
         csv << "\n";
@@ -391,24 +391,24 @@ void AssemblyGraphSnapshot::analyzeSimpleTangleAtVertex(
     outCoverage.clear();
     tangleMatrix.clear();
 
-    // Loop over the path entries for this vertex.
+    // Loop over the journey entries for this vertex.
     for(const PathEntry& pathEntry: pathEntries) {
         const OrientedReadId orientedReadId = pathEntry.orientedReadId;
         const uint64_t position1 = pathEntry.position;
-        const auto path = paths[orientedReadId.getValue()];
+        const auto journey = journeys[orientedReadId.getValue()];
 
         // Find the vertex this oriented read visits before vertexId1.
         uint64_t vertexId0 = invalid<uint64_t>;
         if(position1 > 0) {
             const uint64_t position0 = position1 - 1;
-            vertexId0 = path[position0];
+            vertexId0 = journey[position0];
         }
 
         // Find the vertex this oriented read visits after vertexId1.
         uint64_t vertexId2 = invalid<uint64_t>;
-        if(position1 < path.size() - 1) {
+        if(position1 < journey.size() - 1) {
             const uint64_t position2 = position1 + 1;
-            vertexId2 = path[position2];
+            vertexId2 = journey[position2];
         }
 
         // Store vertexId0 and vertexId2.

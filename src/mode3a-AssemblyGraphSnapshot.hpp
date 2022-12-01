@@ -82,10 +82,10 @@ public:
     };
     MemoryMapped::Vector<Edge> edgeVector;  // Can't call it edges due to boost graph macros.
 
-    // The path of each oriented read, stored as a sequence of vertex ids
+    // The journey of each oriented read, stored as a sequence of vertex ids
     // (that is, indexes into the segments vector above).
     // Indexed by OrientedRead::getValue().
-    MemoryMapped::VectorOfVectors<uint64_t, uint64_t> paths;
+    MemoryMapped::VectorOfVectors<uint64_t, uint64_t> journeys;
 
     // The path entries for each vertex.
     MemoryMapped::VectorOfVectors<PathEntry, uint64_t> vertexPathEntries;
@@ -152,7 +152,7 @@ public:
 
     void write() const;
     void writeGfa(uint64_t minLinkCoverage) const;
-    void writePaths() const;
+    void writeJourneys() const;
     void writePathEntries() const;
     void writeTransitions() const;
 };
