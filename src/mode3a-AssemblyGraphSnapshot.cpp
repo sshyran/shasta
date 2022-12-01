@@ -49,10 +49,10 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
 
     // Copy the paths to the snapshot.
     createNew(paths, name + "-paths");
-    for(uint64_t i=0; i<assemblyGraph.paths.size(); i++) {
-        const vector<AssemblyGraph::vertex_descriptor>& assemblyGraphPath = assemblyGraph.paths[i];
+    for(uint64_t i=0; i<assemblyGraph.journeys.size(); i++) {
+        const vector<AssemblyGraph::vertex_descriptor>& assemblyGraphJourney = assemblyGraph.journeys[i];
         paths.appendVector();
-        for(const AssemblyGraph::vertex_descriptor v: assemblyGraphPath) {
+        for(const AssemblyGraph::vertex_descriptor v: assemblyGraphJourney) {
             paths.append(vertexMap[v]);
         }
     }

@@ -108,12 +108,11 @@ public:
     AssemblyGraph(const PackedMarkerGraph&);
     void write(const string& name) const;
 
-    // The sequence of segments visited by each oriented read
-    // is a path, if we consider all edges (links) without regards to coverage.
-    // Initially, we construct it from the corresponding journey
-    // in the PackedMarkerGraph.
+    // The sequence of vertices visited by each oriented read.
+    // It has one entry for each entry of the corresponding journey in the PackedMarkerGraph.
+    // Some entries can be null_vertex().
     // Indexed by OrientedReadId::getValue().
-    vector< vector<vertex_descriptor> > paths;
+    vector< vector<vertex_descriptor> > journeys;
 
     // Each segment in the AssemblyGraph corresponds to a segment in
     // this PackedMarkerGraph.

@@ -34,19 +34,20 @@ void AssemblyGraph::createSegmentsAndPaths()
     }
     vertexCountBySegment.resize(vertexTable.size(), 1);
 
-    // The sequence of segments visited by each oriented read
-    // is a path. Initially, we construct it from the corresponding journey
+    // The journey of an oriented read is the sequence of segments
+    // visited by the oriented read.
+    // Initially, we construct it from the corresponding journey
     // in the PackedMarkerGraph.
-    // While constructing the paths, we also store path entries in the vertices.
-    paths.resize(packedMarkerGraph.journeys.size());
-    for(uint64_t i=0; i<paths.size(); i++) {
+    // While constructing the journeys, we also store journey entries in the vertices.
+    journeys.resize(packedMarkerGraph.journeys.size());
+    for(uint64_t i=0; i<journeys.size(); i++) {
         const OrientedReadId orientedReadId = OrientedReadId::fromValue(ReadId(i));
-        const auto journey = packedMarkerGraph.journeys[i];
-        auto& path = paths[i];
-        for(uint64_t position=0; position<journey.size(); position++) {
-            const uint64_t segmentId = journey[position];
+        const auto packedMarkerGraphJourney = packedMarkerGraph.journeys[i];
+        auto& journey = journeys[i];
+        for(uint64_t position=0; position<packedMarkerGraphJourney.size(); position++) {
+            const uint64_t segmentId = packedMarkerGraphJourney[position];
             const vertex_descriptor v = vertexTable[segmentId];
-            path.push_back(v);
+            journey.push_back(v);
             assemblyGraph[v].pathEntries.push_back({orientedReadId, position});
         }
     }
@@ -60,13 +61,15 @@ void AssemblyGraph::createLinks()
 
     // Gather transitions for all oriented reads.
     vector< pair<vertex_descriptor, vertex_descriptor> > transitions;
-    for(uint64_t i=0; i<paths.size(); i++) {
+    for(uint64_t i=0; i<journeys.size(); i++) {
 
-        // Loop over the path for this oriented read.
-        const auto& path = paths[i];
-        for(uint64_t position1=1; position1<path.size(); position1++) {
+        // Loop over the journey for this oriented read.
+        const auto& journey = journeys[i];
+        for(uint64_t position1=1; position1<journey.size(); position1++) {
             const uint64_t position0 = position1 - 1;
-            transitions.push_back({path[position0], path[position1]});
+            const vertex_descriptor v0 = journey[position0];
+            const vertex_descriptor v1 = journey[position1];
+            transitions.push_back({v0, v1});
         }
     }
     deduplicate(transitions);
@@ -107,11 +110,11 @@ void AssemblyGraph::getEdgeTransitions(
 
         // Access the path for this oriented read.
         const OrientedReadId orientedReadId = pathEntry.orientedReadId;
-        const vector<vertex_descriptor>& path = paths[orientedReadId.getValue()];
+        const vector<vertex_descriptor>& journey = journeys[orientedReadId.getValue()];
 
         // If the previous entry is not on v0, this does not
         // correspond to a transiton for the edge we are working on.
-        if(path[position0] != v0) {
+        if(journey[position0] != v0) {
             continue;
         }
 
@@ -148,11 +151,11 @@ uint64_t AssemblyGraph::edgeCoverage(edge_descriptor e) const
 
         // Access the path for this oriented read.
         const OrientedReadId orientedReadId = pathEntry.orientedReadId;
-        const vector<vertex_descriptor>& path = paths[orientedReadId.getValue()];
+        const vector<vertex_descriptor>& journey = journeys[orientedReadId.getValue()];
 
         // If the previous entry is not on v0, this does not
         // correspond to a transiton for the edge we are working on.
-        if(path[position0] != v0) {
+        if(journey[position0] != v0) {
             continue;
         }
 
@@ -202,12 +205,12 @@ void AssemblyGraph::writePaths(const string& name) const
     const AssemblyGraph& assemblyGraph = *this;
     ofstream csv(name);
 
-    for(uint64_t i=0; i<paths.size(); i++) {
+    for(uint64_t i=0; i<journeys.size(); i++) {
         const OrientedReadId orientedReadId = OrientedReadId::fromValue(ReadId(i));
-        const auto path = paths[orientedReadId.getValue()];
+        const auto journey = journeys[orientedReadId.getValue()];
 
         csv << orientedReadId << ",";
-        for(const vertex_descriptor v: path) {
+        for(const vertex_descriptor v: journey) {
             csv << assemblyGraph[v].stringId() << ",";
         }
         csv << "\n";
@@ -413,8 +416,8 @@ void AssemblyGraph::simpleDetangle(
         // Add the Path entry to this vertex.
         assemblyGraph[v].pathEntries.push_back(pathEntry);
 
-        // Update the path to reflect this change.
-        paths[pathEntry.orientedReadId.getValue()][pathEntry.position] = v;
+        // Update the journey of this oriented read to reflect this change.
+        journeys[pathEntry.orientedReadId.getValue()][pathEntry.position] = v;
 
         // Make sure the edges v0->v and v->v2 exist.
         if(v0 != null_vertex()) {
@@ -460,7 +463,7 @@ void AssemblyGraph::findAdjacentVertices(
     adjacentVertices.clear();
     for(const PathEntry& pathEntry: vertex.pathEntries) {
         const OrientedReadId orientedReadId = pathEntry.orientedReadId;
-        const vector<vertex_descriptor>& path = paths[orientedReadId.getValue()];
+        const vector<vertex_descriptor>& journey = journeys[orientedReadId.getValue()];
 
         const uint64_t position1 = pathEntry.position;
 
@@ -468,14 +471,14 @@ void AssemblyGraph::findAdjacentVertices(
         vertex_descriptor v0 = null_vertex();
         if(position1 > 0) {
             const uint64_t position0 = position1 - 1;
-            v0 = path[position0];
+            v0 = journey[position0];
         }
 
         // Find the next vertex visited by this path, if any.
         vertex_descriptor v2 = null_vertex();
         const uint64_t position2 = position1 + 1;
-        if(position2 < path.size()) {
-            v2 = path[position2];
+        if(position2 < journey.size()) {
+            v2 = journey[position2];
         }
 
         // Store this pair of adjacent vertices.
