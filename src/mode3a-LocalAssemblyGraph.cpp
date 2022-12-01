@@ -454,11 +454,10 @@ void LocalAssemblyGraph::writeSvg(
         svg <<
             "<g>"
             // "<a href='exploreMode3AssemblyGraphLink?linkId=" << linkId << "'>"
-            "<title>"
-            "Link " << edgeId <<
-            " from segment " << snapshotVertex1.stringId() <<
-            " to segment " << snapshotVertex2.stringId() <<
-            ", coverage " << assemblyGraphSnapshot.getEdgeCoverage(edgeId) <<
+            "<title>" <<
+            snapshotVertex1.stringId() <<
+            "->" << snapshotVertex2.stringId() <<
+            " coverage " << assemblyGraphSnapshot.getEdgeCoverage(edgeId) <<
             "</title>"
             "<path d="
             "'M " << p1.x() << " " << p1.y() <<
@@ -514,7 +513,8 @@ void LocalAssemblyGraph::writeSvg(
             color = randomSegmentColor(snapshotVertex.segmentId);
         }
 
-
+        // Create a group to contain this segment.
+        svg << "<g><title>" << snapshotVertex.stringId() << "</title>";
 
        // Create a marker to show the arrow for this segment.
         const string arrowMarkerName = "arrow" + to_string(localAssemblyGraphVertex.vertexId);
@@ -558,6 +558,9 @@ void LocalAssemblyGraph::writeSvg(
             "\n";
         svg.precision(oldPrecision);
         svg.flags(oldFlags);
+
+        // End the group containing this segment.
+        svg << "<g>";
     }
 
     // End the group containing segments.
