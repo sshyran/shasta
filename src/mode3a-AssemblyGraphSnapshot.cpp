@@ -53,7 +53,12 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
         const vector<AssemblyGraph::vertex_descriptor>& assemblyGraphJourney = assemblyGraph.journeys[i];
         journeys.appendVector();
         for(const AssemblyGraph::vertex_descriptor v: assemblyGraphJourney) {
-            journeys.append(vertexMap[v]);
+            uint64_t vertexId = invalid<uint64_t>;
+            auto it = vertexMap.find(v);
+            if(it != vertexMap.end()) {
+                vertexId = it->second;
+            }
+            journeys.append(vertexId);
         }
     }
 
@@ -249,7 +254,7 @@ void AssemblyGraphSnapshot::write() const
     writeJourneyEntries();
     writeTransitions();
 
-    for(uint64_t minLinkCoverage=2; minLinkCoverage<=6; minLinkCoverage++) {
+    for(uint64_t minLinkCoverage=2; minLinkCoverage<=10; minLinkCoverage++) {
         writeGfa(minLinkCoverage);
     }
 }

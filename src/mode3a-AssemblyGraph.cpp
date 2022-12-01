@@ -55,6 +55,19 @@ void AssemblyGraph::createSegmentsAndJourneys()
 
 
 
+// Get the stringId for a given vertex_descriptor, or "None" if v is null_vertex().
+string AssemblyGraph::vertexStringId(vertex_descriptor v) const
+{
+    if(v == null_vertex()) {
+        return "None";
+    } else {
+        return (*this)[v].stringId();
+    }
+}
+
+
+
+
 void AssemblyGraph::createLinks()
 {
     AssemblyGraph& assemblyGraph = *this;
@@ -69,6 +82,10 @@ void AssemblyGraph::createLinks()
             const uint64_t position0 = position1 - 1;
             const vertex_descriptor v0 = journey[position0];
             const vertex_descriptor v1 = journey[position1];
+            // This should be done at the beginning, when the journeys
+            // don't contain any null vertices.
+            SHASTA_ASSERT(v0 != null_vertex());
+            SHASTA_ASSERT(v1 != null_vertex());
             transitions.push_back({v0, v1});
         }
     }
@@ -211,7 +228,7 @@ void AssemblyGraph::writeJourneys(const string& name) const
 
         csv << orientedReadId << ",";
         for(const vertex_descriptor v: journey) {
-            csv << assemblyGraph[v].stringId() << ",";
+            csv << assemblyGraph.vertexStringId(v) << ",";
         }
         csv << "\n";
     }
@@ -380,6 +397,8 @@ void AssemblyGraph::simpleDetangle(
                 assemblyGraph[newVertices[i]].stringId() << "\n";
         }
     }
+
+
 
     // In addition, we create a vertex that will receive journey entries
     // that are not in active pairs.

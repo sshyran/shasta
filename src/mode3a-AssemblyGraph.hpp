@@ -110,7 +110,8 @@ public:
 
     // The sequence of vertices visited by each oriented read.
     // It has one entry for each entry of the corresponding journey in the PackedMarkerGraph.
-    // Some entries can be null_vertex().
+    // An entry can be null_vertex(), if the corresponding vertex was removed
+    // during detangling.
     // Indexed by OrientedReadId::getValue().
     vector< vector<vertex_descriptor> > journeys;
 
@@ -126,6 +127,9 @@ private:
 
     void createSegmentsAndJourneys();
     void createLinks();
+
+    // Get the stringId for a given vertex_descriptor, or "None" if v is null_vertex().
+    string vertexStringId(vertex_descriptor v) const;
 
     // Get the transitions for an edge.
     void getEdgeTransitions(edge_descriptor, vector<Transition>&) const;
