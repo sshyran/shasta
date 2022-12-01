@@ -87,11 +87,11 @@ public:
     // Indexed by OrientedRead::getValue().
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> journeys;
 
-    // The path entries for each vertex.
-    MemoryMapped::VectorOfVectors<PathEntry, uint64_t> vertexPathEntries;
+    // The journey entries for each vertex.
+    MemoryMapped::VectorOfVectors<JourneyEntry, uint64_t> vertexJourneyEntries;
 
     // The transitions of each edge (link) don't need to be stored.
-    // They can be computed from the vertexPathEntries.
+    // They can be computed from the vertexJourneyhEntries.
     class Transition {
     public:
         OrientedReadId orientedReadId;
@@ -125,11 +125,11 @@ public:
     // "following the reads" one step forward or backward.
     // On return:
     // - The previousVertices and nextVertices vectors
-    //   have size equal to the number of path entries for vertexId1,
+    //   have size equal to the number of journey entries for vertexId1,
     //   and contain the vertices vertexId0 and vertexId2 each of
     //   the oriented reads visits immediately before/after visiting vertexId1.
     //   This can be invalid<uint64_t> if vertexId1 is the
-    //   first or last vertex of a path.
+    //   first or last vertex of a journey.
     // - inCoverage[vertexId0] gives the number of oriented reads that
     //   visit vertexId0 immediately before visiting vertexId1.
     // - outCoverage[vertexId2] gives the number of oriented reads that
@@ -139,7 +139,7 @@ public:
     //   visit vertexId2 immediately after  vertexId1.
     // The three maps can include entries for which vertexId0 and/or vertexId2
     // are invalid<uint64_t>, if vertexId1 is the first or last
-    // vertex of one or more oriented read paths.
+    // vertex of one or more oriented read journeys.
     void analyzeSimpleTangleAtVertex(
         uint64_t vertexId1,
         vector<uint64_t>& inVertices,
@@ -153,7 +153,7 @@ public:
     void write() const;
     void writeGfa(uint64_t minLinkCoverage) const;
     void writeJourneys() const;
-    void writePathEntries() const;
+    void writeJourneyEntries() const;
     void writeTransitions() const;
 };
 

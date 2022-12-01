@@ -331,14 +331,14 @@ void Assembler::exploreMode3aTangleMatrix(
     html << "<h3>Tangle details</h3><p>";
     html << "<table><tr>" <<
         "<th>Oriented<br>read<th>VertexId0<th>VertexId1<th>VertexId2";
-    auto pathEntries = snapshot.vertexPathEntries[vertexId];
-    SHASTA_ASSERT(inVertices.size()  == pathEntries.size());
-    SHASTA_ASSERT(outVertices.size() == pathEntries.size());
-    for(uint64_t i=0; i<pathEntries.size(); i++) {
-        const PathEntry& pathEntry = pathEntries[i];
+    auto journeyEntries = snapshot.vertexJourneyEntries[vertexId];
+    SHASTA_ASSERT(inVertices.size()  == journeyEntries.size());
+    SHASTA_ASSERT(outVertices.size() == journeyEntries.size());
+    for(uint64_t i=0; i<journeyEntries.size(); i++) {
+        const JourneyEntry& journeyEntry = journeyEntries[i];
         const uint64_t vertexId0 = inVertices[i];
         const uint64_t vertexId2 = outVertices[i];
-        html << "<tr><td class=centered>" << pathEntry.orientedReadId;
+        html << "<tr><td class=centered>" << journeyEntry.orientedReadId;
         html << "<td class=centered>" << snapshot.vertexStringId(vertexId0);
         html << "<td class=centered>" << snapshot.vertexStringId(vertexId);
         html << "<td class=centered>" << snapshot.vertexStringId(vertexId2);

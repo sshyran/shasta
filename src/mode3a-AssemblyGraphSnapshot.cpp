@@ -26,13 +26,13 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
 {
     // Store the segments.
     createNew(vertexVector, name + "-vertices");
-    createNew(vertexPathEntries, name + "-vertexPathEntries");
+    createNew(vertexJourneyEntries, name + "-vertexJourneyEntries");
     std::map<AssemblyGraph::vertex_descriptor, uint64_t> vertexMap;
     BGL_FORALL_VERTICES(v, assemblyGraph, AssemblyGraph) {
         const AssemblyGraphVertex& assemblyGraphVertex = assemblyGraph[v];
         vertexMap.insert(make_pair(v, vertexVector.size()));
         vertexVector.push_back(Vertex(assemblyGraphVertex));
-        vertexPathEntries.appendVector(assemblyGraphVertex.pathEntries);
+        vertexJourneyEntries.appendVector(assemblyGraphVertex.journeyEntries);
     }
 
     // Store the edges.
@@ -123,7 +123,7 @@ AssemblyGraphSnapshot::AssemblyGraphSnapshot(
     accessExistingReadOnly(vertexVector, name + "-vertices");
     accessExistingReadOnly(edgeVector, name + "-edges");
     accessExistingReadOnly(journeys, name + "-journeys");
-    accessExistingReadOnly(vertexPathEntries, name + "-vertexPathEntries");
+    accessExistingReadOnly(vertexJourneyEntries, name + "-vertexJourneyEntries");
     accessExistingReadOnly(edgesBySource, name + "-edgesBySource");
     accessExistingReadOnly(edgesByTarget, name + "-edgesByTarget");
     accessExistingReadOnly(vertexTable, name + "-vertexTable");
@@ -169,10 +169,10 @@ void AssemblyGraphSnapshot::getEdgeTransitions(
     const uint64_t vertexId0 = edge.vertexId0;
     const uint64_t vertexId1 = edge.vertexId1;
 
-    // Loop over path entries of vertex0.
-    for(const PathEntry& pathEntry: vertexPathEntries[vertexId0]) {
-        const OrientedReadId orientedReadId = pathEntry.orientedReadId;
-        const uint64_t position0 = pathEntry.position;
+    // Loop over journey entries of vertex0.
+    for(const JourneyEntry& journeyEntry: vertexJourneyEntries[vertexId0]) {
+        const OrientedReadId orientedReadId = journeyEntry.orientedReadId;
+        const uint64_t position0 = journeyEntry.position;
         const uint64_t position1 = position0 + 1;
         const auto journey = journeys[orientedReadId.getValue()];
         if(position1 < journey.size()) {
@@ -193,10 +193,10 @@ uint64_t AssemblyGraphSnapshot::getEdgeCoverage(uint64_t edgeId) const
     const uint64_t vertexId0 = edge.vertexId0;
     const uint64_t vertexId1 = edge.vertexId1;
 
-    // Loop over path entries of vertex0.
-    for(const PathEntry& pathEntry: vertexPathEntries[vertexId0]) {
-        const OrientedReadId orientedReadId = pathEntry.orientedReadId;
-        const uint64_t position0 = pathEntry.position;
+    // Loop over journey entries of vertex0.
+    for(const JourneyEntry& journeyEntry: vertexJourneyEntries[vertexId0]) {
+        const OrientedReadId orientedReadId = journeyEntry.orientedReadId;
+        const uint64_t position0 = journeyEntry.position;
         const uint64_t position1 = position0 + 1;
         const auto journey = journeys[orientedReadId.getValue()];
         if(position1 < journey.size()) {
@@ -246,7 +246,7 @@ bool AssemblyGraphSnapshot::segmentsAreAdjacent(uint64_t edgeId) const
 void AssemblyGraphSnapshot::write() const
 {
     writeJourneys();
-    writePathEntries();
+    writeJourneyEntries();
     writeTransitions();
 
     for(uint64_t minLinkCoverage=2; minLinkCoverage<=6; minLinkCoverage++) {
@@ -306,22 +306,22 @@ void AssemblyGraphSnapshot::writeJourneys() const
 
 
 
-void AssemblyGraphSnapshot::writePathEntries() const
+void AssemblyGraphSnapshot::writeJourneyEntries() const
 {
-    ofstream csv(name + "-pathEntries.csv");
+    ofstream csv(name + "-journeyEntries.csv");
     csv << "VertexId,SegmentId,Replica,OrientedReadId,Position\n";
 
-    for(uint64_t vertexId=0; vertexId<vertexPathEntries.size(); vertexId++)
+    for(uint64_t vertexId=0; vertexId<vertexJourneyEntries.size(); vertexId++)
     {
         const Vertex& vertex = vertexVector[vertexId];
-        const auto pathEntries = vertexPathEntries[vertexId];
+        const auto journeyEntries = vertexJourneyEntries[vertexId];
 
-        for(const PathEntry& pathEntry: pathEntries) {
+        for(const JourneyEntry& journeyEntry: journeyEntries) {
             csv << vertexId << ",";
             csv << vertex.segmentId << ",";
             csv << vertex.segmentReplicaIndex << ",";
-            csv << pathEntry.orientedReadId << ",";
-            csv << pathEntry.position << "\n";
+            csv << journeyEntry.orientedReadId << ",";
+            csv << journeyEntry.position << "\n";
         }
     }
 
@@ -356,11 +356,11 @@ void AssemblyGraphSnapshot::writeTransitions() const
 // "following the reads" one step forward or backward.
 // On return:
 // - The previousVertices and nextVertices vectors
-//   have size equal to the number of path entries for vertexId1,
+//   have size equal to the number of journey entries for vertexId1,
 //   and contain the vertices vertexId0 and vertexId2 each of
 //   the oriented reads visits immediately before/after visiting vertexId1.
 //   This can be invalid<uint64_t> if vertexId1 is the
-//   first or last vertex of a path.
+//   first or last vertex of a journey.
 // - inCoverage[vertexId0] gives the number of oriented reads that
 //   visit vertexId0 immediately before visiting vertexId1.
 // - outCoverage[vertexId2] gives the number of oriented reads that
@@ -370,7 +370,7 @@ void AssemblyGraphSnapshot::writeTransitions() const
 //   visit vertexId2 immediately after  vertexId1.
 // The three maps can include entries for which vertexId0 and/or vertexId2
 // are invalid<uint64_t>, if vertexId1 is the first or last
-// vertex of one or more oriented read paths.
+// vertex of one or more oriented read journeys.
 void AssemblyGraphSnapshot::analyzeSimpleTangleAtVertex(
     uint64_t vertexId1,
     vector<uint64_t>& inVertices,
@@ -379,22 +379,22 @@ void AssemblyGraphSnapshot::analyzeSimpleTangleAtVertex(
     std::map<uint64_t, uint64_t>& outCoverage,
     std::map< pair<uint64_t, uint64_t>, uint64_t>& tangleMatrix) const
 {
-    // Access the path entries for vertexId1.
-    auto pathEntries = vertexPathEntries[vertexId1];
+    // Access the journey entries for vertexId1.
+    auto journeyEntries = vertexJourneyEntries[vertexId1];
 
     // Initialize output arguments.
     inVertices.clear();
-    inVertices.reserve(pathEntries.size());
+    inVertices.reserve(journeyEntries.size());
     outVertices.clear();
-    outVertices.reserve(pathEntries.size());
+    outVertices.reserve(journeyEntries.size());
     inCoverage.clear();
     outCoverage.clear();
     tangleMatrix.clear();
 
     // Loop over the journey entries for this vertex.
-    for(const PathEntry& pathEntry: pathEntries) {
-        const OrientedReadId orientedReadId = pathEntry.orientedReadId;
-        const uint64_t position1 = pathEntry.position;
+    for(const JourneyEntry& journeyEntry: journeyEntries) {
+        const OrientedReadId orientedReadId = journeyEntry.orientedReadId;
+        const uint64_t position1 = journeyEntry.position;
         const auto journey = journeys[orientedReadId.getValue()];
 
         // Find the vertex this oriented read visits before vertexId1.
@@ -415,7 +415,7 @@ void AssemblyGraphSnapshot::analyzeSimpleTangleAtVertex(
         inVertices.push_back(vertexId0);
         outVertices.push_back(vertexId2);
 
-        // Increment the output maps.
+        // Update the output maps.
         ++inCoverage[vertexId0];
         ++outCoverage[vertexId2];
         ++tangleMatrix[make_pair(vertexId0, vertexId2)];

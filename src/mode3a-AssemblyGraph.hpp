@@ -25,7 +25,7 @@ namespace shasta {
             boost::listS, boost::listS, boost::bidirectionalS,
             AssemblyGraphVertex, AssemblyGraphEdge>;
 
-        class PathEntry;
+        class JourneyEntry;
         class Transition;
 
         class PackedMarkerGraph;
@@ -34,12 +34,12 @@ namespace shasta {
 
 
 
-// An entry in the path of an oriented read.
-class shasta::mode3a::PathEntry {
+// An entry in the journey of an oriented read.
+class shasta::mode3a::JourneyEntry {
 public:
     OrientedReadId orientedReadId;
 
-    // The position in the path for this oriented read.
+    // The position in the journey for this oriented read.
     uint64_t position;
 };
 
@@ -67,8 +67,8 @@ public:
         return s;
     }
 
-    // The path entries that go through this vertex.
-    vector<PathEntry> pathEntries;
+    // The journey entries that go through this vertex.
+    vector<JourneyEntry> journeyEntries;
 };
 
 
@@ -124,7 +124,7 @@ private:
     // This also equals the next id for a vertex with a given segmentId.
     vector<uint64_t> vertexCountBySegment;
 
-    void createSegmentsAndPaths();
+    void createSegmentsAndJourneys();
     void createLinks();
 
     // Get the transitions for an edge.
@@ -133,7 +133,7 @@ private:
 
     void writeGfa(const string& name, uint64_t minLinkCoverage) const;
     void writeLinkCoverageHistogram(const string& name) const;
-    void writePaths(const string& name) const;
+    void writeJourneys(const string& name) const;
 
     // Simple detangling, one vertex at a time, looking only
     // at immediate parent and children.
@@ -147,12 +147,12 @@ private:
         uint64_t minLinkCoverage,
         uint64_t minTangleCoverage);
 
-    // Find the previous and next vertex for each PathEntry in a given vertex.
+    // Find the previous and next vertex for each JourneyEntry in a given vertex.
     // On return, adjacentVertices contains a pair of vertex descriptors for
-    // each PathEntry in vertex v, in the same order.
+    // each JourneyEntry in vertex v, in the same order.
     // Those vertex descriptors are the previous and next vertex visited
-    // by the oriented read for that PathEntry, and can be null_vertex()
-    // if v is at the beginning or end of the path of an oriented read.
+    // by the oriented read for that JourneyEntry, and can be null_vertex()
+    // if v is at the beginning or end of the journey of an oriented read.
     void findAdjacentVertices(
         vertex_descriptor v,
         vector< pair<vertex_descriptor, vertex_descriptor> >& adjacentVertices
