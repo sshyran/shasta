@@ -529,9 +529,6 @@ void LocalAssemblyGraph::writeSvg(
             "</marker>\n"
             "</defs>\n";
 
-        // Create a group to contain this segment.
-        svg << "<g><title>" << snapshotVertex.stringId() << "</title>";
-
         // Add this segment to the svg.
         const auto oldPrecision = svg.precision(1);
         const auto oldFlags = svg.setf(std::ios_base::fixed, std::ios_base::floatfield);
@@ -554,13 +551,9 @@ void LocalAssemblyGraph::writeSvg(
             // " onclick='if(event.ctrlKey) {"
             // "location.href=\"exploreMode3AssemblyGraphSegment?segmentId=" << segmentId <<
             // "&showSequence=on\";}'"
-            "/>"
-            "\n";
+            "><title>" << snapshotVertex.stringId() << "</title></path>\n";
         svg.precision(oldPrecision);
         svg.flags(oldFlags);
-
-        // End the group containing this segment.
-        svg << "<g>";
     }
 
     // End the group containing segments.
