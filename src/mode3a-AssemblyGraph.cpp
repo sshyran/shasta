@@ -288,7 +288,7 @@ void AssemblyGraph::simpleDetangle(
     uint64_t minLinkCoverage,
     uint64_t minTangleCoverage)
 {
-    const bool debug = true;
+    const bool debug = false;
 
     AssemblyGraph& assemblyGraph = *this;
     const AssemblyGraphVertex& vertex1 = assemblyGraph[v1];
@@ -386,7 +386,7 @@ void AssemblyGraph::simpleDetangle(
             assemblyGraph);
         newVertices.push_back(vNew);
     }
-    if(false) {
+    if(debug) {
         cout << "Active pairs:\n";
         for(uint64_t i=0; i<activePairs.size(); i++) {
             const auto& v02 = activePairs[i];
