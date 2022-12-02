@@ -513,9 +513,6 @@ void LocalAssemblyGraph::writeSvg(
             color = randomSegmentColor(snapshotVertex.segmentId);
         }
 
-        // Create a group to contain this segment.
-        svg << "<g><title>" << snapshotVertex.stringId() << "</title>";
-
        // Create a marker to show the arrow for this segment.
         const string arrowMarkerName = "arrow" + to_string(localAssemblyGraphVertex.vertexId);
         svg <<
@@ -531,6 +528,9 @@ void LocalAssemblyGraph::writeSvg(
             "/>\n"
             "</marker>\n"
             "</defs>\n";
+
+        // Create a group to contain this segment.
+        svg << "<g><title>" << snapshotVertex.stringId() << "</title>";
 
         // Add this segment to the svg.
         const auto oldPrecision = svg.precision(1);
