@@ -11,6 +11,7 @@ using namespace mode3a;
 #include <boost/graph/iteration_macros.hpp>
 
 // Standard library.
+#include "algorithm.hpp"
 #include "fstream.hpp"
 
 
@@ -427,3 +428,61 @@ void AssemblyGraphSnapshot::analyzeSimpleTangleAtVertex(
     }
 }
 
+
+
+// Get deduplicated oriented read ids for a vertex.
+// The journey entries are sorted by OrientedReadId,
+// so this can be done quickly.
+void AssemblyGraphSnapshot::getDeduplicatedOrientedReads(
+    uint64_t vertexId,
+    vector<OrientedReadId>& orientedReadIds
+    ) const
+{
+    orientedReadIds.clear();
+    for(const JourneyEntry& journeyEntry: vertexJourneyEntries) {
+        const OrientedReadId orientedReadId = journeyEntry.orientedReadId;
+        if(orientedReadIds.empty() or orientedReadId != orientedReadIds.back()) {
+            orientedReadIds.push_back(orientedReadId);
+        }
+    }
+}
+
+
+
+// Compute the Jaccard similarity of the oriented read composition of two vertices.
+// Duplicate oriented reads in the path entries for the vertices are ignored.
+// This also computes the number of oriented reads in the union and intersection
+// of the two read compositions, as well as vectors containing the deduplicated
+// oriented reads for each of the two vertices.
+double AssemblyGraphSnapshot::jaccard(
+    uint64_t vertexId0,
+    uint64_t vertexId1,
+    uint64_t& unionCount,
+    uint64_t& intersectionCount,
+    vector<OrientedReadId>& orientedReadIds0,
+    vector<OrientedReadId>& orientedReadIds1,
+    vector<OrientedReadId>& unionOrientedReads,
+    vector<OrientedReadId>& intersectionOrientedReads
+) const
+{
+    // Get deduplicated OrientedReadId's.
+    getDeduplicatedOrientedReads(vertexId0, orientedReadIds0);
+    getDeduplicatedOrientedReads(vertexId1, orientedReadIds1);
+
+    // Compute the union.
+    unionOrientedReads.clear();
+    std::set_union(
+        orientedReadIds0.begin(), orientedReadIds0.end(),
+        orientedReadIds1.begin(), orientedReadIds1.end(),
+        back_inserter(unionOrientedReads));
+
+    // Compute the intersection.
+    intersectionOrientedReads.clear();
+    std::set_intersection(
+        orientedReadIds0.begin(), orientedReadIds0.end(),
+        orientedReadIds1.begin(), orientedReadIds1.end(),
+        back_inserter(intersectionOrientedReads));
+
+    // Return the Jaccard similarity.
+    return double(intersectionOrientedReads.size()) / double(unionOrientedReads.size());
+}

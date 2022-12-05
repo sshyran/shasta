@@ -148,7 +148,26 @@ public:
         std::map<uint64_t, uint64_t>& outCoverage,
         std::map< pair<uint64_t, uint64_t>, uint64_t>& tangleMatrix) const;
 
+    // Compute the Jaccard similarity of the oriented read composition of two vertices.
+    // Duplicate oriented reads in the path entries for the vertices are ignored.
+    // This also computes the number of oriented reads in the union and intersection
+    // of the two read compositions, as well as vectors containing the deduplicated
+    // oriented reads for each of the two vertices.
+    double jaccard(
+        uint64_t vertexId0,
+        uint64_t vertexId1,
+        uint64_t& unionCount,
+        uint64_t& intersectionCount,
+        vector<OrientedReadId>& orientedReadIds0,   // Deduplicated
+        vector<OrientedReadId>& orientedReadIds1,   // Deduplicated
+        vector<OrientedReadId>& unionOrientedReads,
+        vector<OrientedReadId>& intersectionOrientedReads) const;
 
+    // Get deduplicated oriented read ids for a vertex.
+    void getDeduplicatedOrientedReads(
+        uint64_t vertexId,
+        vector<OrientedReadId>&
+        ) const;
 
     void write() const;
     void writeGfa(uint64_t minLinkCoverage) const;
