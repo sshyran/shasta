@@ -110,6 +110,11 @@ public:
         double additionalSegmentThicknessPerUnitCoverage = 0.005;
         uint64_t auxiliaryVertexCountPerSegment = 2;
 
+        // Segment coloring
+        string segmentColoring = "random";
+        uint64_t referenceSegmentId = 0;
+        uint64_t referenceSegmentReplicaIndex = 0;
+
         // Link length and thickness.
         double linkLength = 1;
 

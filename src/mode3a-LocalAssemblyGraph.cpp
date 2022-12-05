@@ -850,6 +850,11 @@ LocalAssemblyGraph::SvgOptions::SvgOptions(const vector<string>& request)
     HttpServer::getParameterValue(request, "additionalSegmentThicknessPerUnitCoverage", additionalSegmentThicknessPerUnitCoverage);
     HttpServer::getParameterValue(request, "auxiliaryVertexCountPerSegment", auxiliaryVertexCountPerSegment);
 
+    // Segment coloring
+    HttpServer::getParameterValue(request, "segmentColoring", segmentColoring);
+    HttpServer::getParameterValue(request, "referenceSegmentId", referenceSegmentId);
+    HttpServer::getParameterValue(request, "referenceSegmentReplicaIndex", referenceSegmentReplicaIndex);
+
     // Link length and thickness.
     HttpServer::getParameterValue(request, "linkLength", linkLength);
     HttpServer::getParameterValue(request, "minimumLinkThickness", minimumLinkThickness);
@@ -877,18 +882,21 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         "<input type=radio name=layoutMethod value=custom"
         << (layoutMethod=="custom" ? " checked=checked" : "") <<
         ">Custom (user-provided command <code>customLayout</code>)<br>"
+        "</table>"
 
-        "<tr>"
-        "<td>Segments"
-        "<td class=centered>"
+        "<h3>Segments</h3>"
         "<table>"
+        "<colgroup>"
+        "<col style='width:200px'>"
+        "<col style='width:400px'>"
+        "</colgroup>"
         "<tr><td class=left>"
         "Minimum display length "
-        "<td><input type=text name=minimumSegmentLength size=8 style='text-align:center'"
+        "<td class=centered><input type=text name=minimumSegmentLength size=8 style='text-align:center'"
         " value='" << minimumSegmentLength << "'>"
         "<tr><td class=left>"
         "Additional display length per base"
-        "<td><input type=text name=additionalSegmentLengthPerBase size=8 style='text-align:center'"
+        "<td class=centered><input type=text name=additionalSegmentLengthPerBase size=8 style='text-align:center'"
         " value='" << additionalSegmentLengthPerBase << "'>"
         "<tr>"
         "<td class=left>Minimum thickness"
@@ -902,16 +910,49 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         "'>"
         "<tr>"
         "<td class=left>Auxiliary vertices per segment"
-        "<td class=centered><input type=number min=2 max=6 name=auxiliaryVertexCountPerSegment size=8 style='text-align:center'"
+        "<td class=centered><input type=number min=2 max=6 name=auxiliaryVertexCountPerSegment style='text-align:center'"
         " value='" << auxiliaryVertexCountPerSegment <<
-        "'>"
-        "</table>"
+        "'>";
 
 
+
+    // Segment coloring.
+    html <<
 
         "<tr>"
-        "<td>Links"
-        "<td class=centered>"
+        "<td class = left>Color"
+        "<td class=left>"
+
+        // Random segment coloring.
+        "<input type=radio name=segmentColoring value=random"
+        << (segmentColoring=="random" ? " checked=checked" : "") <<
+        ">Random<hr>"
+
+
+        // Segment coloring by number of common reads with the reference segment.
+        "<input type=radio name=segmentColoring value=byCommonReads"
+        << (segmentColoring=="byCommonReads" ? " checked=checked" : "") <<
+        ">By number of common oriented reads with reference segment"
+
+        // Segment coloring by Jaccard similarity with the reference segment.
+        "<br>"
+        "<input type=radio name=segmentColoring value=byJaccard"
+        << (segmentColoring=="byJaccard" ? " checked=checked" : "") <<
+        ">By Jaccard similarity with reference segment"
+        "<br>"
+
+        "Reference segment:"
+        "<br>Id&nbsp;<input type=text name=referenceSegmentId size=8 style='text-align:center'"
+        " value='" << referenceSegmentId << "'>"
+        ", replica index&nbsp;<input type=text name=referenceSegmentReplicaIndex size=8 style='text-align:center'"
+        " value='" << referenceSegmentReplicaIndex << "'>";
+
+        // Finish the table containing segment options.
+        html << "</table>"
+
+
+
+        "<h3>Links</h3>"
         "<table>"
         "<tr><td class=left>"
         "Display length "
@@ -927,8 +968,6 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         "<td class=centered><input type=text name=additionalLinkThicknessPerRead size=8 style='text-align:center'"
         " value='" << additionalLinkThicknessPerRead <<
         "'>"
-        "</table>"
-
         "</table>";
 
 }

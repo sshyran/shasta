@@ -484,5 +484,7 @@ double AssemblyGraphSnapshot::jaccard(
         back_inserter(intersectionOrientedReads));
 
     // Return the Jaccard similarity.
-    return double(intersectionOrientedReads.size()) / double(unionOrientedReads.size());
+    return
+        double(intersectionOrientedReads.size()) /
+        double(unionOrientedReads.size());
 }

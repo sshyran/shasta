@@ -48,18 +48,15 @@ void Assembler::exploreMode3aAssemblyGraph(
         "'>"
 
         "<tr>"
-        "<td>Start segment"
+        "<td>Start segment id"
         "<td class=centered>"
-        "<table>"
-        "<tr><td class=left>Segment id<td>"
         "<input type=text required name=startSegmentId size=8 style='text-align:center'"
         " value='" << (startSegmentIdIsPresent ? to_string(startSegmentId) : "") <<
         "'>"
-        "<tr><td class=left>Start segment replica index<td>"
+        "<tr><td class=left>Start segment replica index<td class=centered>"
         "<input type=text required name=startSegmentReplicaIndex size=8 style='text-align:center'"
         " value='" << startSegmentReplicaIndex <<
         "'>"
-        "</table>"
 
         "<tr>"
         "<td>Maximum distance"
