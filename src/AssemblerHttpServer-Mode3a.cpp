@@ -102,22 +102,15 @@ void Assembler::exploreMode3aAssemblyGraph(
 
 
     // Locate the vertexId for this segmentId and segmentCopyIndex.
-    if(startSegmentId >= snapshot.vertexTable.size()) {
-        html << "<br>Invalid segment id. Valid segment ids are 0 through " << snapshot.vertexTable.size() - 1 << ".";
+    string message;
+    const uint64_t startVertexId = snapshot.getVertexId(startSegmentId, startSegmentReplicaIndex, message);
+    if(startVertexId == invalid<uint64_t>) {
+        html << "<br>Invalid combination of start segment id and start segment replicaIndex.<br>" << message;
         return;
     }
-    auto v = snapshot.vertexTable[startSegmentId];
-    if(startSegmentReplicaIndex >= v.size() or v[startSegmentReplicaIndex] == invalid<uint64_t> ) {
-        html << "<br>Invalid segment replica index.<br>Valid segment replica indexes for this segment are:";
-        for(uint64_t segmentReplicaIndex=0; segmentReplicaIndex<v.size(); segmentReplicaIndex++) {
-            if(v[segmentReplicaIndex] != invalid<uint64_t>) {
-                html << " " << segmentReplicaIndex;
-            }
-        }
-        return;
-    }
-    const uint64_t startVertexId = v[startSegmentReplicaIndex];
     SHASTA_ASSERT(startVertexId < snapshot.vertexVector.size());
+
+    // Locate the corresponding snapshot vertex.
     const AssemblyGraphSnapshot::Vertex& startVertex = snapshot.vertexVector[startVertexId];
     SHASTA_ASSERT(startVertex.segmentId == startSegmentId);
     SHASTA_ASSERT(startVertex.segmentReplicaIndex == startSegmentReplicaIndex);

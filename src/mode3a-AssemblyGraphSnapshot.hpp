@@ -108,13 +108,22 @@ public:
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> edgesByTarget;
 
     // A data structure that allows to get a vertexId (index in vertexVector)
-    // given a segmentId and segmentCopyIndex.
+    // given a segmentId and segmentReplicaIndex.
     // Indexed by segmentId.
-    // vertexTable[segmentId][segmentCopyIndex] contains the vertexId
-    // with the given segmentId and segmentCopyIndex, or invalid<uint64_t>
+    // vertexTable[segmentId][segmentReplicaIndex] contains the vertexId
+    // with the given segmentId and segmentReplicaIndex, or invalid<uint64_t>
     // if no such vertex.
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> vertexTable;
     void createVertexTable(const PackedMarkerGraph&);
+
+    // Use the vertex table to get a vertex id given segment id
+    // and replica index. If not found, returns invalid<uint64_t>
+    // and also fills in a message string.
+    uint64_t getVertexId(
+        uint64_t segmentId,
+        uint64_t segmentReplicaIndex,
+        string& message
+    ) const;
 
     // Get the length of assembled sequence for a vertex.
     uint64_t getVertexAssembledSequenceLength(uint64_t vertexId) const;
@@ -156,8 +165,6 @@ public:
     double jaccard(
         uint64_t vertexId0,
         uint64_t vertexId1,
-        uint64_t& unionCount,
-        uint64_t& intersectionCount,
         vector<OrientedReadId>& orientedReadIds0,   // Deduplicated
         vector<OrientedReadId>& orientedReadIds1,   // Deduplicated
         vector<OrientedReadId>& unionOrientedReads,

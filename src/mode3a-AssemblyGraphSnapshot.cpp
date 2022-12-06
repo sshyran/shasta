@@ -117,6 +117,44 @@ void AssemblyGraphSnapshot::createVertexTable(
 
 
 
+// Use the vertex table to get a vertex id given segment id
+// and replica index. If not found, returns false
+// and also fills in a message string.
+uint64_t AssemblyGraphSnapshot::getVertexId(
+    uint64_t segmentId,
+    uint64_t segmentReplicaIndex,
+    string& message
+) const
+{
+    uint64_t vertexId = invalid<uint64_t>;
+
+    // Check that we have a valid segmentId.
+    if(segmentId >= vertexTable.size()) {
+        message = "Invalid segment id. Valid segment ids are 0 through "  +
+            to_string(vertexTable.size()) + ".";
+        return vertexId;
+    }
+
+    // Get the vertexIds for this segmentId.
+    auto v = vertexTable[segmentId];
+
+    // Extract the vertexId for this segmentReplicaIndex.
+    if(segmentReplicaIndex >= v.size() or v[segmentReplicaIndex] == invalid<uint64_t> ) {
+        message = "Invalid segment replica index. Valid segment replica indexes for segment are:";
+        for(uint64_t segmentReplicaIndex=0; segmentReplicaIndex<v.size(); segmentReplicaIndex++) {
+            if(v[segmentReplicaIndex] != invalid<uint64_t>) {
+                message = message + " " + to_string(segmentReplicaIndex);
+            }
+        }
+        return vertexId;
+    }
+    vertexId = v[segmentReplicaIndex];
+    SHASTA_ASSERT(vertexId < vertexVector.size());
+    return vertexId;
+}
+
+
+
 // This accesses an existing snapshot.
 AssemblyGraphSnapshot::AssemblyGraphSnapshot(
     const string& name,
@@ -439,7 +477,7 @@ void AssemblyGraphSnapshot::getDeduplicatedOrientedReads(
     ) const
 {
     orientedReadIds.clear();
-    for(const JourneyEntry& journeyEntry: vertexJourneyEntries) {
+    for(const JourneyEntry& journeyEntry: vertexJourneyEntries[vertexId]) {
         const OrientedReadId orientedReadId = journeyEntry.orientedReadId;
         if(orientedReadIds.empty() or orientedReadId != orientedReadIds.back()) {
             orientedReadIds.push_back(orientedReadId);
@@ -457,8 +495,6 @@ void AssemblyGraphSnapshot::getDeduplicatedOrientedReads(
 double AssemblyGraphSnapshot::jaccard(
     uint64_t vertexId0,
     uint64_t vertexId1,
-    uint64_t& unionCount,
-    uint64_t& intersectionCount,
     vector<OrientedReadId>& orientedReadIds0,
     vector<OrientedReadId>& orientedReadIds1,
     vector<OrientedReadId>& unionOrientedReads,

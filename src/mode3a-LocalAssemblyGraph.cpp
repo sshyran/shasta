@@ -3,6 +3,7 @@
 #include "computeLayout.hpp"
 #include "html.hpp"
 #include "HttpServer.hpp"
+#include "invalid.hpp"
 #include "mode3a-AssemblyGraphSnapshot.hpp"
 #include "MurmurHash2.hpp"
 #include "writeGraph.hpp"
@@ -367,6 +368,17 @@ void LocalAssemblyGraph::writeSvg(
     using boost::geometry::subtract_point;
     using Box = boost::geometry::model::box<Point>;
 
+
+    // If necessary, get the vertex id of the reference vertex for segment coloring.
+    string message;
+    const uint64_t referenceVertexId = assemblyGraphSnapshot.getVertexId(
+        options.referenceSegmentId, options.referenceSegmentReplicaIndex, message);
+    if(referenceVertexId == invalid<uint64_t>) {
+        svg << "<br>Invalid combination of reference segment id and reference segment replicaIndex.<br>" << message;
+        return;
+    }
+
+
     // Compute the view box.
     Box box = make_inverse<Box>();
     BGL_FORALL_VERTICES(v, localAssemblyGraph, LocalAssemblyGraph) {
@@ -480,6 +492,14 @@ void LocalAssemblyGraph::writeSvg(
 
 
 
+    // Some work vectors used below.
+    vector<OrientedReadId> orientedReadIds0;
+    vector<OrientedReadId> orientedReadIds1;
+    vector<OrientedReadId> unionOrientedReads;
+    vector<OrientedReadId> intersectionOrientedReads;
+
+
+
     // Write the segments.
     svg << "<g id='" << svgId << "-segments'>\n";
     BGL_FORALL_VERTICES(v, localAssemblyGraph, LocalAssemblyGraph) {
@@ -505,13 +525,36 @@ void LocalAssemblyGraph::writeSvg(
         multiply_value(q2, -controlPointDistance);
         add_point(q2, p2);
 
+
+
         // Decide the color for this segment.
-        string color;
+        string color = "Green";
         if(distance == maxDistance) {
             color = "LightGray";
         } else {
-            color = randomSegmentColor(snapshotVertex.segmentId);
+            if(options.segmentColoring == "random") {
+                color = randomSegmentColor(snapshotVertex.segmentId);
+            } else {
+                const double jaccard = assemblyGraphSnapshot.jaccard(
+                    referenceVertexId,
+                    localAssemblyGraphVertex.vertexId,
+                    orientedReadIds0,
+                    orientedReadIds1,
+                    unionOrientedReads,
+                    intersectionOrientedReads);
+                uint64_t hue = 0;
+                if(options.segmentColoring == "byCommonReads") {
+                    // Normalize to the number of oriented reads in the reference segment.
+                    const double fraction = double(intersectionOrientedReads.size()) / double(orientedReadIds0.size());
+                    hue = uint64_t(std::round(fraction * 120.));
+                } else if(options.segmentColoring == "byJaccard") {
+                    hue = uint64_t(std::round(jaccard * 120.));
+                }
+                color = "hsl(" + to_string(hue) + ",100%, 50%)";
+            }
         }
+
+
 
        // Create a marker to show the arrow for this segment.
         const string arrowMarkerName = "arrow" + to_string(localAssemblyGraphVertex.vertexId);
