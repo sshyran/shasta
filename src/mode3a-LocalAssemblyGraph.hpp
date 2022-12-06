@@ -141,6 +141,15 @@ public:
     void computeSegmentTangents();
     void computeSegmentTangents(vertex_descriptor);
 
+    // The detailed representation shows the details of path entries.
+    // Each vertex of the LocalAssemblyGraph is displayed as a graphviz cluster.
+    // Each cluster contains one graphviz vertex for each journey entry in the
+    // corresponding LocalAssemblyGraph vertex.
+    // Journey entries with positions differing by one are joined by
+    // directed edges.
+    void writeDetailedHtml(ostream& html, double timeout) const;
+    void writeDetailedDot(ostream& html) const;
+
     // Return the svg color for a segment.
     // All copies of a segment are alway displayed in the same color.
     static string randomSegmentColor(uint64_t segmentId);

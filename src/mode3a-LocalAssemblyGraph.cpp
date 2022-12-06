@@ -942,6 +942,9 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         "<input type=radio name=layoutMethod value=custom"
         << (layoutMethod=="custom" ? " checked=checked" : "") <<
         ">Custom (user-provided command <code>customLayout</code>)<br>"
+        "<input type=radio name=layoutMethod value=detailed"
+        << (layoutMethod=="detailed" ? " checked=checked" : "") <<
+        ">Detailed"
         "</table>"
 
         "<h3>Segments</h3>"
@@ -1029,6 +1032,121 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         " value='" << additionalLinkThicknessPerRead <<
         "'>"
         "</table>";
+
+}
+
+
+
+// The detailed representation shows the details of path entries.
+// Each vertex of the LocalAssemblyGraph is displayed as a graphviz cluster.
+// Each cluster contains one graphviz vertex for each journey entry in the
+// corresponding LocalAssemblyGraph vertex.
+// Journey entries with positions differing by one are joined by
+// directed edges.
+void LocalAssemblyGraph::writeDetailedHtml(ostream& html, double timeout) const
+{
+    const string dotFileName = "LocalAssemblyGraph.dot";
+    ofstream dot(dotFileName);
+    writeDetailedDot(dot);
+    dot.close();
+
+    // Compute graph layout and write it in svg format.
+    const string command = "dot -O -T svg LocalAssemblyGraph.dot -Nshape=point "
+        "-Nwidth=0.05 -Granksep=1 -Gnodesep=0.03 -Earrowsize=0.2 " + dotFileName;
+    bool timeoutTriggered = false;
+    bool signalOccurred = false;
+    int returnCode;
+    runCommandWithTimeout(command, timeout,
+        timeoutTriggered, signalOccurred, returnCode);
+    if(signalOccurred) {
+        html << "<p>Unable to compute graph layout: terminated by a signal. "
+            "The failing Command was: <code>" << command << "</code>";
+        return;
+    }
+    if(timeoutTriggered) {
+        html << "<p>Timeout exceeded during graph layout computation. "
+            "Increase the timeout or decrease the maximum distance to simplify the graph";
+        return;
+    }
+    if(returnCode!=0 ) {
+        html << "<p>Unable to compute graph layout: return code " << returnCode <<
+            ". The failing Command was: <code>" << command << "</code>";
+        return;
+    }
+    // std::filesystem::remove(dotFileName);
+
+    // Display the graph.
+    const string svgFileName = dotFileName + ".svg";
+    ifstream svgFile(svgFileName);
+    html << svgFile.rdbuf();
+    svgFile.close();
+    std::filesystem::remove(svgFileName);
+
+}
+
+
+
+void LocalAssemblyGraph::writeDetailedDot(ostream& dot) const
+{
+    const LocalAssemblyGraph& localAssemblyGraph = *this;
+
+    // A map to contain the journey entry positions for each oriented read.
+    std::map<OrientedReadId, vector<uint64_t> > journeyEntryTable;
+
+    dot << "digraph LocalAssemblyGraph {\n";
+
+    // Each vertex of the LocalAssemblyGraph is displayed as a graphviz cluster.
+    // Each cluster contains one graphviz vertex for each journey entry in the
+    // corresponding LocalAssemblyGraph vertex.
+    BGL_FORALL_VERTICES(v, localAssemblyGraph, LocalAssemblyGraph) {
+        const LocalAssemblyGraphVertex& localAssemblyGraphVertex = localAssemblyGraph[v];
+        const AssemblyGraphSnapshot::Vertex& snapshotVertex =
+            assemblyGraphSnapshot.vertexVector[localAssemblyGraphVertex.vertexId];
+
+        dot << "subgraph cluster_" << snapshotVertex.segmentId << "_" << snapshotVertex.segmentReplicaIndex << "{\n";
+
+        // Loop over the journey entries of this vertex.
+        const auto journeyEntries = assemblyGraphSnapshot.vertexJourneyEntries[localAssemblyGraphVertex.vertexId];
+        for(const JourneyEntry& journeyEntry: journeyEntries) {
+            const OrientedReadId orientedReadId = journeyEntry.orientedReadId;
+            const uint64_t position = journeyEntry.position;
+            const uint32_t hue = MurmurHash2(&orientedReadId, sizeof(orientedReadId), 231) % 1000;
+            const string color = to_string(double(hue) /  1000.) + ",0.8,1.";
+            dot << "\"" << orientedReadId << "." << position << "\"";
+            dot << " [color=\"" << color << "\"]";
+            dot << ";\n";
+            journeyEntryTable[orientedReadId].push_back(position);
+        }
+        dot << "}\n";
+    }
+
+
+
+    // Add edges between successive journey entry positions.
+    for(auto& p: journeyEntryTable) {
+        auto& v = p.second;
+        if(v.size() < 2) {
+            continue;
+        }
+        sort(v.begin(), v.end());
+
+        const OrientedReadId orientedReadId = p.first;
+        const uint32_t hue = MurmurHash2(&orientedReadId, sizeof(orientedReadId), 231) % 1000;
+        const string color = to_string(double(hue) /  1000.) + ",1.,1.";
+
+        for(uint64_t i=1; i<v.size(); i++) {
+            const uint64_t position1 = v[i];
+            const uint64_t position0 = v[i-1];
+            if(position1 == position0 + 1) {
+                dot << "\"" << orientedReadId << "." << position0 << "\"->" <<
+                    "\"" << orientedReadId << "." << position1 << "\"";
+                dot << " [color=\"" << color << "\"]";
+                dot << ";\n";
+            }
+        }
+    }
+
+    dot << "}" << endl;
 
 }
 

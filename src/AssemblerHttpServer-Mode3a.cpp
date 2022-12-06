@@ -123,12 +123,19 @@ void Assembler::exploreMode3aAssemblyGraph(
     html << "<p>The local assembly graph has " << num_vertices(localAssemblyGraph) <<
         " vertices and " << num_edges(localAssemblyGraph) << " edges." << endl;
 
-    // Compute its layout.
-    localAssemblyGraph.computeLayout(options, timeout);
-    localAssemblyGraph.computeSegmentTangents();
 
-    // Display the local assembly graph.
-    localAssemblyGraph.writeHtml(html, options);
+    // Display it.
+    if(options.layoutMethod == "detailed") {
+        localAssemblyGraph.writeDetailedHtml(html, timeout);
+    } else {
+
+        // Compute its layout.
+        localAssemblyGraph.computeLayout(options, timeout);
+        localAssemblyGraph.computeSegmentTangents();
+
+        // Display the local assembly graph.
+        localAssemblyGraph.writeHtml(html, options);
+    }
 
 
 }
