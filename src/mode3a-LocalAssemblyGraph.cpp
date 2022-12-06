@@ -202,9 +202,13 @@ void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) con
         <script>
         function zoomToSegment()
         {
-            // Get the segment id from the input field.
+            // Get the segment id  and replica index from the input field.
             var segmentId = document.getElementById("zoomSegmentId").value;
             var segmentReplicaIndex = document.getElementById("zoomSegmentReplicaIndex").value;
+            zoomToGivenSegment(segmentId, segmentReplicaIndex);
+        }
+        function zoomToGivenSegment(segmentId, segmentReplicaIndex)
+        {
             var element = document.getElementById("Segment-" + segmentId + "-" + segmentReplicaIndex);
 
             // Find the bounding box and its center.
@@ -339,6 +343,15 @@ function onMouseExitSegment()
     <button type='button' onClick='zoomSvg(10.)' style='width:3em'>+++</button>
      </table>
         )stringDelimiter";
+
+    // Initial zoom to segment of interest.
+    if(
+        options.segmentColoring == "byCommonReads" or
+        options.segmentColoring == "byJaccard") {
+        html << "\n<script>zoomToGivenSegment(" << options.referenceSegmentId <<
+            "," << options.referenceSegmentReplicaIndex <<
+            ");</script>\n";
+    }
 
     // End of side panel.
     html << "</div>";
@@ -542,15 +555,19 @@ void LocalAssemblyGraph::writeSvg(
                     orientedReadIds1,
                     unionOrientedReads,
                     intersectionOrientedReads);
-                uint64_t hue = 0;
-                if(options.segmentColoring == "byCommonReads") {
-                    // Normalize to the number of oriented reads in the reference segment.
-                    const double fraction = double(intersectionOrientedReads.size()) / double(orientedReadIds0.size());
-                    hue = uint64_t(std::round(fraction * 120.));
-                } else if(options.segmentColoring == "byJaccard") {
-                    hue = uint64_t(std::round(jaccard * 120.));
+                if(intersectionOrientedReads.empty()) {
+                    color = "DimGrey";
+                } else {
+                    uint64_t hue = 0;
+                    if(options.segmentColoring == "byCommonReads") {
+                        // Normalize to the number of oriented reads in the reference segment.
+                        const double fraction = double(intersectionOrientedReads.size()) / double(orientedReadIds0.size());
+                        hue = uint64_t(std::round(fraction * 120.));
+                    } else if(options.segmentColoring == "byJaccard") {
+                        hue = uint64_t(std::round(jaccard * 120.));
+                    }
+                    color = "hsl(" + to_string(hue) + ",100%, 50%)";
                 }
-                color = "hsl(" + to_string(hue) + ",100%, 50%)";
             }
         }
 
