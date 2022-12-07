@@ -1104,6 +1104,9 @@ void LocalAssemblyGraph::writeDetailedDot(ostream& dot) const
             assemblyGraphSnapshot.vertexVector[localAssemblyGraphVertex.vertexId];
 
         dot << "subgraph cluster_" << snapshotVertex.segmentId << "_" << snapshotVertex.segmentReplicaIndex << "{\n";
+        dot << "style=filled;\n";
+        dot << "fillcolor=\"#e0e0e0\";\n";
+        dot << "tooltip=\"" << snapshotVertex.stringId() << "\";\n";
 
         // Loop over the journey entries of this vertex.
         const auto journeyEntries = assemblyGraphSnapshot.vertexJourneyEntries[localAssemblyGraphVertex.vertexId];
