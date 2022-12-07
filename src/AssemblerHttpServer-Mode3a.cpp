@@ -127,7 +127,7 @@ void Assembler::exploreMode3aAssemblyGraph(
 
     // Display it.
     if(options.layoutMethod == "detailed" or options.layoutMethod == "detailedLimited") {
-        localAssemblyGraph.writeDetailedHtml(html, timeout);
+        localAssemblyGraph.writeDetailedHtml(html, timeout, options.layoutMethod == "detailedLimited");
     } else {
 
         // Compute its layout.

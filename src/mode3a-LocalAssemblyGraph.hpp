@@ -155,8 +155,8 @@ public:
     // corresponding LocalAssemblyGraph vertex.
     // Journey entries with positions differing by one are joined by
     // directed edges.
-    void writeDetailedHtml(ostream& html, double timeout) const;
-    void writeDetailedDot(ostream& html) const;
+    void writeDetailedHtml(ostream& html, double timeout, bool limitedRepresentation) const;
+    void writeDetailedDot(ostream& html, bool limitedRepresentation) const;
 
     // Return the svg color for a segment.
     // All copies of a segment are alway displayed in the same color.

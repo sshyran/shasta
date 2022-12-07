@@ -1,6 +1,7 @@
 // Shasta.
 #include "mode3a-LocalAssemblyGraph.hpp"
 #include "computeLayout.hpp"
+#include "deduplicate.hpp"
 #include "html.hpp"
 #include "HttpServer.hpp"
 #include "invalid.hpp"
@@ -1059,11 +1060,11 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
 // corresponding LocalAssemblyGraph vertex.
 // Journey entries with positions differing by one are joined by
 // directed edges.
-void LocalAssemblyGraph::writeDetailedHtml(ostream& html, double timeout) const
+void LocalAssemblyGraph::writeDetailedHtml(ostream& html, double timeout, bool limitedRepresentation) const
 {
     const string dotFileName = "LocalAssemblyGraph.dot";
     ofstream dot(dotFileName);
-    writeDetailedDot(dot);
+    writeDetailedDot(dot, limitedRepresentation);
     dot.close();
 
     // Compute graph layout and write it in svg format.
@@ -1102,7 +1103,7 @@ void LocalAssemblyGraph::writeDetailedHtml(ostream& html, double timeout) const
 
 
 
-void LocalAssemblyGraph::writeDetailedDot(ostream& dot) const
+void LocalAssemblyGraph::writeDetailedDot(ostream& dot, bool limitedRepresentation) const
 {
     const LocalAssemblyGraph& localAssemblyGraph = *this;
 
@@ -1114,8 +1115,12 @@ void LocalAssemblyGraph::writeDetailedDot(ostream& dot) const
     // Each vertex of the LocalAssemblyGraph is displayed as a graphviz cluster.
     // Each cluster contains one graphviz vertex for each journey entry in the
     // corresponding LocalAssemblyGraph vertex.
+    uint64_t startVertexId = invalid<uint64_t>;
     BGL_FORALL_VERTICES(v, localAssemblyGraph, LocalAssemblyGraph) {
         const LocalAssemblyGraphVertex& localAssemblyGraphVertex = localAssemblyGraph[v];
+        if(localAssemblyGraphVertex.distance == 0) {
+            startVertexId = localAssemblyGraphVertex.vertexId;
+        }
         const AssemblyGraphSnapshot::Vertex& snapshotVertex =
             assemblyGraphSnapshot.vertexVector[localAssemblyGraphVertex.vertexId];
 
@@ -1140,8 +1145,14 @@ void LocalAssemblyGraph::writeDetailedDot(ostream& dot) const
         }
         dot << "}\n";
     }
+    SHASTA_ASSERT(startVertexId != invalid<uint64_t>);
 
-
+    // Gather the oriented reads in the start vertex.
+    vector<OrientedReadId> startVertexOrientedReadIds;
+    for(const JourneyEntry& journeyEntry: assemblyGraphSnapshot.vertexJourneyEntries[startVertexId]) {
+        startVertexOrientedReadIds.push_back(journeyEntry.orientedReadId);
+    }
+    deduplicate(startVertexOrientedReadIds);
 
     // Add edges between successive journey entry positions.
     for(auto& p: journeyEntryTable) {
@@ -1152,6 +1163,14 @@ void LocalAssemblyGraph::writeDetailedDot(ostream& dot) const
         sort(v.begin(), v.end());
 
         const OrientedReadId orientedReadId = p.first;
+
+        // Skip, if it is not in the start vertex and we are displaying the
+        // limited representation.
+        if(limitedRepresentation and not std::binary_search(
+            startVertexOrientedReadIds.begin(), startVertexOrientedReadIds.end(), orientedReadId)) {
+            continue;
+        }
+
         const uint32_t hue = MurmurHash2(&orientedReadId, sizeof(orientedReadId), 231) % 1000;
         const string color = to_string(double(hue) /  1000.) + ",1.,1.";
 
