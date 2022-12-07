@@ -77,6 +77,14 @@ public:
         uint64_t maxDistance,
         uint64_t minLinkCoverage);
 
+    // This constructor creates the limited detailed representation
+    // of the LocalAssemblyGraph.
+    // It follows (only) the reads present in the start vertex.
+    // It has vertices onl - no edges.
+    LocalAssemblyGraph(
+        const AssemblyGraphSnapshot&,
+        uint64_t startVertexId);
+
     const AssemblyGraphSnapshot& assemblyGraphSnapshot;
     uint64_t maxDistance;
 

@@ -926,6 +926,16 @@ LocalAssemblyGraph::SvgOptions::SvgOptions(const vector<string>& request)
 // Add rows to the html request form.
 void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
 {
+
+    const string detailedTitle = "The detailed representation shows "
+        "details of oriented reads in the local assembly graph. "
+        "Use it with a small maximum distance to prevent timeout during graph layout "
+        "and/or overly complex graph displays.";
+    const string detailedLimitedTitle = "The limited detailed representation shows "
+        "how oriented reads in the start segment (only) move in the local assembly graph. "
+        "When using this representation, the maximum distance and minimum link coverage "
+        "are ignored.";
+
     html <<
         "<tr>"
         "<td>Graphics size in pixels"
@@ -944,7 +954,13 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         ">Custom (user-provided command <code>customLayout</code>)<br>"
         "<input type=radio name=layoutMethod value=detailed"
         << (layoutMethod=="detailed" ? " checked=checked" : "") <<
-        ">Detailed"
+        ">Detailed <span style='color:Blue;font-weight:bold' title=\"" <<
+        detailedTitle << "\">&#9432;</span><br>"
+        "<input type=radio name=layoutMethod value=detailedLimited"
+        << (layoutMethod=="detailedLimited" ? " checked=checked" : "") <<
+        ">Detailed, limited to oriented reads in the start segment <span style='color:Blue;font-weight:bold' "
+        " title=\"" <<
+        detailedLimitedTitle << "\">&#9432;</span>"
         "</table>"
 
         "<h3>Segments</h3>"
@@ -1103,10 +1119,12 @@ void LocalAssemblyGraph::writeDetailedDot(ostream& dot) const
         const AssemblyGraphSnapshot::Vertex& snapshotVertex =
             assemblyGraphSnapshot.vertexVector[localAssemblyGraphVertex.vertexId];
 
+        const string fillColor = (localAssemblyGraphVertex.distance == 0) ? "#606060" : "#e0e0e0";
         dot << "subgraph cluster_" << snapshotVertex.segmentId << "_" << snapshotVertex.segmentReplicaIndex << "{\n";
         dot << "style=filled;\n";
-        dot << "fillcolor=\"#e0e0e0\";\n";
+        dot << "fillcolor=\"" << fillColor << "\";\n";
         dot << "tooltip=\"" << snapshotVertex.stringId() << "\";\n";
+        dot << "label=\"" << snapshotVertex.stringId() << "\";\n";
 
         // Loop over the journey entries of this vertex.
         const auto journeyEntries = assemblyGraphSnapshot.vertexJourneyEntries[localAssemblyGraphVertex.vertexId];
@@ -1151,6 +1169,37 @@ void LocalAssemblyGraph::writeDetailedDot(ostream& dot) const
 
     dot << "}" << endl;
 
+}
+
+
+
+// This constructor creates the limited detailed representation
+// of the LocalAssemblyGraph.
+// It follows (only) the reads present in the start vertex.
+// It has vertices only - no edges.
+LocalAssemblyGraph::LocalAssemblyGraph(
+    const AssemblyGraphSnapshot& assemblyGraphSnapshot,
+    uint64_t startVertexId) :
+    assemblyGraphSnapshot(assemblyGraphSnapshot),
+    maxDistance(invalid<uint64_t>)
+{
+    // The snapshot vertex ids we already encountered.
+    std::set<uint64_t> verticesAdded;
+
+    // Loop the journey entries for this vertex.
+    const auto journeyEntries = assemblyGraphSnapshot.vertexJourneyEntries[startVertexId];
+    for(const JourneyEntry journeyEntry: journeyEntries) {
+        const OrientedReadId orientedReadId = journeyEntry.orientedReadId;
+
+        // Loop over the journey of this oriented read.
+        const auto journey = assemblyGraphSnapshot.journeys[orientedReadId.getValue()];
+        for(const uint64_t vertexId: journey) {
+            if(not verticesAdded.contains(vertexId)) {
+                addVertex(vertexId, vertexId == startVertexId ? 0 : invalid<uint64_t>);
+                verticesAdded.insert(vertexId);
+            }
+        }
+    }
 }
 
 

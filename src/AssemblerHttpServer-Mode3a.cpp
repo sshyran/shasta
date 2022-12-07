@@ -119,13 +119,14 @@ void Assembler::exploreMode3aAssemblyGraph(
         " replica " << startSegmentReplicaIndex << "</h1>";
 
     // Create this local assembly graph.
-    mode3a::LocalAssemblyGraph localAssemblyGraph(snapshot, startVertexId, maxDistance, minLinkCoverage);
-    html << "<p>The local assembly graph has " << num_vertices(localAssemblyGraph) <<
-        " vertices and " << num_edges(localAssemblyGraph) << " edges." << endl;
+    mode3a::LocalAssemblyGraph localAssemblyGraph =
+        (options.layoutMethod == "detailedLimited") ?
+        mode3a::LocalAssemblyGraph(snapshot, startVertexId) :
+        mode3a::LocalAssemblyGraph(snapshot, startVertexId, maxDistance, minLinkCoverage);
 
 
     // Display it.
-    if(options.layoutMethod == "detailed") {
+    if(options.layoutMethod == "detailed" or options.layoutMethod == "detailedLimited") {
         localAssemblyGraph.writeDetailedHtml(html, timeout);
     } else {
 
