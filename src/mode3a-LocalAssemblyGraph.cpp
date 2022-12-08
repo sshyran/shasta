@@ -1068,7 +1068,7 @@ void LocalAssemblyGraph::writeDetailedHtml(ostream& html, double timeout, bool l
     dot.close();
 
     // Compute graph layout and write it in svg format.
-    const string command = "dot -O -T svg LocalAssemblyGraph.dot -Nshape=point "
+    const string command = "dot -O -T svg -Nshape=point "
         "-Nwidth=0.05 -Granksep=1 -Gnodesep=0.03 -Earrowsize=0.2 " + dotFileName;
     bool timeoutTriggered = false;
     bool signalOccurred = false;
@@ -1092,6 +1092,15 @@ void LocalAssemblyGraph::writeDetailedHtml(ostream& html, double timeout, bool l
     }
     // std::filesystem::remove(dotFileName);
 
+    // Tooltip for vertex annotations.
+    html << "<span style='color:Blue;font-weight:bold;font-size:24px' title=\"" <<
+        "Annotations for each vertex are as follows. "
+        "First row: vertex string id (segment id plus segment replica index if not zero). "
+        "Second row: number of vertex path entries for an oriented read also present in the start vertex; "
+        "number of path entries in the start vertex; "
+        "number of path entries in this vertex."
+         "\">&#9432;</span><br>";
+
     // Display the graph.
     const string svgFileName = dotFileName + ".svg";
     ifstream svgFile(svgFileName);
@@ -1107,6 +1116,22 @@ void LocalAssemblyGraph::writeDetailedDot(ostream& dot, bool limitedRepresentati
 {
     const LocalAssemblyGraph& localAssemblyGraph = *this;
 
+    // Find the start vertex.
+    uint64_t startVertexId = invalid<uint64_t>;
+    BGL_FORALL_VERTICES(v, localAssemblyGraph, LocalAssemblyGraph) {
+        const LocalAssemblyGraphVertex& localAssemblyGraphVertex = localAssemblyGraph[v];
+        if(localAssemblyGraphVertex.distance == 0) {
+            startVertexId = localAssemblyGraphVertex.vertexId;
+        }
+    }
+
+    // Gather the oriented reads in the start vertex.
+    vector<OrientedReadId> startVertexOrientedReadIds;
+    for(const JourneyEntry& journeyEntry: assemblyGraphSnapshot.vertexJourneyEntries[startVertexId]) {
+        startVertexOrientedReadIds.push_back(journeyEntry.orientedReadId);
+    }
+    deduplicate(startVertexOrientedReadIds);
+
     // A map to contain the journey entry positions for each oriented read.
     std::map<OrientedReadId, vector<uint64_t> > journeyEntryTable;
 
@@ -1115,12 +1140,8 @@ void LocalAssemblyGraph::writeDetailedDot(ostream& dot, bool limitedRepresentati
     // Each vertex of the LocalAssemblyGraph is displayed as a graphviz cluster.
     // Each cluster contains one graphviz vertex for each journey entry in the
     // corresponding LocalAssemblyGraph vertex.
-    uint64_t startVertexId = invalid<uint64_t>;
     BGL_FORALL_VERTICES(v, localAssemblyGraph, LocalAssemblyGraph) {
         const LocalAssemblyGraphVertex& localAssemblyGraphVertex = localAssemblyGraph[v];
-        if(localAssemblyGraphVertex.distance == 0) {
-            startVertexId = localAssemblyGraphVertex.vertexId;
-        }
         const AssemblyGraphSnapshot::Vertex& snapshotVertex =
             assemblyGraphSnapshot.vertexVector[localAssemblyGraphVertex.vertexId];
 
@@ -1129,12 +1150,15 @@ void LocalAssemblyGraph::writeDetailedDot(ostream& dot, bool limitedRepresentati
         dot << "style=filled;\n";
         dot << "fillcolor=\"" << fillColor << "\";\n";
         dot << "tooltip=\"" << snapshotVertex.stringId() << "\";\n";
-        dot << "label=\"" << snapshotVertex.stringId() << "\";\n";
 
         // Loop over the journey entries of this vertex.
         const auto journeyEntries = assemblyGraphSnapshot.vertexJourneyEntries[localAssemblyGraphVertex.vertexId];
+        uint64_t commonCount = 0;   // With the start vertex.
         for(const JourneyEntry& journeyEntry: journeyEntries) {
             const OrientedReadId orientedReadId = journeyEntry.orientedReadId;
+            if(binary_search(startVertexOrientedReadIds.begin(), startVertexOrientedReadIds.end(), orientedReadId)) {
+                ++commonCount;
+            }
             const uint64_t position = journeyEntry.position;
             const uint32_t hue = MurmurHash2(&orientedReadId, sizeof(orientedReadId), 231) % 1000;
             const string color = to_string(double(hue) /  1000.) + ",0.8,1.";
@@ -1143,16 +1167,15 @@ void LocalAssemblyGraph::writeDetailedDot(ostream& dot, bool limitedRepresentati
             dot << ";\n";
             journeyEntryTable[orientedReadId].push_back(position);
         }
+        dot << "label=\"" << snapshotVertex.stringId() << "\\n" <<
+            commonCount << " " <<
+            assemblyGraphSnapshot.vertexJourneyEntries[startVertexId].size() << " " <<
+            journeyEntries.size() << " " <<
+            "\";\n";
         dot << "}\n";
     }
     SHASTA_ASSERT(startVertexId != invalid<uint64_t>);
 
-    // Gather the oriented reads in the start vertex.
-    vector<OrientedReadId> startVertexOrientedReadIds;
-    for(const JourneyEntry& journeyEntry: assemblyGraphSnapshot.vertexJourneyEntries[startVertexId]) {
-        startVertexOrientedReadIds.push_back(journeyEntry.orientedReadId);
-    }
-    deduplicate(startVertexOrientedReadIds);
 
     // Add edges between successive journey entry positions.
     for(auto& p: journeyEntryTable) {
