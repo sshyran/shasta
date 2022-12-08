@@ -1098,7 +1098,8 @@ void LocalAssemblyGraph::writeDetailedHtml(ostream& html, double timeout, bool l
         "First row: vertex string id (segment id plus segment replica index if not zero). "
         "Second row: number of vertex path entries for an oriented read also present in the start vertex; "
         "number of path entries in the start vertex; "
-        "number of path entries in this vertex."
+        "number of path entries in this vertex; "
+        "Jaccard similarity of this vertex with the start vertex."
          "\">&#9432;</span><br>";
 
     // Display the graph.
