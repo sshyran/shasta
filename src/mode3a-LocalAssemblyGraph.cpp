@@ -1140,6 +1140,8 @@ void LocalAssemblyGraph::writeDetailedDot(ostream& dot, bool limitedRepresentati
     // Each vertex of the LocalAssemblyGraph is displayed as a graphviz cluster.
     // Each cluster contains one graphviz vertex for each journey entry in the
     // corresponding LocalAssemblyGraph vertex.
+    const auto oldPrecision = dot.precision(2);
+    const auto oldFlags = dot.setf(std::ios_base::fixed, std::ios_base::floatfield);
     BGL_FORALL_VERTICES(v, localAssemblyGraph, LocalAssemblyGraph) {
         const LocalAssemblyGraphVertex& localAssemblyGraphVertex = localAssemblyGraph[v];
         const AssemblyGraphSnapshot::Vertex& snapshotVertex =
@@ -1167,14 +1169,20 @@ void LocalAssemblyGraph::writeDetailedDot(ostream& dot, bool limitedRepresentati
             dot << ";\n";
             journeyEntryTable[orientedReadId].push_back(position);
         }
+        const double jaccard = double(commonCount) /
+            double(assemblyGraphSnapshot.vertexJourneyEntries[startVertexId].size() + journeyEntries.size()
+                - commonCount);
         dot << "label=\"" << snapshotVertex.stringId() << "\\n" <<
             commonCount << " " <<
             assemblyGraphSnapshot.vertexJourneyEntries[startVertexId].size() << " " <<
             journeyEntries.size() << " " <<
+            jaccard <<
             "\";\n";
         dot << "}\n";
     }
     SHASTA_ASSERT(startVertexId != invalid<uint64_t>);
+    dot.precision(oldPrecision);
+    dot.flags(oldFlags);
 
 
     // Add edges between successive journey entry positions.
