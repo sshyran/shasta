@@ -1,5 +1,7 @@
 // Shasta.
 #include "Assembler.hpp"
+#include "AssembledSegment.hpp"
+#include "assembleMarkerGraphPath.hpp"
 #include "html.hpp"
 #include "invalid.hpp"
 #include "mode3a-AssemblyGraphSnapshot.hpp"
@@ -357,6 +359,8 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
     SHASTA_ASSERT(packedMarkerGraphPointer);
     mode3a::PackedMarkerGraph& packedMarkerGraph = *packedMarkerGraphPointer;
 
+    const auto k = assemblerInfo->k;
+
 
 
     // Get request parameters.
@@ -535,12 +539,11 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
     }
 
 
-#if 0
 
     // Write the marker graph path.
     if(showMarkerGraphPath) {
         html <<
-            "<h2>Marker graph path for this segment</h2>"
+            "<h2>Marker graph path</h2>"
             "<table>"
             "<tr>"
             "<th>Position"
@@ -577,32 +580,48 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
 
 
 
-    // Assembled sequence, optionally with details.
+    if(showSequence) {
+
+    }
+
+
+    // Assembled sequence with details.
     if(showSequence or showSequenceDetails) {
+
 
         // Assemble the sequence for this segment.
         AssembledSegment assembledSegment;
         assembleMarkerGraphPath(
-            assemblyGraph3.readRepresentation,
-            assemblyGraph3.k,
-            assemblyGraph3.markers,
-            assemblyGraph3.markerGraph,
-            assemblyGraph3.markerGraphPaths[segmentId],
+            0,
+            k,
+            markers,
+            markerGraph,
+            path,
             false,
             assembledSegment);
+
 
         // Check that the sequence we have is the same as the stored sequence
         // for this segment.
         SHASTA_ASSERT(std::equal(
-            assembledSegment.rawSequence.begin(), assembledSegment.rawSequence.end(),
-            assemblyGraph3.segmentSequences.begin(segmentId), assemblyGraph3.segmentSequences.end(segmentId)
-            ));
+            assembledSegment.rawSequence.begin() + k/2, assembledSegment.rawSequence.end() - k/2,
+            sequence.begin(), sequence.end()));
 
         // Write the sequence.
-        assembledSegment.writeHtml(html, showSequence, showSequenceDetails,
-            0, uint32_t(assembledSegment.rawSequence.size()));
+        if(showSequence) {
+            html << "<h1>Assembled sequence</h2>";
+            html << "<pre style='font-family:courier'>";
+            copy(sequence.begin(), sequence.end(),ostream_iterator<Base>(html));
+            html << "</pre>";
+        }
+        if(showSequenceDetails) {
+            html <<
+                "<br>Assembly details below include the first/last " << k/2 << " bases "
+                " of the first/last marker graph vertex in the path.";
+            assembledSegment.writeHtml(html, true, true,
+                0, uint32_t(assembledSegment.rawSequence.size()));
+        }
     }
-#endif
 
 }
 
