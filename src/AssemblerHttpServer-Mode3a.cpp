@@ -481,10 +481,10 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
     SHASTA_ASSERT(vertex.segmentReplicaIndex == segmentReplicaIndex);
 
 
-    // Access the marker graph path for this segment
-    // and assembled sequence.
+    // Access some information for this segment.
     const auto path = snapshot.packedMarkerGraph.segments[segmentId];
     const auto sequence = snapshot.packedMarkerGraph.segmentSequences[segmentId];
+    const auto journeyEntries = snapshot.vertexJourneyEntries[vertexId];
 
 
 
@@ -503,37 +503,39 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
         sequence.size() <<
         "<tr><th class=left>Average marker graph edge coverage<td class=centered>" <<
         snapshot.packedMarkerGraph.averageMarkerGraphEdgeCoverage(segmentId) <<
-        "<tr><th class=left>Number of journey entries";
+        "<tr><th class=left>Number of journey entries ";
     writeInformationIcon(html, "Number of traversal of this vertex by an oriented read. "
         "Some oriented reads may traverse a vertex more than once.");
     html <<
         "<td class=centered>" <<
-        snapshot.vertexJourneyEntries.size(vertexId) <<
+        journeyEntries.size() <<
         "</table>";
     html.precision(oldPrecision);
     html.flags(oldFlags);
 
-#if 0
 
 
-    // Write the oriented reads in a table.
+    // Write the journey entries in a table.
     if(showOrientedReads) {
         html <<
-            "<h2>Oriented reads on this segment</h2>"
+            "<h2>Traversals of this segment by oriented reads</h2>"
             "<table>"
             "<tr>"
             "<th>Oriented<br>read"
-            "<th>Average<br>offset";
-        for(const auto& info: orientedReads.infos) {
+            "<th>Journey<br>length"
+            "<th>Position<br>in journey";
+        for(const JourneyEntry& journeyEntry: journeyEntries) {
             html<<
                 "<tr>"
-                "<td class=centered>" << info.orientedReadId <<
-                "<td class=centered>" << info.averageOffset;
+                "<td class=centered>" << journeyEntry.orientedReadId <<
+                "<td class=centered>" << snapshot.journeys[journeyEntry.orientedReadId.getValue()].size() <<
+                "<td class=centered>" << journeyEntry.position;
         }
         html << "</table>";
     }
 
 
+#if 0
 
     // Write the marker graph path.
     if(showMarkerGraphPath) {
