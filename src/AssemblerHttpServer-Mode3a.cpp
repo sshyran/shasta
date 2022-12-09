@@ -432,8 +432,10 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
         return;
     }
 
-    // Access the marker graph path for this segment.
+    // Access the marker graph path for this segment
+    // and assembled sequence.
     const auto path = packedMarkerGraph.segments[segmentId];
+    const auto sequence = packedMarkerGraph.segmentSequences[segmentId];
 
 
 
@@ -446,7 +448,7 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
         "<tr><th class=left>Length of marker graph path<td class=centered>" <<
         path.size() <<
         "<tr><th class=left>Length of assembled sequence<td class=centered>" <<
-        packedMarkerGraph.clippedSequence(segmentId).size() <<
+        sequence.size() <<
         // "<tr><th class=left>Average marker graph edge coverage on path<td class=centered>" <<
         // assemblyGraph3.segmentCoverage[segmentId] <<
         // "<tr><th class=left>Number of distinct oriented reads on path<td class=centered>" << orientedReads.infos.size() <<

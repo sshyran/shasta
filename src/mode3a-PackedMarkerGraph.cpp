@@ -232,7 +232,9 @@ void PackedMarkerGraph::assembleSegmentSequences()
             false,
             assembledSegment);
 
-        segmentSequences.appendVector(assembledSegment.rawSequence);
+        segmentSequences.appendVector(
+            assembledSegment.rawSequence.begin() + k/2,
+            assembledSegment.rawSequence.end()   - k/2);
     }
 }
 
@@ -241,21 +243,6 @@ void PackedMarkerGraph::assembleSegmentSequences()
 void PackedMarkerGraph::accessSegmentSequences()
 {
     accessExistingReadOnly(segmentSequences, name + "-sequences");
-}
-
-
-
-// The PackedMarkerGraph::segmentSequences stores, for each segment,
-// the entire sequence from the AssembledSegment.
-// This includes the entire sequence of the first
-// and last vertex of each segment.
-// This returns the clipped sequence of each segment,
-// which excludes the first and last k/2 bases.
-span<const Base> PackedMarkerGraph::clippedSequence(uint64_t segmentId) const
-{
-    const Base* begin = segmentSequences.begin(segmentId);
-    const Base* end = segmentSequences.end(segmentId);
-    return span<const Base>(begin + k / 2, end - k / 2);
 }
 
 

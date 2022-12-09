@@ -60,16 +60,10 @@ public:
     uint64_t getLastSegmentVertex (uint64_t segmentId) const;
 
     // Assembled sequence of each segment.
+    // This stores, for each segment, the sequence from the AssembledSegment
+    // with the first and last k/2 bases removed.
     MemoryMapped::VectorOfVectors<Base, uint64_t> segmentSequences;
     void assembleSegmentSequences();
-
-    // The segmentSequences stores, for each segment,
-    // the entire sequence from the AssembledSegment.
-    // This includes the entire sequence of the first
-    // and last vertex of each segment.
-    // This returns the clipped sequence of each segment,
-    // which excludes the first and last k/2 bases.
-    span<const Base> clippedSequence(uint64_t segmentId) const;
 
     // A link between segments s0 and s1 is created if
     // the last marker graph vertex of s0 coincides with the
