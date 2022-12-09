@@ -3,6 +3,7 @@
 #include "invalid.hpp"
 #include "mode3a-AssemblyGraphSnapshot.hpp"
 #include "mode3a-LocalAssemblyGraph.hpp"
+#include "mode3a-PackedMarkerGraph.hpp"
 using namespace shasta;
 using namespace mode3a;
 
@@ -343,4 +344,205 @@ void Assembler::exploreMode3aTangleMatrix(
     }
     html << "</table>";
 }
+
+
+
+void Assembler::exploreMode3aAssemblyGraphSegment(
+    const vector<string>& request,
+    ostream& html)
+{
+    // Access the PackedMarkerGraph
+    auto packedMarkerGraphPointer = mode3aAssemblyData.packedMarkerGraph;
+    SHASTA_ASSERT(packedMarkerGraphPointer);
+    mode3a::PackedMarkerGraph& packedMarkerGraph = *packedMarkerGraphPointer;
+
+
+
+    // Get request parameters.
+    uint64_t segmentId;
+    const bool segmentIdIsPresent = getParameterValue(request, "segmentId", segmentId);
+
+    string showOrientedReadsString;
+    const bool showOrientedReads = HttpServer::getParameterValue(request,
+        "showOrientedReads", showOrientedReadsString);
+
+    string showMarkerGraphPathString;
+    const bool showMarkerGraphPath = HttpServer::getParameterValue(request,
+        "showMarkerGraphPath", showMarkerGraphPathString);
+
+    string showSequenceString;
+    const bool showSequence = HttpServer::getParameterValue(request,
+        "showSequence", showSequenceString);
+
+    string showSequenceDetailsString;
+    const bool showSequenceDetails = HttpServer::getParameterValue(request,
+        "showSequenceDetails", showSequenceDetailsString);
+
+
+
+    // Write the form.
+    html <<
+        "<h2>Display details of an assembly graph segment</h2>"
+        "<form>"
+        "<table>"
+
+        "<tr>"
+        "<td>Segment id"
+        "<td><input type=text required name=segmentId size=8 style='text-align:center'"
+        " value='" << (segmentIdIsPresent ? to_string(segmentId) : "") <<
+        "'>"
+
+        "<tr>"
+        "<td>Show oriented reads"
+        "<td class=centered> <input type=checkbox name=showOrientedReads" <<
+        (showOrientedReads ? " checked=checked" : "") <<
+        ">"
+
+        "<tr>"
+        "<td>Show marker graph path"
+        "<td class=centered> <input type=checkbox name=showMarkerGraphPath" <<
+        (showMarkerGraphPath ? " checked=checked" : "") <<
+        ">"
+
+        "<tr>"
+        "<td>Show sequence"
+        "<td class=centered> <input type=checkbox name=showSequence" <<
+        (showSequence ? " checked=checked" : "") <<
+        ">"
+
+        "<tr>"
+        "<td>Show sequence assembly details"
+        "<td class=centered> <input type=checkbox name=showSequenceDetails" <<
+        (showSequenceDetails ? " checked=checked" : "") <<
+        ">"
+
+        "</table>"
+        "<br><input type=submit value='Display'>"
+        "</form>";
+
+    // If the segmentId was not specified, stop here.
+    if(not segmentIdIsPresent) {
+        return;
+    }
+
+    // Check that we have a valid segmentId.
+    if(segmentId >= packedMarkerGraph.segments.size()) {
+        html << "Invalid segment id. Maximum valid value is " <<
+            packedMarkerGraph.segments.size() - 1 << ".";
+        return;
+    }
+
+    // Access the marker graph path for this segment.
+    const auto path = packedMarkerGraph.segments[segmentId];
+
+
+
+    // Summary table.
+    const auto oldPrecision = html.precision(1);
+    const auto oldFlags = html.setf(std::ios_base::fixed, std::ios_base::floatfield);
+    html <<
+        "<h1>Assembly graph segment " << segmentId << "</h1>"
+        "<p><table>"
+        "<tr><th class=left>Length of marker graph path<td class=centered>" <<
+        path.size() <<
+        "<tr><th class=left>Length of assembled sequence<td class=centered>" <<
+        packedMarkerGraph.clippedSequence(segmentId).size() <<
+        // "<tr><th class=left>Average marker graph edge coverage on path<td class=centered>" <<
+        // assemblyGraph3.segmentCoverage[segmentId] <<
+        // "<tr><th class=left>Number of distinct oriented reads on path<td class=centered>" << orientedReads.infos.size() <<
+        "</table>";
+    html.precision(oldPrecision);
+    html.flags(oldFlags);
+
+#if 0
+
+
+    // Write the oriented reads in a table.
+    if(showOrientedReads) {
+        html <<
+            "<h2>Oriented reads on this segment</h2>"
+            "<table>"
+            "<tr>"
+            "<th>Oriented<br>read"
+            "<th>Average<br>offset";
+        for(const auto& info: orientedReads.infos) {
+            html<<
+                "<tr>"
+                "<td class=centered>" << info.orientedReadId <<
+                "<td class=centered>" << info.averageOffset;
+        }
+        html << "</table>";
+    }
+
+
+
+    // Write the marker graph path.
+    if(showMarkerGraphPath) {
+        html <<
+            "<h2>Marker graph path for this segment</h2>"
+            "<table>"
+            "<tr>"
+            "<th>Position"
+            "<th>Edge"
+            "<th>Coverage"
+            "<th>Source<br>vertex"
+            "<th>Target<br>vertex";
+
+        for(uint64_t position=0; position<path.size(); position++) {
+            const MarkerGraphEdgeId& edgeId = path[position];
+            const MarkerGraph::Edge& edge = markerGraph.edges[edgeId];
+            const MarkerGraph::VertexId vertexId0 = edge.source;
+            const MarkerGraph::VertexId vertexId1 = edge.target;
+
+            html << "<tr>"
+                "<td class=centered>" << position <<
+                "<td class=centered>" <<
+                "<a href='exploreMarkerGraphEdge?edgeId=" << edgeId <<
+                "'>" << edgeId << "</a>"
+                "<td class=centered>" << markerGraph.edgeMarkerIntervals.size(edgeId) <<
+                "<td class=centered>" <<
+                "<a href='exploreMarkerGraphVertex?vertexId=" << vertexId0 <<
+                "'>" << vertexId0 << "</a>"
+                "<td class=centered>" <<
+                "<a href='exploreMarkerGraphVertex?vertexId=" << vertexId1 <<
+                "'>" << vertexId1 << "</a>"
+                "\n";
+
+
+
+        }
+        html << "</table>";
+    }
+
+
+
+    // Assembled sequence, optionally with details.
+    if(showSequence or showSequenceDetails) {
+
+        // Assemble the sequence for this segment.
+        AssembledSegment assembledSegment;
+        assembleMarkerGraphPath(
+            assemblyGraph3.readRepresentation,
+            assemblyGraph3.k,
+            assemblyGraph3.markers,
+            assemblyGraph3.markerGraph,
+            assemblyGraph3.markerGraphPaths[segmentId],
+            false,
+            assembledSegment);
+
+        // Check that the sequence we have is the same as the stored sequence
+        // for this segment.
+        SHASTA_ASSERT(std::equal(
+            assembledSegment.rawSequence.begin(), assembledSegment.rawSequence.end(),
+            assemblyGraph3.segmentSequences.begin(segmentId), assemblyGraph3.segmentSequences.end(segmentId)
+            ));
+
+        // Write the sequence.
+        assembledSegment.writeHtml(html, showSequence, showSequenceDetails,
+            0, uint32_t(assembledSegment.rawSequence.size()));
+    }
+#endif
+
+}
+
 
