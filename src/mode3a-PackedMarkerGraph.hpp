@@ -59,6 +59,9 @@ public:
     uint64_t getFirstSegmentVertex(uint64_t segmentId) const;
     uint64_t getLastSegmentVertex (uint64_t segmentId) const;
 
+    // Compute average marker graph edge coverage for a segment.
+    double averageMarkerGraphEdgeCoverage(uint64_t segmentId) const;
+
     // Assembled sequence of each segment.
     // This stores, for each segment, the sequence from the AssembledSegment
     // with the first and last k/2 bases removed.

@@ -586,3 +586,15 @@ void PackedMarkerGraph::writeJourneys() const
     }
 }
 
+
+
+// Compute average marker graph edge coverage for a segment.
+double PackedMarkerGraph::averageMarkerGraphEdgeCoverage(uint64_t segmentId) const
+{
+    const auto path = segments[segmentId];
+    uint64_t sum = 0;
+    for(const uint64_t edgeId: path) {
+        sum += markerGraph.edgeMarkerIntervals.size(edgeId);
+    }
+    return double(sum) / double(path.size());
+}

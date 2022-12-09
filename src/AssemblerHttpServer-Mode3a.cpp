@@ -449,9 +449,9 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
         path.size() <<
         "<tr><th class=left>Length of assembled sequence<td class=centered>" <<
         sequence.size() <<
-        // "<tr><th class=left>Average marker graph edge coverage on path<td class=centered>" <<
-        // assemblyGraph3.segmentCoverage[segmentId] <<
-        // "<tr><th class=left>Number of distinct oriented reads on path<td class=centered>" << orientedReads.infos.size() <<
+        "<tr><th class=left>Average marker graph edge coverage<td class=centered>" <<
+        packedMarkerGraph.averageMarkerGraphEdgeCoverage(segmentId) <<
+        // "<tr><th class=left>Number of journey entries<td class=centered>" << packedMarkerGraph.journeys.size(segmentId) <<
         "</table>";
     html.precision(oldPrecision);
     html.flags(oldFlags);
