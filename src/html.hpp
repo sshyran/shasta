@@ -13,6 +13,8 @@ namespace shasta {
     void writeStyle(ostream&);
 
     void addSvgDragAndZoom(ostream& html);
+
+    void writeInformationIcon(ostream& html, const string& message);
 }
 
 #endif

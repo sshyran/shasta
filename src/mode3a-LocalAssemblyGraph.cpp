@@ -955,13 +955,15 @@ void LocalAssemblyGraph::SvgOptions::addFormRows(ostream& html)
         ">Custom (user-provided command <code>customLayout</code>)<br>"
         "<input type=radio name=layoutMethod value=detailed"
         << (layoutMethod=="detailed" ? " checked=checked" : "") <<
-        ">Detailed <span style='color:Blue;font-weight:bold' title=\"" <<
-        detailedTitle << "\">&#9432;</span><br>"
+        ">Detailed ";
+    writeInformationIcon(html, detailedTitle);
+    html <<
+        "<br>"
         "<input type=radio name=layoutMethod value=detailedLimited"
         << (layoutMethod=="detailedLimited" ? " checked=checked" : "") <<
-        ">Detailed, limited to oriented reads in the start segment <span style='color:Blue;font-weight:bold' "
-        " title=\"" <<
-        detailedLimitedTitle << "\">&#9432;</span>"
+        ">Detailed, limited to oriented reads in the start segment";
+     writeInformationIcon(html, detailedLimitedTitle);
+     html <<
         "</table>"
 
         "<h3>Segments</h3>"
@@ -1093,14 +1095,14 @@ void LocalAssemblyGraph::writeDetailedHtml(ostream& html, double timeout, bool l
     // std::filesystem::remove(dotFileName);
 
     // Tooltip for vertex annotations.
-    html << "<span style='color:Blue;font-weight:bold;font-size:24px' title=\"" <<
+    writeInformationIcon(html,
         "Annotations for each vertex are as follows. "
         "First row: vertex string id (segment id plus segment replica index if not zero). "
         "Second row: number of vertex path entries for an oriented read also present in the start vertex; "
         "number of path entries in the start vertex; "
         "number of path entries in this vertex; "
-        "Jaccard similarity of this vertex with the start vertex."
-         "\">&#9432;</span><br>";
+        "Jaccard similarity of this vertex with the start vertex.");
+    html << "<br>";
 
     // Display the graph.
     const string svgFileName = dotFileName + ".svg";

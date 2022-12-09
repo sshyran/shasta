@@ -185,3 +185,10 @@ function zoomSvg(factor)
 }
 
 
+
+
+void shasta::writeInformationIcon(ostream& html, const string& message)
+{
+    html << "<span style='color:Blue;font-weight:bold' title=\"" <<
+            message << "\">&#9432;</span>";
+}

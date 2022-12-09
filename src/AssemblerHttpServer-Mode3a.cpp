@@ -1,5 +1,6 @@
 // Shasta.
 #include "Assembler.hpp"
+#include "html.hpp"
 #include "invalid.hpp"
 #include "mode3a-AssemblyGraphSnapshot.hpp"
 #include "mode3a-LocalAssemblyGraph.hpp"
@@ -359,8 +360,14 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
 
 
     // Get request parameters.
+    uint64_t snapshotIndex = 0;
+    getParameterValue(request, "snapshotIndex", snapshotIndex);
+
     uint64_t segmentId;
     const bool segmentIdIsPresent = getParameterValue(request, "segmentId", segmentId);
+
+    uint64_t segmentReplicaIndex = 0;
+    getParameterValue(request, "segmentReplicaIndex", segmentReplicaIndex);
 
     string showOrientedReadsString;
     const bool showOrientedReads = HttpServer::getParameterValue(request,
@@ -387,9 +394,19 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
         "<table>"
 
         "<tr>"
-        "<td>Segment id"
-        "<td><input type=text required name=segmentId size=8 style='text-align:center'"
+        "<td>Snapshot index"
+        "<td class=centered><input type=text required name=snapshotIndex size=8 style='text-align:center'"
+        " value='" << snapshotIndex <<
+        "'>"
+
+        "<tr>"
+        "<td class=left>Segment id<td>"
+        "<input type=text required name=segmentId size=8 style='text-align:center'"
         " value='" << (segmentIdIsPresent ? to_string(segmentId) : "") <<
+        "'>"
+        "<tr><td class=left>Segment replica index<td>"
+        "<input type=text required name=segmentReplicaIndex size=8 style='text-align:center'"
+        " value='" << segmentReplicaIndex <<
         "'>"
 
         "<tr>"
@@ -431,27 +448,67 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
             packedMarkerGraph.segments.size() - 1 << ".";
         return;
     }
+    // Access the requested snapshot.
+    const uint64_t snapshotCount = mode3aAssemblyData.assemblyGraphSnapshots.size();
+    if(snapshotIndex >= snapshotCount) {
+        html << "<br>Invalid snapshot index. The number of available snapshots is " << snapshotCount <<
+            ". Valid snapshot indexes are 0 through " << snapshotCount - 1 << ".";
+        return;
+    }
+    const AssemblyGraphSnapshot& snapshot = *mode3aAssemblyData.assemblyGraphSnapshots[snapshotIndex];
+
+
+
+    // Locate the vertexId for this segmentId and segmentCopyIndex.
+    if(segmentId >= snapshot.vertexTable.size()) {
+        html << "<br>Invalid segment id. Valid segment ids are 0 through " << snapshot.vertexTable.size() - 1 << ".";
+        return;
+    }
+    auto v = snapshot.vertexTable[segmentId];
+    if(segmentReplicaIndex >= v.size() or v[segmentReplicaIndex] == invalid<uint64_t> ) {
+        html << "<br>Invalid segment replica index.<br>Valid segment replica indexes for this segment are:";
+        for(uint64_t segmentReplicaIndex=0; segmentReplicaIndex<v.size(); segmentReplicaIndex++) {
+            if(v[segmentReplicaIndex] != invalid<uint64_t>) {
+                html << " " << segmentReplicaIndex;
+            }
+        }
+        return;
+    }
+    const uint64_t vertexId = v[segmentReplicaIndex];
+    SHASTA_ASSERT(vertexId < snapshot.vertexVector.size());
+    const AssemblyGraphSnapshot::Vertex& vertex = snapshot.vertexVector[vertexId];
+    SHASTA_ASSERT(vertex.segmentId == segmentId);
+    SHASTA_ASSERT(vertex.segmentReplicaIndex == segmentReplicaIndex);
+
 
     // Access the marker graph path for this segment
     // and assembled sequence.
-    const auto path = packedMarkerGraph.segments[segmentId];
-    const auto sequence = packedMarkerGraph.segmentSequences[segmentId];
+    const auto path = snapshot.packedMarkerGraph.segments[segmentId];
+    const auto sequence = snapshot.packedMarkerGraph.segmentSequences[segmentId];
 
+
+
+    html << "<h1>Snapshot " << snapshotIndex << " segment " << segmentId <<
+        " replica " << segmentReplicaIndex << "</h1>";
 
 
     // Summary table.
     const auto oldPrecision = html.precision(1);
     const auto oldFlags = html.setf(std::ios_base::fixed, std::ios_base::floatfield);
     html <<
-        "<h1>Assembly graph segment " << segmentId << "</h1>"
         "<p><table>"
         "<tr><th class=left>Length of marker graph path<td class=centered>" <<
         path.size() <<
         "<tr><th class=left>Length of assembled sequence<td class=centered>" <<
         sequence.size() <<
         "<tr><th class=left>Average marker graph edge coverage<td class=centered>" <<
-        packedMarkerGraph.averageMarkerGraphEdgeCoverage(segmentId) <<
-        // "<tr><th class=left>Number of journey entries<td class=centered>" << packedMarkerGraph.journeys.size(segmentId) <<
+        snapshot.packedMarkerGraph.averageMarkerGraphEdgeCoverage(segmentId) <<
+        "<tr><th class=left>Number of journey entries";
+    writeInformationIcon(html, "Number of traversal of this vertex by an oriented read. "
+        "Some oriented reads may traverse a vertex more than once.");
+    html <<
+        "<td class=centered>" <<
+        snapshot.vertexJourneyEntries.size(vertexId) <<
         "</table>";
     html.precision(oldPrecision);
     html.flags(oldFlags);
