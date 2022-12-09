@@ -28,11 +28,12 @@ void AssemblyGraph::createSegmentsAndJourneys()
     AssemblyGraph& assemblyGraph = *this;
 
     // Initially, create a vertex for each segment in the packedMarkerGraph.
-    vector<vertex_descriptor> vertexTable(packedMarkerGraph.segments.size());
+    verticesBySegment.clear();
+    verticesBySegment.resize(packedMarkerGraph.segments.size());
     for(uint64_t segmentId=0; segmentId<packedMarkerGraph.segments.size(); segmentId++) {
-        vertexTable[segmentId] = add_vertex(AssemblyGraphVertex(segmentId), assemblyGraph);
+        const vertex_descriptor v = add_vertex(AssemblyGraphVertex(segmentId), assemblyGraph);
+        verticesBySegment[segmentId].push_back(v);
     }
-    vertexCountBySegment.resize(vertexTable.size(), 1);
 
     // The journey of an oriented read is the sequence of segments
     // visited by the oriented read.
@@ -46,7 +47,7 @@ void AssemblyGraph::createSegmentsAndJourneys()
         auto& journey = journeys[i];
         for(uint64_t position=0; position<packedMarkerGraphJourney.size(); position++) {
             const uint64_t segmentId = packedMarkerGraphJourney[position];
-            const vertex_descriptor v = vertexTable[segmentId];
+            const vertex_descriptor v = verticesBySegment[segmentId].front();
             journey.push_back(v);
             assemblyGraph[v].journeyEntries.push_back({orientedReadId, position});
         }
@@ -382,8 +383,9 @@ void AssemblyGraph::simpleDetangle(
     const uint64_t segmentId1 = vertex1.segmentId;
     for(uint64_t i=0; i<activePairs.size(); i++) {
         const vertex_descriptor vNew = add_vertex(
-            AssemblyGraphVertex(segmentId1, vertexCountBySegment[segmentId1]++),
+            AssemblyGraphVertex(segmentId1, verticesBySegment[segmentId1].size()),
             assemblyGraph);
+        verticesBySegment[segmentId1].push_back(vNew);
         newVertices.push_back(vNew);
     }
     if(debug) {
@@ -403,8 +405,9 @@ void AssemblyGraph::simpleDetangle(
     // In addition, we create a vertex that will receive journey entries
     // that are not in active pairs.
     const vertex_descriptor vNew = add_vertex(
-        AssemblyGraphVertex(segmentId1, vertexCountBySegment[segmentId1]++),
+        AssemblyGraphVertex(segmentId1, verticesBySegment[segmentId1].size()),
         assemblyGraph);
+    verticesBySegment[segmentId1].push_back(vNew);
     if(false) {
         cout << "New vertex not associated with an active pair: " << assemblyGraph[vNew].stringId() << endl;
     }
@@ -458,6 +461,7 @@ void AssemblyGraph::simpleDetangle(
     }
 
     // Now we can remove v1.
+    verticesBySegment[segmentId1][vertex1.segmentReplicaIndex] = null_vertex();
     clear_vertex(v1, assemblyGraph);
     remove_vertex(v1, assemblyGraph);
 
@@ -505,3 +509,29 @@ void AssemblyGraph::findAdjacentVertices(
     }
 }
 
+
+
+void AssemblyGraph::computePaths(uint64_t threadCount)
+{
+    SHASTA_ASSERT(threadCount > 0);
+
+
+}
+
+
+
+void AssemblyGraph::computePathsThreadFunction(uint64_t threadId)
+{
+
+}
+
+
+
+void AssemblyGraph::computePath(
+    vertex_descriptor v,
+    uint64_t minSegmentCoverage,
+    uint64_t minLinkCoverage
+    )
+{
+
+}

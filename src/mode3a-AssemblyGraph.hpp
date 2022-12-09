@@ -120,10 +120,9 @@ public:
     const PackedMarkerGraph& packedMarkerGraph;
 private:
 
-    // The number of vertices created so far for each segmentId
-    // (some of these may have been deleted).
-    // This also equals the next id for a vertex with a given segmentId.
-    vector<uint64_t> vertexCountBySegment;
+    // The vertices created so far for each segmentId.
+    // Some of these may have been deleted and set to null_vertex().
+    vector< vector<vertex_descriptor> > verticesBySegment;
 
     void createSegmentsAndJourneys();
     void createLinks();
@@ -161,6 +160,17 @@ private:
         vertex_descriptor v,
         vector< pair<vertex_descriptor, vertex_descriptor> >& adjacentVertices
     ) const;
+
+
+    // Compute paths by following oriented reads in a starting vertex.
+    // For now the paths are not stored anywhere.
+    void computePaths(uint64_t threadCount);
+    void computePathsThreadFunction(uint64_t threadId);
+    void computePath(
+        vertex_descriptor,
+        uint64_t minSegmentCoverage,
+        uint64_t minLinkCoverage
+        );
 };
 
 #endif
