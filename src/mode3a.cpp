@@ -31,6 +31,8 @@ Assembler::Assembler(
     // EXPOSE WHEN CODE STABILIZES.
     const uint64_t minLinkCoverage = 6;
     const uint64_t minTangleCoverage = 4;
+    const uint64_t minSegmentCoverageForPaths = 3;
+    const uint64_t minLinkCoverageForPaths = 3;
 
     // This requires the marker length k to be even.
     SHASTA_ASSERT((k % 2) == 0);
@@ -38,8 +40,13 @@ Assembler::Assembler(
     // This does not work with RLE.
     SHASTA_ASSERT(reads.representation == 0);
 
-    // Clear all the superbubble fags in marker graph edges -
-    // just in case we alreayd ran this before.
+    // Adjust the numbers of threads, if necessary.
+    if(threadCount == 0) {
+        threadCount = std::thread::hardware_concurrency();
+    }
+
+    // Clear all the superbubble flags in marker graph edges -
+    // just in case we already ran this before.
     for( MarkerGraph::Edge& edge: markerGraph.edges) {
         edge.isSuperBubbleEdge = 0;
     }
@@ -86,6 +93,9 @@ Assembler::Assembler(
     // Create a snapshot.
     AssemblyGraphSnapshot snapshot0(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-0", *this);
     snapshot0.write();
+
+    // Follow reads to compute assembly paths.
+    assemblyGraph.computePaths(threadCount, minSegmentCoverageForPaths, minLinkCoverageForPaths);
 
     // Simple detangle.
     assemblyGraph.simpleDetangle(minLinkCoverage, minTangleCoverage);

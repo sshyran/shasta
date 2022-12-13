@@ -5,6 +5,7 @@
 
 // Shasta.
 #include "ReadId.hpp"
+#include "MultithreadedObject.hpp"
 
 // Boost libraries.
 #include <boost/graph/adjacency_list.hpp>
@@ -103,7 +104,9 @@ public:
 
 
 
-class shasta::mode3a::AssemblyGraph : public AssemblyGraphBaseClass {
+class shasta::mode3a::AssemblyGraph :
+    public AssemblyGraphBaseClass,
+    public MultithreadedObject<shasta::mode3a::AssemblyGraph> {
 public:
     AssemblyGraph(const PackedMarkerGraph&);
     void write(const string& name) const;
@@ -164,13 +167,26 @@ private:
 
     // Compute paths by following oriented reads in a starting vertex.
     // For now the paths are not stored anywhere.
-    void computePaths(uint64_t threadCount);
+public:
+    void computePaths(
+        uint64_t threadCount,
+        uint64_t minSegmentCoverage,
+        uint64_t minLinkCoverage
+        );
+private:
     void computePathsThreadFunction(uint64_t threadId);
     void computePath(
         vertex_descriptor,
         uint64_t minSegmentCoverage,
-        uint64_t minLinkCoverage
-        );
+        uint64_t minLinkCoverage,
+        ostream& debugOut
+        ) const;
+    class ComputePathsData {
+    public:
+        uint64_t minSegmentCoverage;
+        uint64_t minLinkCoverage;
+    };
+    ComputePathsData computePathsData;
 };
 
 #endif

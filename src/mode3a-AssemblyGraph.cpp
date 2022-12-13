@@ -11,10 +11,15 @@ using namespace mode3a;
 // Standard library.
 #include "fstream.hpp"
 
+// Explicit instantiation.
+#include "MultithreadedObject.tpp"
+template class MultithreadedObject<shasta::mode3a::AssemblyGraph>;
+
 
 
 AssemblyGraph::AssemblyGraph(
     const PackedMarkerGraph& packedMarkerGraph) :
+    MultithreadedObject<AssemblyGraph>(*this),
     packedMarkerGraph(packedMarkerGraph)
 {
     createSegmentsAndJourneys();
@@ -511,27 +516,122 @@ void AssemblyGraph::findAdjacentVertices(
 
 
 
-void AssemblyGraph::computePaths(uint64_t threadCount)
+void AssemblyGraph::computePaths(
+    uint64_t threadCount,
+    uint64_t minSegmentCoverage,
+    uint64_t minLinkCoverage)
 {
     SHASTA_ASSERT(threadCount > 0);
 
+    // Store the arguments so the thread function can see them.
+    computePathsData.minSegmentCoverage = minSegmentCoverage;
+    computePathsData.minLinkCoverage = minLinkCoverage;
 
+    const uint64_t segmentCount = verticesBySegment.size();
+    const uint64_t batchSize = 10;
+    setupLoadBalancing(segmentCount, batchSize);
+    runThreads(&AssemblyGraph::computePathsThreadFunction, threadCount);
 }
 
 
 
 void AssemblyGraph::computePathsThreadFunction(uint64_t threadId)
 {
+    ofstream debugOut("ComputePathsDebug-Thread-" + to_string(threadId));
 
+    const uint64_t minSegmentCoverage = computePathsData.minSegmentCoverage;
+    const uint64_t minLinkCoverage = computePathsData.minLinkCoverage;
+
+    // Loop over all batches assigned to this thread.
+    uint64_t begin, end;
+    while(getNextBatch(begin, end)) {
+
+        // Loop over all segments assigned to this batch.
+        for(uint64_t segmentId=begin; segmentId!=end; segmentId++) {
+
+            // Loop over all vertices (replicas) of this segment.
+            for(const vertex_descriptor v: verticesBySegment[segmentId]) {
+                if(v != null_vertex()) {
+                    computePath(v, minSegmentCoverage, minLinkCoverage, debugOut);
+                }
+            }
+
+        }
+    }
 }
 
 
 
 void AssemblyGraph::computePath(
-    vertex_descriptor v,
+    vertex_descriptor vStart,
     uint64_t minSegmentCoverage,
-    uint64_t minLinkCoverage
-    )
+    uint64_t minLinkCoverage,
+    ostream& debugOut
+    ) const
 {
+    const AssemblyGraph& assemblyGraph = *this;
 
+    if(debugOut) {
+        debugOut << "Following reads at " << vertexStringId(vStart) << "\n";
+    }
+
+    // Access the start vertex.
+    SHASTA_ASSERT(vStart != null_vertex());
+    const AssemblyGraphVertex startVertex = assemblyGraph[vStart];
+
+    // The vertices we encounter when following the reads.
+    vector<vertex_descriptor> verticesEncountered;
+
+    // The tansitions we encounter when following the reads.
+    vector< pair<vertex_descriptor, vertex_descriptor> > transitionsEncountered;
+
+    // Loop over JourneyEntry's of the start vertex.
+    for(const JourneyEntry& journeyEntry: startVertex.journeyEntries) {
+        const OrientedReadId orientedReadId = journeyEntry.orientedReadId;
+
+        // Store the vertices encountered in the journey of this read.
+        const auto journey = journeys[orientedReadId.getValue()];
+        for(uint64_t position=0; position<journey.size(); position++) {
+            const vertex_descriptor v = journey[position];
+            if(v != null_vertex()) {
+                verticesEncountered.push_back(v);
+            }
+        }
+
+        // Also store the transitions.
+        for(uint64_t position=1; position<journey.size(); position++) {
+            const vertex_descriptor v0 = journey[position-1];
+            const vertex_descriptor v1 = journey[position];
+            if(v0 != null_vertex() and v1 != null_vertex()) {
+                transitionsEncountered.push_back(make_pair(v0, v1));
+            }
+        }
+    }
+
+    // Count how many times we encountered each vertex.
+    vector<uint64_t> vertexFrequency;
+    deduplicateAndCount(verticesEncountered, vertexFrequency);
+
+    // Count how many times we encountered each transition.
+    vector<uint64_t> transitionFrequency;
+    deduplicateAndCount(transitionsEncountered, transitionFrequency);
+
+    if(debugOut) {
+        for(uint64_t i=0; i<verticesEncountered.size(); i++) {
+            const vertex_descriptor v = verticesEncountered[i];
+            debugOut << vertexStringId(v) << " " << vertexFrequency[i] << "\n";
+        }
+
+        for(uint64_t i=0; i<transitionsEncountered.size(); i++) {
+            const auto& p = transitionsEncountered[i];
+            const vertex_descriptor v0 = p.first;
+            const vertex_descriptor v1 = p.second;
+            debugOut << vertexStringId(v0) << "->" << vertexStringId(v1) <<
+                " " << transitionFrequency[i] << "\n";
+        }
+    }
+
+
+    // We want to keep only the vertices with frequency at least minSegmentCoverage
+    // and transitions (edges, links) with frequency at least minLinkCoverage.
 }
