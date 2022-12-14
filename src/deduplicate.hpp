@@ -62,11 +62,64 @@ namespace shasta {
     }
 
 
+
+    // Remove duplicate elements in a vector and count occurrences of each.
+    // Keep only the ones that occur at least minCount times.
+    template<class T, class Int> void deduplicateAndCountWithThreshold(
+        vector<T>& v,
+        vector<Int>& count,
+        Int minCount
+        )
+    {
+        // Clear the count vector.
+        count.clear();
+
+        // If the given vector is empty, return now.
+        if(v.empty()) {
+            return;
+        }
+
+        // Sort the vector.
+        sort(v.begin(), v.end());
+
+        // Add elements, keeping track of the number
+        // of occurrences of each.
+        typename vector<T>::iterator output = v.begin();
+        typename vector<T>::iterator input = v.begin();
+        while(input != v.end()) {
+
+
+            // Count how many there are.
+            typename vector<T>::iterator it = input;
+            while(it!=v.end() && *it==*input) {
+                ++it;
+            }
+            const Int n = Int(it - input);
+
+            if(n >= minCount) {
+
+                // Store this element.
+                *output = *input;
+                ++output;
+
+                // Store the count.
+                count.push_back(n);
+            }
+
+            // Update our output iterator.
+            input = it;
+
+        }
+        v.resize(count.size());
+    }
+
+
+
     inline void testDeduplicateAndCount()
     {
         vector<int> v = {7, 4, 5, 7, 4, 18, 2, 4};
         vector<int> count;
-        deduplicateAndCount(v, count);
+        deduplicateAndCountWithThreshold(v, count, 2);
         SHASTA_ASSERT(v.size() == count.size());
         for(uint64_t i=0; i<v.size(); i++) {
             cout << v[i] << " " << count[i] << endl;
