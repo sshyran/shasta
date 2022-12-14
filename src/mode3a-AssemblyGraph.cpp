@@ -2,6 +2,7 @@
 #include "mode3a-AssemblyGraph.hpp"
 #include "mode3a-PackedMarkerGraph.hpp"
 #include "deduplicate.hpp"
+#include "orderPairs.hpp"
 using namespace shasta;
 using namespace mode3a;
 
@@ -613,10 +614,12 @@ void AssemblyGraph::computePath(
     deduplicateAndCount(verticesEncountered, vertexFrequency);
 
     // Count how many times we encountered each transition.
+    // Keep only the ones that appear at least minLinkCoverage times.
     vector<uint64_t> transitionFrequency;
-    deduplicateAndCount(transitionsEncountered, transitionFrequency);
+    deduplicateAndCountWithThreshold(
+        transitionsEncountered, transitionFrequency, minLinkCoverage);
 
-    if(debugOut) {
+    if(false) {
         for(uint64_t i=0; i<verticesEncountered.size(); i++) {
             const vertex_descriptor v = verticesEncountered[i];
             debugOut << vertexStringId(v) << " " << vertexFrequency[i] << "\n";
@@ -632,6 +635,71 @@ void AssemblyGraph::computePath(
     }
 
 
-    // We want to keep only the vertices with frequency at least minSegmentCoverage
-    // and transitions (edges, links) with frequency at least minLinkCoverage.
+
+    // The transitions we kept define a graph.
+
+    // Starting at the start vertex, follow the linear portion of the graph forward.
+    // Stop when we encounter a branch or a vertex seen less than minSegmentCoverage times.
+    vector<vertex_descriptor> forwardPath;
+    sort(transitionsEncountered.begin(), transitionsEncountered.end(),
+        OrderPairsByFirstOnly<vertex_descriptor, vertex_descriptor>());
+    vertex_descriptor v = vStart;
+    while(true) {
+        vector<pair<vertex_descriptor, vertex_descriptor> >::iterator it0, it1;
+        tie(it0, it1) = std::equal_range(transitionsEncountered.begin(), transitionsEncountered.end(),
+            make_pair(v, null_vertex()),
+            OrderPairsByFirstOnly<vertex_descriptor, vertex_descriptor>());
+        if( it0 == transitionsEncountered.end() or
+            it1 == transitionsEncountered.end() or
+            (it1 - it0) != 1) {
+            break;
+        }
+        v = it0->second;
+        if(v == vStart) {
+            break;
+        }
+        forwardPath.push_back(v);
+    }
+
+    if(debugOut) {
+        debugOut << "Forward path:";
+        for(const vertex_descriptor v: forwardPath) {
+            debugOut << " " << vertexStringId(v);
+        }
+        debugOut << "\n";
+    }
+
+
+
+    // Starting at the start vertex, follow the linear portion of the graph backward.
+    // Stop when we encounter a branch or a vertex seen less than minSegmentCoverage times.
+    vector<vertex_descriptor> backwardPath;
+    sort(transitionsEncountered.begin(), transitionsEncountered.end(),
+        OrderPairsBySecondOnly<vertex_descriptor, vertex_descriptor>());
+    v = vStart;
+    while(true) {
+        vector<pair<vertex_descriptor, vertex_descriptor> >::iterator it0, it1;
+        tie(it0, it1) = std::equal_range(transitionsEncountered.begin(), transitionsEncountered.end(),
+            make_pair(null_vertex(), v),
+            OrderPairsBySecondOnly<vertex_descriptor, vertex_descriptor>());
+        if( it0 == transitionsEncountered.end() or
+            it1 == transitionsEncountered.end() or
+            (it1 - it0) != 1) {
+            break;
+        }
+        v = it0->first;
+        if(v == vStart) {
+            break;
+        }
+        backwardPath.push_back(v);
+    }
+
+    if(debugOut) {
+        debugOut << "Backward path:";
+        for(const vertex_descriptor v: backwardPath) {
+            debugOut << " " << vertexStringId(v);
+        }
+        debugOut << "\n";
+    }
+
 }
