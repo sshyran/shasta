@@ -538,7 +538,8 @@ void AssemblyGraph::computePartialPaths(
 
 void AssemblyGraph::computePartialPathsThreadFunction(uint64_t threadId)
 {
-    ofstream debugOut("ComputePartialPathsDebug-Thread-" + to_string(threadId));
+    ofstream debugOut;
+    debugOut.open("ComputePartialPathsDebug-Thread-" + to_string(threadId));
 
     const uint64_t minSegmentCoverage = computePartialPathsData.minSegmentCoverage;
     const uint64_t minLinkCoverage = computePartialPathsData.minLinkCoverage;
@@ -735,4 +736,57 @@ void AssemblyGraph::writePartialPaths() const
             csv << vertexStringId(v1) << "\n";
         }
     }
+}
+
+
+
+void AssemblyGraph::analyzePartialPaths() const
+{
+    const AssemblyGraph& assemblyGraph = *this;
+
+    vector< pair<vertex_descriptor, vertex_descriptor> > forwardPairs;
+    vector< pair<vertex_descriptor, vertex_descriptor> > backwardPairs;
+    BGL_FORALL_VERTICES(v0, assemblyGraph, AssemblyGraph) {
+
+        for(const vertex_descriptor v1: assemblyGraph[v0].forwardPartialPath) {
+            forwardPairs.push_back(make_pair(v0, v1));
+        }
+
+        for(const vertex_descriptor v1: assemblyGraph[v0].backwardPartialPath) {
+            backwardPairs.push_back(make_pair(v1, v0));
+        }
+    }
+    sort(forwardPairs.begin(), forwardPairs.end());
+    sort(backwardPairs.begin(), backwardPairs.end());
+
+    // The pairs we found in both directions are the ones we want to keep.
+    vector< pair<vertex_descriptor, vertex_descriptor> > bidirectionalPairs;
+    std::set_intersection(
+        forwardPairs.begin(), forwardPairs.end(),
+        backwardPairs.begin(), backwardPairs.end(),
+        back_inserter(bidirectionalPairs));
+
+    cout << "Partial paths analysis:" << endl;
+    cout << "Number of vertices " << num_vertices(assemblyGraph) << endl;
+    cout << "Number of forward pairs " << forwardPairs.size() << endl;
+    cout << "Number of backward pairs " << backwardPairs.size() << endl;
+    cout << "Number of bidirectional pairs " << bidirectionalPairs.size() << endl;
+
+
+
+    // Write the bidirectional pairs as a Graphviz graph.
+    ofstream dot("PartialPaths.dot");
+    dot << "digraph PartialPaths {\n";
+    BGL_FORALL_VERTICES(v, assemblyGraph, AssemblyGraph) {
+        dot << "\"" << vertexStringId(v) << "\";\n";
+    }
+    for(const auto& p: bidirectionalPairs) {
+        const vertex_descriptor v0 = p.first;
+        const vertex_descriptor v1 = p.second;
+        dot << "\"" << vertexStringId(v0) << "\"->";
+        dot << "\"" << vertexStringId(v1) << "\";\n";
+    }
+
+
+    dot << "}\n";
 }

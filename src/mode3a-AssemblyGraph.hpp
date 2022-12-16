@@ -184,6 +184,7 @@ public:
         uint64_t minLinkCoverage
         );
     void writePartialPaths() const;
+    void analyzePartialPaths() const;
 private:
     void computePartialPathsThreadFunction(uint64_t threadId);
     void computePartialPath(

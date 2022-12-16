@@ -97,6 +97,7 @@ Assembler::Assembler(
     // Follow reads to compute partial paths.
     assemblyGraph.computePartialPaths(threadCount, minSegmentCoverageForPaths, minLinkCoverageForPaths);
     assemblyGraph.writePartialPaths();
+    assemblyGraph.analyzePartialPaths();
 
     // Simple detangle.
     assemblyGraph.simpleDetangle(minLinkCoverage, minTangleCoverage);
