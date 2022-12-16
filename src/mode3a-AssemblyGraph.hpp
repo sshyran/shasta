@@ -70,6 +70,14 @@ public:
 
     // The journey entries that go through this vertex.
     vector<JourneyEntry> journeyEntries;
+
+    // Partial paths for a vertex are computed
+    // by following the path entries in this vertex, forward or backward,
+    // until we encounter a divergence or low coverage.
+    // Both partial paths are stored with the closes vertex to
+    // the start vertex first.
+    vector<AssemblyGraphBaseClass::vertex_descriptor> forwardPartialPath;
+    vector<AssemblyGraphBaseClass::vertex_descriptor> backwardPartialPath;
 };
 
 
@@ -165,28 +173,31 @@ private:
     ) const;
 
 
-    // Compute paths by following oriented reads in a starting vertex.
-    // For now the paths are not stored anywhere.
+
+    // Compute partial paths by following oriented reads in a starting vertex.
+    // Each partial path is stored in its starting vertex.
+    // See AssemblyGraphVertex for more information.
 public:
-    void computePaths(
+    void computePartialPaths(
         uint64_t threadCount,
         uint64_t minSegmentCoverage,
         uint64_t minLinkCoverage
         );
+    void writePartialPaths() const;
 private:
-    void computePathsThreadFunction(uint64_t threadId);
-    void computePath(
+    void computePartialPathsThreadFunction(uint64_t threadId);
+    void computePartialPath(
         vertex_descriptor,
         uint64_t minSegmentCoverage,
         uint64_t minLinkCoverage,
         ostream& debugOut
-        ) const;
-    class ComputePathsData {
+        );
+    class ComputePartialPathsData {
     public:
         uint64_t minSegmentCoverage;
         uint64_t minLinkCoverage;
     };
-    ComputePathsData computePathsData;
+    ComputePartialPathsData computePartialPathsData;
 };
 
 #endif

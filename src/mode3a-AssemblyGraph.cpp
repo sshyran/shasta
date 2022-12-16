@@ -517,7 +517,7 @@ void AssemblyGraph::findAdjacentVertices(
 
 
 
-void AssemblyGraph::computePaths(
+void AssemblyGraph::computePartialPaths(
     uint64_t threadCount,
     uint64_t minSegmentCoverage,
     uint64_t minLinkCoverage)
@@ -525,23 +525,23 @@ void AssemblyGraph::computePaths(
     SHASTA_ASSERT(threadCount > 0);
 
     // Store the arguments so the thread function can see them.
-    computePathsData.minSegmentCoverage = minSegmentCoverage;
-    computePathsData.minLinkCoverage = minLinkCoverage;
+    computePartialPathsData.minSegmentCoverage = minSegmentCoverage;
+    computePartialPathsData.minLinkCoverage = minLinkCoverage;
 
     const uint64_t segmentCount = verticesBySegment.size();
     const uint64_t batchSize = 10;
     setupLoadBalancing(segmentCount, batchSize);
-    runThreads(&AssemblyGraph::computePathsThreadFunction, threadCount);
+    runThreads(&AssemblyGraph::computePartialPathsThreadFunction, threadCount);
 }
 
 
 
-void AssemblyGraph::computePathsThreadFunction(uint64_t threadId)
+void AssemblyGraph::computePartialPathsThreadFunction(uint64_t threadId)
 {
-    ofstream debugOut("ComputePathsDebug-Thread-" + to_string(threadId));
+    ofstream debugOut("ComputePartialPathsDebug-Thread-" + to_string(threadId));
 
-    const uint64_t minSegmentCoverage = computePathsData.minSegmentCoverage;
-    const uint64_t minLinkCoverage = computePathsData.minLinkCoverage;
+    const uint64_t minSegmentCoverage = computePartialPathsData.minSegmentCoverage;
+    const uint64_t minLinkCoverage = computePartialPathsData.minLinkCoverage;
 
     // Loop over all batches assigned to this thread.
     uint64_t begin, end;
@@ -553,7 +553,7 @@ void AssemblyGraph::computePathsThreadFunction(uint64_t threadId)
             // Loop over all vertices (replicas) of this segment.
             for(const vertex_descriptor v: verticesBySegment[segmentId]) {
                 if(v != null_vertex()) {
-                    computePath(v, minSegmentCoverage, minLinkCoverage, debugOut);
+                    computePartialPath(v, minSegmentCoverage, minLinkCoverage, debugOut);
                 }
             }
 
@@ -563,14 +563,15 @@ void AssemblyGraph::computePathsThreadFunction(uint64_t threadId)
 
 
 
-void AssemblyGraph::computePath(
+// Compute partial paths (forward and backward) starting from a given vertex.
+void AssemblyGraph::computePartialPath(
     vertex_descriptor vStart,
     uint64_t minSegmentCoverage,
     uint64_t minLinkCoverage,
     ostream& debugOut
-    ) const
+    )
 {
-    const AssemblyGraph& assemblyGraph = *this;
+    AssemblyGraph& assemblyGraph = *this;
 
     if(debugOut) {
         debugOut << "Following reads at " << vertexStringId(vStart) << "\n";
@@ -578,7 +579,13 @@ void AssemblyGraph::computePath(
 
     // Access the start vertex.
     SHASTA_ASSERT(vStart != null_vertex());
-    const AssemblyGraphVertex startVertex = assemblyGraph[vStart];
+    AssemblyGraphVertex& startVertex = assemblyGraph[vStart];
+
+    // Clear the partial paths.
+    vector<vertex_descriptor>& forwardPartialPath = startVertex.forwardPartialPath;
+    vector<vertex_descriptor>& backwardPartialPath = startVertex.backwardPartialPath;
+    forwardPartialPath.clear();
+    backwardPartialPath.clear();
 
     // The vertices we encounter when following the reads.
     vector<vertex_descriptor> verticesEncountered;
@@ -640,7 +647,6 @@ void AssemblyGraph::computePath(
 
     // Starting at the start vertex, follow the linear portion of the graph forward.
     // Stop when we encounter a branch or a vertex seen less than minSegmentCoverage times.
-    vector<vertex_descriptor> forwardPath;
     sort(transitionsEncountered.begin(), transitionsEncountered.end(),
         OrderPairsByFirstOnly<vertex_descriptor, vertex_descriptor>());
     vertex_descriptor v = vStart;
@@ -658,12 +664,12 @@ void AssemblyGraph::computePath(
         if(v == vStart) {
             break;
         }
-        forwardPath.push_back(v);
+        forwardPartialPath.push_back(v);
     }
 
     if(debugOut) {
-        debugOut << "Forward path:";
-        for(const vertex_descriptor v: forwardPath) {
+        debugOut << "Forward partial path:";
+        for(const vertex_descriptor v: forwardPartialPath) {
             debugOut << " " << vertexStringId(v);
         }
         debugOut << "\n";
@@ -673,7 +679,6 @@ void AssemblyGraph::computePath(
 
     // Starting at the start vertex, follow the linear portion of the graph backward.
     // Stop when we encounter a branch or a vertex seen less than minSegmentCoverage times.
-    vector<vertex_descriptor> backwardPath;
     sort(transitionsEncountered.begin(), transitionsEncountered.end(),
         OrderPairsBySecondOnly<vertex_descriptor, vertex_descriptor>());
     v = vStart;
@@ -691,15 +696,43 @@ void AssemblyGraph::computePath(
         if(v == vStart) {
             break;
         }
-        backwardPath.push_back(v);
+        backwardPartialPath.push_back(v);
     }
 
     if(debugOut) {
-        debugOut << "Backward path:";
-        for(const vertex_descriptor v: backwardPath) {
+        debugOut << "Backward partial path:";
+        for(const vertex_descriptor v: backwardPartialPath) {
             debugOut << " " << vertexStringId(v);
         }
         debugOut << "\n";
     }
 
+}
+
+
+
+void AssemblyGraph::writePartialPaths() const
+{
+    const AssemblyGraph& assemblyGraph = *this;
+
+    ofstream csv("PartialPaths.csv");
+    csv << "Start,Direction,Position,Vertex\n";
+
+    BGL_FORALL_VERTICES(v0, assemblyGraph, AssemblyGraph) {
+        const AssemblyGraphVertex& vertex0 = assemblyGraph[v0];
+
+        for(uint64_t position=0; position<vertex0.forwardPartialPath.size(); position++) {
+            const vertex_descriptor v1 = vertex0.forwardPartialPath[position];
+            csv << vertexStringId(v0) << ",Forward,";
+            csv << position << ",";
+            csv << vertexStringId(v1) << "\n";
+        }
+
+        for(uint64_t position=0; position<vertex0.backwardPartialPath.size(); position++) {
+            const vertex_descriptor v1 = vertex0.backwardPartialPath[position];
+            csv << vertexStringId(v0) << ",Backward,";
+            csv << position << ",";
+            csv << vertexStringId(v1) << "\n";
+        }
+    }
 }

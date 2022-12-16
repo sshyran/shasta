@@ -94,8 +94,9 @@ Assembler::Assembler(
     AssemblyGraphSnapshot snapshot0(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-0", *this);
     snapshot0.write();
 
-    // Follow reads to compute assembly paths.
-    assemblyGraph.computePaths(threadCount, minSegmentCoverageForPaths, minLinkCoverageForPaths);
+    // Follow reads to compute partial paths.
+    assemblyGraph.computePartialPaths(threadCount, minSegmentCoverageForPaths, minLinkCoverageForPaths);
+    assemblyGraph.writePartialPaths();
 
     // Simple detangle.
     assemblyGraph.simpleDetangle(minLinkCoverage, minTangleCoverage);
