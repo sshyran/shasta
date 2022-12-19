@@ -111,13 +111,6 @@ public:
     class ComputeJourneysData {
     public:
 
-        // Keep track of the segment each marker graph edge corresponds to.
-        // For each marker graph edge, store in the marker graph edge table
-        // the corresponding segment id, if any.
-        // Indexed by the edge id in the marker graph.
-        // This is needed when computing oriented read journeys below.
-        MemoryMapped::Vector<uint64_t> markerGraphEdgeTable;
-
         // In passes 1 and 2, we create pairs(ordinal, segmentId)
         // for each oriented read.
         // Indexed by OrientedReadId::getValue().
@@ -132,8 +125,6 @@ public:
         vector< vector<uint64_t> > journeys;
     };
     ComputeJourneysData computeJourneysData;
-    void createMarkerGraphEdgeTable(uint64_t threadCount);
-    void createMarkerGraphEdgeTableThreadFunction(uint64_t threadId);
     void computeJourneysPass1ThreadFunction(uint64_t threadId);
     void computeJourneysPass2ThreadFunction(uint64_t threadId);
     void computeJourneysPass12ThreadFunction(uint64_t pass);

@@ -318,136 +318,9 @@ void PackedMarkerGraph::remove()
 
 
 
-void PackedMarkerGraph::createMarkerGraphEdgeTable(uint64_t threadCount)
-{
-    // Shorthand for the marker graph edge table.
-    auto& table = computeJourneysData.markerGraphEdgeTable;
-
-    // Initialize the table.
-    createNew(table, name + "-MarkerGraphEdgeTable");
-    table.resize(markerGraph.edges.size());
-    fill(table.begin(), table.end(), invalid<uint64_t>);
-
-    // Fill it in.
-    const uint64_t batchSize = 100;
-    setupLoadBalancing(segments.size(), batchSize);
-    runThreads(&PackedMarkerGraph::createMarkerGraphEdgeTableThreadFunction, threadCount);
-}
-
-
-
-void PackedMarkerGraph::createMarkerGraphEdgeTableThreadFunction(uint64_t threadId)
-{
-    auto& table = computeJourneysData.markerGraphEdgeTable;
-
-    // Loop over all batches assigned to this thread.
-    uint64_t begin, end;
-    while(getNextBatch(begin, end)) {
-
-        // Loop over all segments assigned to this batch.
-        for(uint64_t segmentId=begin; segmentId!=end; ++segmentId) {
-            const auto segment = segments[segmentId];
-
-            // Loop over the marker graph path of this segment.
-            for(const uint64_t markerGraphEdgeId: segment) {
-                table[markerGraphEdgeId] = segmentId;
-            }
-        }
-    }
-}
-
-
-
-#if 0
-// Old code, buggy.
-void PackedMarkerGraph::computeJourneys(uint64_t threadCount)
-{
-    journeys.clear();   // Just in case.
-    const uint64_t orientedReadCount = markers.size();
-    journeys.resize(orientedReadCount);
-
-    const uint64_t batchSize = 100;
-    setupLoadBalancing(orientedReadCount, batchSize);
-    runThreads(&PackedMarkerGraph::computeJourneysThreadFunction, threadCount);
-}
-
-
-
-void PackedMarkerGraph::computeJourneysThreadFunction(uint64_t threadId)
-{
-    // Work vectors for computeJourney.
-    vector<uint64_t> markerGraphVertices;
-    vector<uint64_t> markerGraphEdges;
-
-    // Loop over all batches assigned to this thread.
-    uint64_t begin, end;
-    while(getNextBatch(begin, end)) {
-        for(uint64_t i=begin; i!=end; i++) {
-            computeJourney(
-                OrientedReadId::fromValue(ReadId(i)),
-                markerGraphVertices,
-                markerGraphEdges);
-        }
-    }
-
-}
-
-
-
-void PackedMarkerGraph::computeJourney(
-    OrientedReadId orientedReadId,
-    vector<uint64_t>& markerGraphVertices,
-    vector<uint64_t>& markerGraphEdges)
-{
-    // The MarkerId interval for this oriented read.
-    const uint64_t markerIdBegin = markers.begin(orientedReadId.getValue()) - markers.begin();
-    const uint64_t markerIdEnd = markers.end(orientedReadId.getValue()) - markers.begin();
-
-    // Get the sequence of marker graph vertices encountered by this read.
-    markerGraphVertices.clear();
-    for(uint64_t markerId=markerIdBegin; markerId!=markerIdEnd; markerId++) {
-        const MarkerGraph::CompressedVertexId compressedVertexId = markerGraph.vertexTable[markerId];
-        if(compressedVertexId != MarkerGraph::invalidCompressedVertexId) {
-            markerGraphVertices.push_back(compressedVertexId);
-        }
-    }
-
-    // Get the sequence of marker graph edges encountered by this read.
-    markerGraphEdges.clear();
-    for(uint64_t i=1; i<markerGraphVertices.size(); i++) {
-        const uint64_t vertexId0 = markerGraphVertices[i-1];
-        const uint64_t vertexId1 = markerGraphVertices[i];
-        const MarkerGraph::Edge* edge = markerGraph.findEdge(Uint40(vertexId0), Uint40(vertexId1));
-        if(edge and not edge->wasRemoved()) {
-            const uint64_t edgeId = edge - &markerGraph.edges[0];
-            markerGraphEdges.push_back(edgeId);
-        }
-    }
-
-
-    // Now we can use the markerGraphEdgeTable to compute the journey.
-    vector<uint64_t>& journey = journeys[orientedReadId.getValue()];
-    journey.clear();
-    for(const uint64_t markerGraphEdgeId: markerGraphEdges) {
-        const uint64_t segmentId = markerGraphEdgeTable[markerGraphEdgeId];
-        if(segmentId != invalid<uint64_t>) {
-            if(journey.empty() or segmentId != journey.back()) {
-                journey.push_back(segmentId);
-            }
-        }
-    }
-}
-#endif
-
-
-
 void PackedMarkerGraph::computeJourneys(uint64_t threadCount)
 {
     auto& data = computeJourneysData;
-
-    // The marker graph edge table gives the segmentId that each
-    // marker graph edge is on, or invalid<uint64_t> if none.
-    createMarkerGraphEdgeTable(threadCount);
 
     // Compute the journey pairs for each oriented read id.
     const uint64_t orientedReadCount = markers.size();
@@ -460,9 +333,6 @@ void PackedMarkerGraph::computeJourneys(uint64_t threadCount)
     setupLoadBalancing(segments.size(), batchSize);
     runThreads(&PackedMarkerGraph::computeJourneysPass2ThreadFunction, threadCount);
     data.journeyPairs.endPass2(true, true);
-
-    // We no longer need the marker graph edge table.
-    data.markerGraphEdgeTable.remove();
 
     // For each oriented read, sort the journey pairs and use them to compute the journeys.
     // The journeys are temporarily stored in data.journeys.
