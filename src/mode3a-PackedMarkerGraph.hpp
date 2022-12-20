@@ -111,6 +111,26 @@ public:
     class ComputeJourneysData {
     public:
 
+        // In passes 1 and 2, we compute the journey of
+        // each oriented read in the marker graph - that is,
+        // the sequence of marker graph edges it encounters.
+        // Indexed by OrientedReadId::getValue().
+        class MarkerGraphJourneyStep {
+        public:
+            uint64_t segmentId;
+            uint64_t positionInSegment;
+            uint64_t markerGraphEdgeId;
+            uint32_t ordinal0;
+            uint32_t ordinal1;
+
+            // Order by position in the oriented read.
+            bool operator<(const MarkerGraphJourneyStep& that) const
+            {
+                return ordinal0 < that.ordinal0;
+            }
+        };
+        MemoryMapped::VectorOfVectors<MarkerGraphJourneyStep, uint64_t> markerGraphJourneys;
+
         // In passes 1 and 2, we create pairs(ordinal, segmentId)
         // for each oriented read.
         // Indexed by OrientedReadId::getValue().
