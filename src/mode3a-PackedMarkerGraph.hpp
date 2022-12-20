@@ -123,8 +123,8 @@ public:
 
 
     // The journey of an oriented read is the sequence of segments it encounters.
+    // For each segment we also store some additional information (see class JourneyStep above).
     // Indexed by OrientedReadId::getValue().
-    MemoryMapped::VectorOfVectors<uint64_t, uint64_t> journeys;
     MemoryMapped::VectorOfVectors<JourneyStep, uint64_t> detailedJourneys;
     void computeJourneys(uint64_t threadCount);
     class ComputeJourneysData {
@@ -149,19 +149,6 @@ public:
             }
         };
         MemoryMapped::VectorOfVectors<MarkerGraphJourneyStep, uint64_t> markerGraphJourneys;
-
-        // In passes 1 and 2, we create pairs(ordinal, segmentId)
-        // for each oriented read.
-        // Indexed by OrientedReadId::getValue().
-        // We do this by looping over the marker graph edges of each segment.
-        // Pass 1 is for counting and pass 2 is for storing.
-        // These pairs can contain duplicates.
-        MemoryMapped::VectorOfVectors<pair<uint32_t, uint64_t>, uint64_t> journeyPairs;
-
-        // Temporary storage of the journeys of each oriented read.
-        // Indexed by OrientedReadId::getValue().
-        // This is created in pass 3.
-        vector< vector<uint64_t> > journeys;
 
         // More detailed representation of the journeys.
         vector< vector<JourneyStep> > detailedJourneys;

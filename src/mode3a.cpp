@@ -29,8 +29,6 @@ Assembler::Assembler(
     markerGraph(markerGraph)
 {
     // EXPOSE WHEN CODE STABILIZES.
-    const uint64_t minLinkCoverage = 6;
-    const uint64_t minTangleCoverage = 4;
     const uint64_t minSegmentCoverageForPaths = 3;
     const uint64_t minLinkCoverageForPaths = 3;
 
@@ -99,6 +97,10 @@ Assembler::Assembler(
     assemblyGraph.writePartialPaths();
     assemblyGraph.analyzePartialPaths();
 
+#if 0
+    const uint64_t minLinkCoverage = 6;
+    const uint64_t minTangleCoverage = 4;
+
     // Simple detangle.
     assemblyGraph.simpleDetangle(minLinkCoverage, minTangleCoverage);
     cout << "After simple detangling, the AssemblyGraph has " <<
@@ -108,6 +110,7 @@ Assembler::Assembler(
     // Create a snapshot.
     AssemblyGraphSnapshot snapshot1(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-1", *this);
     snapshot1.write();
+#endif
 
 }
 
