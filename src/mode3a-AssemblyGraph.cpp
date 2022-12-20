@@ -46,10 +46,10 @@ void AssemblyGraph::createSegmentsAndJourneys()
     // Initially, we construct it from the corresponding journey
     // in the PackedMarkerGraph.
     // While constructing the journeys, we also store journey entries in the vertices.
-    journeys.resize(packedMarkerGraph.detailedJourneys.size());
+    journeys.resize(packedMarkerGraph.journeys.size());
     for(uint64_t i=0; i<journeys.size(); i++) {
         const OrientedReadId orientedReadId = OrientedReadId::fromValue(ReadId(i));
-        const auto packedMarkerGraphJourney = packedMarkerGraph.detailedJourneys[i];
+        const auto packedMarkerGraphJourney = packedMarkerGraph.journeys[i];
         auto& journey = journeys[i];
         for(uint64_t position=0; position<packedMarkerGraphJourney.size(); position++) {
             const uint64_t segmentId = packedMarkerGraphJourney[position].segmentId;

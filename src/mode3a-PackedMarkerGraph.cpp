@@ -336,7 +336,7 @@ void PackedMarkerGraph::computeJourneys(uint64_t threadCount)
 
     // For each oriented read, sort the journey pairs and use them to compute the journeys.
     // The journeys are temporarily stored in data.detailedJourneys.
-    data.detailedJourneys.resize(orientedReadCount);
+    data.journeys.resize(orientedReadCount);
     setupLoadBalancing(orientedReadCount, batchSize);
     runThreads(&PackedMarkerGraph::computeJourneysPass3ThreadFunction, threadCount);
 
@@ -344,21 +344,21 @@ void PackedMarkerGraph::computeJourneys(uint64_t threadCount)
     data.markerGraphJourneys.remove();
 
     // Copy the journeys to their permanent location in mapped memory.
-    createNew(detailedJourneys, name + "-DetailedJourneys");
-    for(const auto& detailedJourney: data.detailedJourneys) {
-        detailedJourneys.appendVector(detailedJourney);
+    createNew(journeys, name + "-Journeys");
+    for(const auto& detailedJourney: data.journeys) {
+        journeys.appendVector(detailedJourney);
     }
 
     // We no longer need the temporary copy of the journeys.
-    data.detailedJourneys.clear();
-    data.detailedJourneys.shrink_to_fit();
+    data.journeys.clear();
+    data.journeys.shrink_to_fit();
 }
 
 
 
 void PackedMarkerGraph::accessJourneys()
 {
-    accessExistingReadOnly(detailedJourneys, name + "-DetailedJourneys");
+    accessExistingReadOnly(journeys, name + "-Journeys");
 }
 
 
@@ -431,7 +431,7 @@ void PackedMarkerGraph::computeJourneysPass3ThreadFunction(uint64_t threadId)
             sort(markerGraphJourney.begin(), markerGraphJourney.end());
 
             // Use the marker graph journey to compute the detailed journey for this read.
-            vector<JourneyStep>& detailedJourney = data.detailedJourneys[i];
+            vector<JourneyStep>& journey = data.journeys[i];
             JourneyStep journeyStep;
             for(uint64_t j=0; j<markerGraphJourney.size(); j++) {
                 const auto& markerGraphJourneyStep =  markerGraphJourney[j];
@@ -449,7 +449,7 @@ void PackedMarkerGraph::computeJourneysPass3ThreadFunction(uint64_t threadId)
                     markerGraphJourney[j+1].segmentId !=journeyStep.segmentId) {
                     journeyStep.positions[1] = markerGraphJourneyStep.positionInSegment + 1;
                     journeyStep.ordinals[1] = markerGraphJourneyStep.ordinal1;
-                    detailedJourney.push_back(journeyStep);
+                    journey.push_back(journeyStep);
                 }
             }
         }
@@ -465,22 +465,22 @@ void PackedMarkerGraph::writeJourneys() const
     ofstream csv2(name + "-DetailedJourneys.csv");
     csv2 << "OrientedReadId,PositionInJourney,SegmentId,FirstPosition,LastPosition,FirstOrdinal,LastOrdinal\n";
 
-    for(uint64_t i=0; i<detailedJourneys.size(); i++) {
+    for(uint64_t i=0; i<journeys.size(); i++) {
         const OrientedReadId orientedReadId = OrientedReadId::fromValue(ReadId(i));
-        const auto detailedJourney = detailedJourneys[i];
+        const auto journey = journeys[i];
 
         csv1 << orientedReadId << ",";
 
-        for(uint64_t position=0; position<detailedJourney.size(); position++) {
-            csv1 << detailedJourney[position].segmentId << ",";
+        for(uint64_t position=0; position<journey.size(); position++) {
+            csv1 << journey[position].segmentId << ",";
 
             csv2 << orientedReadId << ",";
             csv2 << position << ",";
-            csv2 << detailedJourney[position].segmentId << ",";
-            csv2 << detailedJourney[position].positions[0] << ",";
-            csv2 << detailedJourney[position].positions[1] << ",";
-            csv2 << detailedJourney[position].ordinals[0] << ",";
-            csv2 << detailedJourney[position].ordinals[1] << "\n";
+            csv2 << journey[position].segmentId << ",";
+            csv2 << journey[position].positions[0] << ",";
+            csv2 << journey[position].positions[1] << ",";
+            csv2 << journey[position].ordinals[0] << ",";
+            csv2 << journey[position].ordinals[1] << "\n";
         }
         csv1 << "\n";
     }
