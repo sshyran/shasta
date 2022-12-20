@@ -487,7 +487,7 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
 
     // Access some information for this segment.
     const auto path = snapshot.packedMarkerGraph.segments[segmentId];
-    const auto sequence = snapshot.packedMarkerGraph.segmentSequences[segmentId];
+    const auto sequence = snapshot.packedMarkerGraph.segmentCompleteSequence(segmentId);
     const auto journeyEntries = snapshot.vertexJourneyEntries[vertexId];
 
 
@@ -503,7 +503,7 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
         "<p><table>"
         "<tr><th class=left>Length of marker graph path<td class=centered>" <<
         path.size() <<
-        "<tr><th class=left>Length of assembled sequence<td class=centered>" <<
+        "<tr><th class=left>Length of complete assembled sequence<td class=centered>" <<
         sequence.size() <<
         "<tr><th class=left>Average marker graph edge coverage<td class=centered>" <<
         snapshot.packedMarkerGraph.averageMarkerGraphEdgeCoverage(segmentId) <<
@@ -580,11 +580,6 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
 
 
 
-    if(showSequence) {
-
-    }
-
-
     // Assembled sequence with details.
     if(showSequence or showSequenceDetails) {
 
@@ -604,7 +599,7 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
         // Check that the sequence we have is the same as the stored sequence
         // for this segment.
         SHASTA_ASSERT(std::equal(
-            assembledSegment.rawSequence.begin() + k/2, assembledSegment.rawSequence.end() - k/2,
+            assembledSegment.rawSequence.begin(), assembledSegment.rawSequence.end(),
             sequence.begin(), sequence.end()));
 
         // Write the sequence.
@@ -616,8 +611,7 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
         }
         if(showSequenceDetails) {
             html <<
-                "<br>Assembly details below include the first/last " << k/2 << " bases "
-                " of the first/last marker graph vertex in the path.";
+                "<h1>Assembly details</h1>";
             assembledSegment.writeHtml(html, true, true,
                 0, uint32_t(assembledSegment.rawSequence.size()));
         }

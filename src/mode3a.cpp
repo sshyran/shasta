@@ -55,7 +55,7 @@ Assembler::Assembler(
     cout << "The initial PackedMarkerGraph has " <<
         packedMarkerGraph->segments.size() << " segments, " <<
         packedMarkerGraph->links.size() << " links, and " <<
-        packedMarkerGraph->segmentSequences.totalSize() <<
+        packedMarkerGraph->totalSegmentLength() <<
         " bases of assembled sequence." << endl;
     packedMarkerGraph->writeGfa();
 
@@ -73,7 +73,7 @@ Assembler::Assembler(
     cout << "After bubble cleanup, the PackedMarkerGraph has " <<
         packedMarkerGraph->segments.size() << " segments, " <<
         packedMarkerGraph->links.size() << " links, and " <<
-        packedMarkerGraph->segmentSequences.totalSize() <<
+        packedMarkerGraph->totalSegmentLength() <<
         " bases of assembled sequence." << endl;
     packedMarkerGraph->writeSegments();
     packedMarkerGraph->writeGfa();

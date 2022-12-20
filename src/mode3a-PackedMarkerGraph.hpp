@@ -66,8 +66,34 @@ public:
     // Assembled sequence of each segment.
     // This stores, for each segment, the sequence from the AssembledSegment
     // with the first and last k/2 bases removed.
+private:
     MemoryMapped::VectorOfVectors<Base, uint64_t> segmentSequences;
+public:
     void assembleSegmentSequences();
+
+    // Accessors for the segment sequences.
+    // The first one returns the complete sequence as stored and as obtained from
+    // the AssembledSegment. It includes the entire sequences of the first
+    // and last vertex of the segment.
+    span<const Base> segmentCompleteSequence(uint64_t segmentId) const
+    {
+        return segmentSequences[segmentId];
+    }
+
+    // This returns the sequence with the first and last k/2 bases removed.
+    span<const Base> segmentClippedSequence(uint64_t segmentId) const
+    {
+        return span<const Base>(
+            segmentSequences.begin(segmentId) + k/2,
+            segmentSequences.end  (segmentId) - k/2);
+    }
+
+    uint64_t totalSegmentLength() const
+    {
+        return segmentSequences.totalSize();
+    }
+
+
 
     // A link between segments s0 and s1 is created if
     // the last marker graph vertex of s0 coincides with the

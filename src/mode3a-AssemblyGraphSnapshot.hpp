@@ -125,9 +125,6 @@ public:
         string& message
     ) const;
 
-    // Get the length of assembled sequence for a vertex.
-    uint64_t getVertexAssembledSequenceLength(uint64_t vertexId) const;
-
 
 
     // Analyze the simple tangle at a given vertex vertexId1 by

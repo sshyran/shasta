@@ -195,15 +195,6 @@ string AssemblyGraphSnapshot::vertexStringId(uint64_t vertexId) const
 
 
 
-// Get the length of assembled sequence for a vertex.
-uint64_t AssemblyGraphSnapshot::getVertexAssembledSequenceLength(uint64_t vertexId) const
-{
-    const Vertex& vertex = vertexVector[vertexId];
-    return packedMarkerGraph.segmentSequences[vertex.segmentId].size();
-}
-
-
-
 void AssemblyGraphSnapshot::getEdgeTransitions(
     uint64_t edgeId,
     vector<Transition>& transitions) const
@@ -310,7 +301,7 @@ void AssemblyGraphSnapshot::writeGfa(uint64_t minLinkCoverage) const
 
     // Write the vertices.
     for(const Vertex& vertex: vertexVector) {
-        const span<const Base> sequence = packedMarkerGraph.segmentSequences[vertex.segmentId];
+        const span<const Base> sequence = packedMarkerGraph.segmentClippedSequence(vertex.segmentId);
         gfa <<"S\t" << vertex.stringId() << "\t";
         copy(sequence.begin(), sequence.end(), ostream_iterator<Base>(gfa));
         gfa << "\n";

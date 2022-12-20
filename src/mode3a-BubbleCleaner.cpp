@@ -77,7 +77,7 @@ void BubbleCleanerEdge::assembledSequence(
     sequence.clear();
     for(const uint64_t segmentId: segments) {
         const span<const Base> segmentSequence =
-            packedMarkerGraph.segmentSequences[segmentId];
+            packedMarkerGraph.segmentClippedSequence(segmentId);
         copy(segmentSequence.begin(), segmentSequence.end(), back_inserter(sequence));
 
     }

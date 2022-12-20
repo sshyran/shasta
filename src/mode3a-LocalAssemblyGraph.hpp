@@ -2,7 +2,7 @@
 #define SHASTA_MODE3A_LOCAL_ASSEMBLY_GRAPH_HPP
 
 // Shasta.
-#include "mode3a-LocalAssemblyGraph.hpp"
+#include "Base.hpp"
 
 // Boost libraries.
 #include <boost/geometry/geometries/point_xy.hpp>
@@ -12,6 +12,7 @@
 
 // Standard library.
 #include "iosfwd.hpp"
+#include "span.hpp"
 #include "string.hpp"
 #include "vector.hpp"
 
@@ -92,7 +93,7 @@ public:
         uint64_t segmentId,
         uint64_t distance);
 
-    uint64_t getVertexAssembledSequenceLength(vertex_descriptor) const;
+    span<const shasta::Base> vertexCompleteSequence(vertex_descriptor) const;
 
 
     class SvgOptions {

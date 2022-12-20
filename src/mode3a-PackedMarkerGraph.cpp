@@ -233,8 +233,8 @@ void PackedMarkerGraph::assembleSegmentSequences()
             assembledSegment);
 
         segmentSequences.appendVector(
-            assembledSegment.rawSequence.begin() + k/2,
-            assembledSegment.rawSequence.end()   - k/2);
+            assembledSegment.rawSequence.begin(),
+            assembledSegment.rawSequence.end());
     }
 }
 
@@ -259,9 +259,9 @@ void PackedMarkerGraph::writeGfa() const
     // Write the segments.
     for(uint64_t segmentId=0; segmentId<segmentSequences.size(); segmentId++) {
 
-        const auto sequence = segmentSequences[segmentId];
+        const auto sequence = segmentClippedSequence(segmentId);
         gfa <<"S\t" << segmentId << "\t";
-        copy(sequence.begin()+k/2, sequence.end()-k/2, ostream_iterator<Base>(gfa));
+        copy(sequence.begin(), sequence.end(), ostream_iterator<Base>(gfa));
         gfa << "\n";
 
         const auto path = segments[segmentId];
@@ -295,6 +295,7 @@ void PackedMarkerGraph::writeSegments()
     }
 
 }
+
 
 
 void PackedMarkerGraph::remove()

@@ -6,6 +6,7 @@
 #include "HttpServer.hpp"
 #include "invalid.hpp"
 #include "mode3a-AssemblyGraphSnapshot.hpp"
+#include "mode3a-PackedMarkerGraph.hpp"
 #include "MurmurHash2.hpp"
 #include "writeGraph.hpp"
 using namespace shasta;
@@ -154,13 +155,14 @@ LocalAssemblyGraph::vertex_descriptor LocalAssemblyGraph::addVertex(
 
 
 
-uint64_t LocalAssemblyGraph::getVertexAssembledSequenceLength(vertex_descriptor v) const
+span<const Base> LocalAssemblyGraph::vertexCompleteSequence(vertex_descriptor v) const
 {
     const LocalAssemblyGraph& localAssemblyGraph = *this;
     const LocalAssemblyGraphVertex& localAssemblyGraphVertex = localAssemblyGraph[v];
     const uint64_t assemblyGraphSnapshotVertexId = localAssemblyGraphVertex.vertexId;
+    const uint64_t segmentId = assemblyGraphSnapshot.vertexVector[assemblyGraphSnapshotVertexId].segmentId;
 
-    return assemblyGraphSnapshot.getVertexAssembledSequenceLength(assemblyGraphSnapshotVertexId);
+    return assemblyGraphSnapshot.packedMarkerGraph.segmentCompleteSequence(segmentId);
 }
 
 
@@ -641,7 +643,7 @@ void LocalAssemblyGraph::computeLayout(
     std::map<G::edge_descriptor, double> edgeLengthMap;
     BGL_FORALL_VERTICES(v, localAssemblyGraph, LocalAssemblyGraph) {
 
-        const uint64_t assembledSequenceLength = localAssemblyGraph.getVertexAssembledSequenceLength(v);
+        const uint64_t assembledSequenceLength = localAssemblyGraph.vertexCompleteSequence(v).size();
         const double auxiliaryEdgeLength =
             (options.minimumSegmentLength +
             double(assembledSequenceLength) * options.additionalSegmentLengthPerBase) /
