@@ -341,10 +341,11 @@ void PackedMarkerGraph::computeJourneys(uint64_t threadCount)
     // For each oriented read, sort the journey pairs and use them to compute the journeys.
     // The journeys are temporarily stored in data.journeys.
     data.journeys.resize(orientedReadCount);
+    data.detailedJourneys.resize(orientedReadCount);
     setupLoadBalancing(orientedReadCount, batchSize);
     runThreads(&PackedMarkerGraph::computeJourneysPass3ThreadFunction, threadCount);
 
-    // We no longer need the marker graph journeys..
+    // We no longer need the marker graph journeys.
     data.journeyPairs.remove();
     data.markerGraphJourneys.remove();
 
@@ -352,6 +353,21 @@ void PackedMarkerGraph::computeJourneys(uint64_t threadCount)
     createNew(journeys, name + "-Journeys");
     for(const auto& journey: data.journeys) {
         journeys.appendVector(journey);
+    }
+    createNew(detailedJourneys, name + "-DetailedJourneys");
+    for(const auto& detailedJourney: data.detailedJourneys) {
+        detailedJourneys.appendVector(detailedJourney);
+    }
+
+    // Check the the journeys and the detailed journeys agree.
+    SHASTA_ASSERT(journeys.size() == detailedJourneys.size());
+    for(uint64_t i=0; i<journeys.size(); i++) {
+        const auto journey = journeys[i];
+        const auto detailedJourney = detailedJourneys[i];
+        SHASTA_ASSERT(journey.size() == detailedJourney.size());
+        for(uint64_t j=0; j<journey.size(); j++) {
+            SHASTA_ASSERT(journey[j] == detailedJourney[j].segmentId);
+        }
     }
 
     // We no longer need the temporary copy of the journeys.
@@ -364,6 +380,7 @@ void PackedMarkerGraph::computeJourneys(uint64_t threadCount)
 void PackedMarkerGraph::accessJourneys()
 {
     accessExistingReadOnly(journeys, name + "-Journeys");
+    accessExistingReadOnly(detailedJourneys, name + "-DetailedJourneys");
 }
 
 
@@ -463,12 +480,44 @@ void PackedMarkerGraph::computeJourneysPass3ThreadFunction(uint64_t threadId)
                 SHASTA_ASSERT(journeyPairs[i].second == markerGraphJourney[i].segmentId);
             }
 
+            // Use the journeyPairs to compute the journey for this oriented read.
             vector<uint64_t>& journey = data.journeys[i];
             for(const auto& journeyPair: journeyPairs) {
                 const uint64_t segmentId = journeyPair.second;
                 if(journey.empty() or segmentId != journey.back()) {
                     journey.push_back(segmentId);
                 }
+            }
+
+
+
+            // Use the marker graph journey to compute the detailed journey for this read.
+            vector<JourneyStep>& detailedJourney = data.detailedJourneys[i];
+            JourneyStep journeyStep;
+            for(uint64_t j=0; j<markerGraphJourney.size(); j++) {
+                const auto& markerGraphJourneyStep =  markerGraphJourney[j];
+
+                // If this is the first step in a segment, initialize the JourneyStep.
+                if( j==0 or
+                    markerGraphJourneyStep.segmentId !=journeyStep.segmentId) {
+                    journeyStep.segmentId = markerGraphJourneyStep.segmentId;
+                    journeyStep.positions[0] = markerGraphJourneyStep.positionInSegment;
+                    journeyStep.ordinals[0] = markerGraphJourneyStep.ordinal0;
+                }
+
+                // If this is the last step in a segment, finalize the JourneyStep and store it.
+                if(j==markerGraphJourney.size()-1 or
+                    markerGraphJourney[j+1].segmentId !=journeyStep.segmentId) {
+                    journeyStep.positions[1] = markerGraphJourneyStep.positionInSegment + 1;
+                    journeyStep.ordinals[1] = markerGraphJourneyStep.ordinal1;
+                    detailedJourney.push_back(journeyStep);
+                }
+            }
+
+            // Check that the journey and the detailedJourney agree.
+            SHASTA_ASSERT(journey.size() == detailedJourney.size());
+            for(uint64_t j=0; j<journey.size(); j++) {
+                SHASTA_ASSERT(journey[j] == detailedJourney[j].segmentId);
             }
         }
     }

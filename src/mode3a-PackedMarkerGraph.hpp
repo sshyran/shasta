@@ -5,6 +5,7 @@
 
 // Shasta.
 #include "Base.hpp"
+#include "invalid.hpp"
 #include "MappedMemoryOwner.hpp"
 #include "MemoryMappedVectorOfVectors.hpp"
 #include "MultithreadedObject.hpp"
@@ -104,9 +105,27 @@ public:
 
 
 
+    // Class used to store a detailed representation of the journeys.
+    class JourneyStep {
+    public:
+        uint64_t segmentId = invalid<uint64_t>;
+
+        // The oriented read appears in a number of marker graph edges in this segment.
+        // We store information on the source vertex of the first of those edges
+        // and the target vertex of the last of those edges.
+        // For each of those two vertices, we store the position of the vertex
+        // in the segment and the ordinal of the oriented read in the vertex.
+        array<uint64_t, 2> positions;
+        array<uint32_t, 2> ordinals;
+
+    };
+
+
+
     // The journey of an oriented read is the sequence of segments it encounters.
     // Indexed by OrientedReadId::getValue().
     MemoryMapped::VectorOfVectors<uint64_t, uint64_t> journeys;
+    MemoryMapped::VectorOfVectors<JourneyStep, uint64_t> detailedJourneys;
     void computeJourneys(uint64_t threadCount);
     class ComputeJourneysData {
     public:
@@ -143,6 +162,10 @@ public:
         // Indexed by OrientedReadId::getValue().
         // This is created in pass 3.
         vector< vector<uint64_t> > journeys;
+
+        // More detailed representation of the journeys.
+        vector< vector<JourneyStep> > detailedJourneys;
+
     };
     ComputeJourneysData computeJourneysData;
     void computeJourneysPass1ThreadFunction(uint64_t threadId);
