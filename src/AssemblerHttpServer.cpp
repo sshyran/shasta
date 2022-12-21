@@ -253,6 +253,7 @@ void Assembler::fillServerFunctionTable()
     SHASTA_ADD_TO_FUNCTION_TABLE(exploreMode3aAssemblyGraph);
     SHASTA_ADD_TO_FUNCTION_TABLE(exploreMode3aTangleMatrix);
     SHASTA_ADD_TO_FUNCTION_TABLE(exploreMode3aAssemblyGraphSegment);
+    SHASTA_ADD_TO_FUNCTION_TABLE(exploreMode3aAssemblyGraphLink);
 
 }
 #undef SHASTA_ADD_TO_FUNCTION_TABLE
@@ -480,6 +481,7 @@ void Assembler::writeNavigation(ostream& html) const
             writeNavigation(html, "Assembly graph", {
                 {"Local assembly graph", "exploreMode3aAssemblyGraph"},
                 {"Assembly graph segments", "exploreMode3aAssemblyGraphSegment"},
+                {"Assembly graph links", "exploreMode3aAssemblyGraphLink"},
                 {"Tangle matrix", "exploreMode3aTangleMatrix"}
                 });
         }

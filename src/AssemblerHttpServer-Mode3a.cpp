@@ -519,33 +519,45 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
 
 
 
-    // Outgoing links table.
-    html << "<h2>Outgoing links</h2><table>"
-        "<tr><th rowspan=2>Link<br>id<th rowspan=2>Coverage<th colspan=2>To segment<tr><th>Id<th>Replica";
-    for(const uint64_t linkId: snapshot.edgesBySource[vertexId]) {
+    // Incoming links table.
+    html << "<h2>Incoming links</h2><table>"
+        "<tr><th>Link<br>id<th>Coverage<th>From<br>segment";
+    for(const uint64_t linkId: snapshot.edgesByTarget[vertexId]) {
         const AssemblyGraphSnapshot::Edge& edge = snapshot.edgeVector[linkId];
-        const uint64_t vertexId1 = edge.vertexId1;
-        const AssemblyGraphSnapshot::Vertex& vertex1 = snapshot.vertexVector[vertexId1];
-        html << "<tr><td class=centered>" << linkId <<
+        const uint64_t vertexId0 = edge.vertexId0;
+        const AssemblyGraphSnapshot::Vertex& vertex0 = snapshot.vertexVector[vertexId0];
+        html << "<tr><td class=centered>" <<
+            "<a href='exploreMode3aAssemblyGraphLink?snapshotIndex=" << snapshotIndex <<
+            "&linkId=" << linkId << "'>" << linkId << "</a>"
             "<td class=centered>" << snapshot.getEdgeCoverage(linkId) <<
-            "<td class=centered>" << vertex1.segmentId <<
-            "<td class=centered>" << vertex1.segmentReplicaIndex;
+            "<td class=centered>" <<
+            "<a href='exploreMode3aAssemblyGraphSegment?snapshotIndex=" << snapshotIndex <<
+            "&segmentId=" << vertex0.segmentId <<
+            "&segmentReplicaIndex=" << vertex0.segmentReplicaIndex <<
+            "'>" <<
+            snapshot.vertexStringId(vertexId0) << "</a>";
     }
     html << "</table>";
 
 
 
-    // Incoming links table.
-    html << "<h2>Incominging links</h2><table>"
-        "<tr><th rowspan=2>Link<br>id<th rowspan=2>Coverage<th colspan=2>From segment<tr><th>Id<th>Replica";
-    for(const uint64_t linkId: snapshot.edgesByTarget[vertexId]) {
+    // Outgoing links table.
+    html << "<h2>Outgoing links</h2><table>"
+        "<tr><th>Link<br>id<th>Coverage<th>To<br>segment";
+    for(const uint64_t linkId: snapshot.edgesBySource[vertexId]) {
         const AssemblyGraphSnapshot::Edge& edge = snapshot.edgeVector[linkId];
-        const uint64_t vertexId0 = edge.vertexId0;
-        const AssemblyGraphSnapshot::Vertex& vertex0 = snapshot.vertexVector[vertexId0];
-        html << "<tr><td class=centered>" << linkId <<
+        const uint64_t vertexId1 = edge.vertexId1;
+        const AssemblyGraphSnapshot::Vertex& vertex1 = snapshot.vertexVector[vertexId1];
+        html << "<tr><td class=centered>" <<
+            "<a href='exploreMode3aAssemblyGraphLink?snapshotIndex=" << snapshotIndex <<
+            "&linkId=" << linkId << "'>" << linkId << "</a>"
             "<td class=centered>" << snapshot.getEdgeCoverage(linkId) <<
-            "<td class=centered>" << vertex0.segmentId <<
-            "<td class=centered>" << vertex0.segmentReplicaIndex;
+            "<td class=centered>" <<
+            "<a href='exploreMode3aAssemblyGraphSegment?snapshotIndex=" << snapshotIndex <<
+            "&segmentId=" << vertex1.segmentId <<
+            "&segmentReplicaIndex=" << vertex1.segmentReplicaIndex <<
+            "'>" <<
+            snapshot.vertexStringId(vertexId1) << "</a>";
     }
     html << "</table>";
 
@@ -651,4 +663,97 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
 
 }
 
+
+
+void Assembler::exploreMode3aAssemblyGraphLink(
+    const vector<string>& request,
+    ostream& html)
+{
+#if 0
+    // Access the PackedMarkerGraph
+    auto packedMarkerGraphPointer = mode3aAssemblyData.packedMarkerGraph;
+    SHASTA_ASSERT(packedMarkerGraphPointer);
+    mode3a::PackedMarkerGraph& packedMarkerGraph = *packedMarkerGraphPointer;
+
+    const auto k = assemblerInfo->k;
+#endif
+
+
+
+    // Get request parameters.
+    uint64_t snapshotIndex = 0;
+    getParameterValue(request, "snapshotIndex", snapshotIndex);
+
+    uint64_t linkId;
+    const bool linkIdIsPresent = getParameterValue(request, "linkId", linkId);
+
+
+    // Write the form.
+    html <<
+        "<h2>Display details of an assembly graph link</h2>"
+        "<form>"
+        "<table>"
+
+        "<tr>"
+        "<td>Snapshot index"
+        "<td class=centered><input type=text required name=snapshotIndex size=8 style='text-align:center'"
+        " value='" << snapshotIndex <<
+        "'>"
+
+        "<tr>"
+        "<td class=left>Link id<td>"
+        "<input type=text required name=linkId size=8 style='text-align:center'"
+        " value='" << (linkIdIsPresent ? to_string(linkId) : "") <<
+        "'>"
+
+        "</table>"
+        "<br><input type=submit value='Display'>"
+        "</form>";
+
+    // If the linkId was not specified, stop here.
+    if(not linkIdIsPresent) {
+        return;
+    }
+
+    // Access the requested snapshot.
+    const uint64_t snapshotCount = mode3aAssemblyData.assemblyGraphSnapshots.size();
+    if(snapshotIndex >= snapshotCount) {
+        html << "<br>Invalid snapshot index. The number of available snapshots is " << snapshotCount <<
+            ". Valid snapshot indexes are 0 through " << snapshotCount - 1 << ".";
+        return;
+    }
+    const AssemblyGraphSnapshot& snapshot = *mode3aAssemblyData.assemblyGraphSnapshots[snapshotIndex];
+
+    // Check that we have a valid linkId.
+    if(linkId >= snapshot.edgeVector.size()) {
+        html << "Invalid link id. Maximum valid value is " <<
+            snapshot.edgeVector.size() - 1 << ".";
+        return;
+    }
+
+
+
+    // All is good, display information about this link.
+    const AssemblyGraphSnapshot::Edge& edge = snapshot.edgeVector[linkId];
+    const AssemblyGraphSnapshot::Vertex& vertex0 = snapshot.vertexVector[edge.vertexId0];
+    const AssemblyGraphSnapshot::Vertex& vertex1 = snapshot.vertexVector[edge.vertexId1];
+
+    html << "<h1>Snapshot " << snapshotIndex << " link " << linkId << "</h1>"
+        "<table>"
+        "<tr><th>From"
+        "<td class=centered>" <<
+        "<a href='exploreMode3aAssemblyGraphSegment?snapshotIndex=" << snapshotIndex <<
+        "&segmentId=" << vertex0.segmentId <<
+        "&segmentReplicaIndex=" << vertex0.segmentReplicaIndex <<
+        "'>" << snapshot.vertexStringId(edge.vertexId0) << "</a>"
+        "<tr><th>To"
+        "<td class=centered>" <<
+        "<a href='exploreMode3aAssemblyGraphSegment?snapshotIndex=" << snapshotIndex <<
+        "&segmentId=" << vertex1.segmentId <<
+        "&segmentReplicaIndex=" << vertex1.segmentReplicaIndex <<
+        "'>" << snapshot.vertexStringId(edge.vertexId1) << "</a>"
+        "<tr><th>Coverage<td class=centered>" << snapshot.getEdgeCoverage(linkId);
+
+
+}
 
