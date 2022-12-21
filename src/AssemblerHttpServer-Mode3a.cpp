@@ -760,6 +760,7 @@ void Assembler::exploreMode3aAssemblyGraphLink(
         "&segmentReplicaIndex=" << vertex1.segmentReplicaIndex <<
         "'>" << snapshot.vertexStringId(edge.vertexId1) << "</a>"
         "<tr><th>Coverage<td class=centered>" << transitions.size() <<
+        "<tr><th>Dotted<td class=centered>" << (snapshot.segmentsAreAdjacent(linkId) ? "No" : "Yes") <<
         "</table>";
 
 
