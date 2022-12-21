@@ -139,13 +139,15 @@ public:
         void addFormRows(ostream& html);
 
     };
-    void writeHtml(ostream& html, const SvgOptions&) const;
+    void writeHtml(ostream& html, const SvgOptions&, uint64_t snapshotIndex) const;
     void writeSvg(
         const string& fileName,
-        const SvgOptions&) const;
+        const SvgOptions&,
+        uint64_t snapshotIndex) const;
     void writeSvg(
         ostream&,
-        const SvgOptions&) const;
+        const SvgOptions&,
+        uint64_t snapshotIndex) const;
     void computeLayout(const SvgOptions&, double timeout);
     void computeSegmentTangents();
     void computeSegmentTangents(vertex_descriptor);

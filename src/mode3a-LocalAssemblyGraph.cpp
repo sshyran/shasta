@@ -167,11 +167,11 @@ span<const Base> LocalAssemblyGraph::vertexCompleteSequence(vertex_descriptor v)
 
 
 
-void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options) const
+void LocalAssemblyGraph::writeHtml(ostream& html, const SvgOptions& options, uint64_t snapshotIndex) const
 {
     // Write the svg object.
     html << "<div style='display: inline-block; vertical-align:top'>";
-    writeSvg(html, options);
+    writeSvg(html, options, snapshotIndex);
     html << "</div>";
     addSvgDragAndZoom(html);
 
@@ -365,14 +365,16 @@ function onMouseExitSegment()
 
 void LocalAssemblyGraph::writeSvg(
     const string& fileName,
-    const SvgOptions& options) const
+    const SvgOptions& options,
+    uint64_t snapshotIndex) const
 {
     ofstream svg(fileName);
-    writeSvg(svg, options);
+    writeSvg(svg, options, snapshotIndex);
 }
 void LocalAssemblyGraph::writeSvg(
     ostream& svg,
-    const SvgOptions& options
+    const SvgOptions& options,
+    uint64_t snapshotIndex
     ) const
 {
     const LocalAssemblyGraph& localAssemblyGraph = *this;
@@ -498,7 +500,9 @@ void LocalAssemblyGraph::writeSvg(
             " stroke-linecap='round'"
             " fill='transparent'"
             // " vector-effect='non-scaling-stroke'"
-            // " onclick='if(event.ctrlKey) {location.href=\"exploreMode3AssemblyGraphLink?linkId=" << linkId << "\";}'"
+            " onclick='if(event.ctrlKey) {location.href=\""
+            "exploreMode3aAssemblyGraphLink?snapshotIndex=" << snapshotIndex <<
+            "&linkId=" << edgeId << "\";}'"
             "/>"
             // "</a>"
             "</g>\n";
@@ -611,9 +615,11 @@ void LocalAssemblyGraph::writeSvg(
             " marker-end='url(#" <<
             arrowMarkerName <<
             ")'"
-            // " onclick='if(event.ctrlKey) {"
-            // "location.href=\"exploreMode3AssemblyGraphSegment?segmentId=" << segmentId <<
-            // "&showSequence=on\";}'"
+            " onclick='if(event.ctrlKey) {location.href=\""
+            "exploreMode3aAssemblyGraphSegment?"
+            "snapshotIndex=" << snapshotIndex <<
+            "&segmentId=" << snapshotVertex.segmentId <<
+            "&segmentReplicaIndex=" << snapshotVertex.segmentReplicaIndex << "\";}'"
             "><title>" << snapshotVertex.stringId() << "</title></path>\n";
         svg.precision(oldPrecision);
         svg.flags(oldFlags);

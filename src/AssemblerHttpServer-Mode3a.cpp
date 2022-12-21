@@ -139,7 +139,7 @@ void Assembler::exploreMode3aAssemblyGraph(
         localAssemblyGraph.computeSegmentTangents();
 
         // Display the local assembly graph.
-        localAssemblyGraph.writeHtml(html, options);
+        localAssemblyGraph.writeHtml(html, options, snapshotIndex);
     }
 
 
