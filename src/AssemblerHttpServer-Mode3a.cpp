@@ -669,14 +669,13 @@ void Assembler::exploreMode3aAssemblyGraphLink(
     const vector<string>& request,
     ostream& html)
 {
-#if 0
     // Access the PackedMarkerGraph
     auto packedMarkerGraphPointer = mode3aAssemblyData.packedMarkerGraph;
     SHASTA_ASSERT(packedMarkerGraphPointer);
     mode3a::PackedMarkerGraph& packedMarkerGraph = *packedMarkerGraphPointer;
 
-    const auto k = assemblerInfo->k;
-#endif
+    // const auto k = assemblerInfo->k;
+
 
 
 
@@ -733,11 +732,18 @@ void Assembler::exploreMode3aAssemblyGraphLink(
 
 
 
-    // All is good, display information about this link.
+    // Get some information about this link.
     const AssemblyGraphSnapshot::Edge& edge = snapshot.edgeVector[linkId];
     const AssemblyGraphSnapshot::Vertex& vertex0 = snapshot.vertexVector[edge.vertexId0];
     const AssemblyGraphSnapshot::Vertex& vertex1 = snapshot.vertexVector[edge.vertexId1];
+    vector<AssemblyGraphSnapshot::Transition> transitions;
+    snapshot.getEdgeTransitions(linkId, transitions);
+    const auto leftPath = packedMarkerGraph.segments[vertex0.segmentId];
+    const auto rightPath = packedMarkerGraph.segments[vertex1.segmentId];
 
+
+
+    // Write summary information.
     html << "<h1>Snapshot " << snapshotIndex << " link " << linkId << "</h1>"
         "<table>"
         "<tr><th>From"
@@ -752,7 +758,74 @@ void Assembler::exploreMode3aAssemblyGraphLink(
         "&segmentId=" << vertex1.segmentId <<
         "&segmentReplicaIndex=" << vertex1.segmentReplicaIndex <<
         "'>" << snapshot.vertexStringId(edge.vertexId1) << "</a>"
-        "<tr><th>Coverage<td class=centered>" << snapshot.getEdgeCoverage(linkId);
+        "<tr><th>Coverage<td class=centered>" << transitions.size() <<
+        "</table>";
+
+
+
+
+    // Write the transitions.
+    html << "<h2>Oriented read transitions from " <<
+        snapshot.vertexStringId(edge.vertexId0) << " to " <<
+        snapshot.vertexStringId(edge.vertexId1) << "</h2>";
+
+    html<< "<table>"
+        "<tr>"
+        "<th>Oriented<br>read<br>id"
+        "<th>Journey<br>Length"
+        "<th>Position<br>of " << snapshot.vertexStringId(edge.vertexId0) << "<br>in<br>journey"
+        "<th>Position<br>of " << snapshot.vertexStringId(edge.vertexId1) << "<br>in<br>journey";
+
+    html << "<th>Left<br>skip<br>";
+    writeInformationIcon(html,
+        "Number of marker graph edges skipped at the end of " + snapshot.vertexStringId(edge.vertexId0));
+
+    html << "<th>Right<br>skip<br>";
+    writeInformationIcon(html,
+        "Number of marker graph edges skipped at the beginning of " + snapshot.vertexStringId(edge.vertexId1));
+
+    html << "<th>Left<br>last<br>ordinal<br>";
+    writeInformationIcon(html,
+        "Last ordinal on " + snapshot.vertexStringId(edge.vertexId0));
+
+    html << "<th>Right<br>first<br>ordinal<br>";
+    writeInformationIcon(html,
+        "First ordinal on " + snapshot.vertexStringId(edge.vertexId1));
+
+    html << "<th>Ordinal<br>skip"
+        "<th>Estimated<br>link<br>separation";
+
+
+    // Write one row for each transition.
+    for(const AssemblyGraphSnapshot::Transition& transition: transitions) {
+        const OrientedReadId orientedReadId = transition.orientedReadId;
+        const auto journey = packedMarkerGraph.journeys[orientedReadId.getValue()];
+        const auto& leftJourneyStep = journey[transition.position];
+        const auto& rightJourneyStep = journey[transition.position+1];
+        const uint64_t leftSkip = leftPath.size() - leftJourneyStep.positions[1];
+        const uint64_t rightSkip = rightJourneyStep.positions[0];
+        const uint64_t leftOrdinal = leftJourneyStep.ordinals[1];
+        const uint64_t rightOrdinal = rightJourneyStep.ordinals[0];
+        SHASTA_ASSERT(rightOrdinal >= leftOrdinal);
+        const uint64_t ordinalSkip = rightOrdinal - leftOrdinal;
+        const int64_t linkSeparation =
+            int64_t(ordinalSkip) -
+            int64_t(leftSkip) -
+            int64_t(rightSkip);
+        html <<
+            "<tr>"
+            "<td class=centered>" << transition.orientedReadId <<
+            "<td class=centered>" << journey.size() <<
+            "<td class=centered>" << transition.position <<
+            "<td class=centered>" << transition.position+1 <<
+            "<td class=centered>" << leftSkip <<
+            "<td class=centered>" << rightSkip <<
+            "<td class=centered>" << leftOrdinal <<
+            "<td class=centered>" << rightOrdinal <<
+            "<td class=centered>" << ordinalSkip <<
+            "<td class=centered>" << linkSeparation;
+    }
+    html<< "</table>";
 
 
 }
