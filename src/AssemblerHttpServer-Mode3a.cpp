@@ -508,7 +508,7 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
         "<tr><th class=left>Average marker graph edge coverage<td class=centered>" <<
         snapshot.packedMarkerGraph.averageMarkerGraphEdgeCoverage(segmentId) <<
         "<tr><th class=left>Number of journey entries ";
-    writeInformationIcon(html, "Number of traversal of this vertex by an oriented read. "
+    writeInformationIcon(html, "Number of traversals of this vertex by an oriented read. "
         "Some oriented reads may traverse a vertex more than once.");
     html <<
         "<td class=centered>" <<
@@ -516,6 +516,38 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
         "</table>";
     html.precision(oldPrecision);
     html.flags(oldFlags);
+
+
+
+    // Outgoing links table.
+    html << "<h2>Outgoing links</h2><table>"
+        "<tr><th rowspan=2>Link<br>id<th rowspan=2>Coverage<th colspan=2>To segment<tr><th>Id<th>Replica";
+    for(const uint64_t linkId: snapshot.edgesBySource[vertexId]) {
+        const AssemblyGraphSnapshot::Edge& edge = snapshot.edgeVector[linkId];
+        const uint64_t vertexId1 = edge.vertexId1;
+        const AssemblyGraphSnapshot::Vertex& vertex1 = snapshot.vertexVector[vertexId1];
+        html << "<tr><td class=centered>" << linkId <<
+            "<td class=centered>" << snapshot.getEdgeCoverage(linkId) <<
+            "<td class=centered>" << vertex1.segmentId <<
+            "<td class=centered>" << vertex1.segmentReplicaIndex;
+    }
+    html << "</table>";
+
+
+
+    // Incoming links table.
+    html << "<h2>Incominging links</h2><table>"
+        "<tr><th rowspan=2>Link<br>id<th rowspan=2>Coverage<th colspan=2>From segment<tr><th>Id<th>Replica";
+    for(const uint64_t linkId: snapshot.edgesByTarget[vertexId]) {
+        const AssemblyGraphSnapshot::Edge& edge = snapshot.edgeVector[linkId];
+        const uint64_t vertexId0 = edge.vertexId0;
+        const AssemblyGraphSnapshot::Vertex& vertex0 = snapshot.vertexVector[vertexId0];
+        html << "<tr><td class=centered>" << linkId <<
+            "<td class=centered>" << snapshot.getEdgeCoverage(linkId) <<
+            "<td class=centered>" << vertex0.segmentId <<
+            "<td class=centered>" << vertex0.segmentReplicaIndex;
+    }
+    html << "</table>";
 
 
 
