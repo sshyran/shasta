@@ -7,6 +7,7 @@
 #include "mode3a-AssemblyGraphSnapshot.hpp"
 #include "mode3a-LocalAssemblyGraph.hpp"
 #include "mode3a-PackedMarkerGraph.hpp"
+#include "Reads.hpp"
 using namespace shasta;
 using namespace mode3a;
 
@@ -674,7 +675,7 @@ void Assembler::exploreMode3aAssemblyGraphLink(
     SHASTA_ASSERT(packedMarkerGraphPointer);
     mode3a::PackedMarkerGraph& packedMarkerGraph = *packedMarkerGraphPointer;
 
-    // const auto k = assemblerInfo->k;
+    const auto k = assemblerInfo->k;
 
 
 
@@ -795,6 +796,11 @@ void Assembler::exploreMode3aAssemblyGraphLink(
     html << "<th>Ordinal<br>skip"
         "<th>Estimated<br>link<br>separation";
 
+    html << "<th>Sequence<br>";
+    writeInformationIcon(html,
+        "Sequence between left last ordinal and right first ordinal");
+
+
 
     // Write one row for each transition.
     for(const AssemblyGraphSnapshot::Transition& transition: transitions) {
@@ -814,7 +820,11 @@ void Assembler::exploreMode3aAssemblyGraphLink(
             int64_t(rightSkip);
         html <<
             "<tr>"
-            "<td class=centered>" << transition.orientedReadId <<
+            "<td class=centered>"
+            "<a href='exploreRead?readId=" << orientedReadId.getReadId() <<
+            "&strand=" << orientedReadId.getStrand() <<
+            "'>"
+            << transition.orientedReadId << "</a>"
             "<td class=centered>" << journey.size() <<
             "<td class=centered>" << transition.position <<
             "<td class=centered>" << transition.position+1 <<
@@ -824,9 +834,20 @@ void Assembler::exploreMode3aAssemblyGraphLink(
             "<td class=centered>" << rightOrdinal <<
             "<td class=centered>" << ordinalSkip <<
             "<td class=centered>" << linkSeparation;
+
+        // Write the sequence.
+        const auto orientedReadMarkers = markers[orientedReadId.getValue()];
+        const CompressedMarker& marker0 = orientedReadMarkers[leftOrdinal];
+        const CompressedMarker& marker1 = orientedReadMarkers[rightOrdinal];
+        const uint64_t positionBegin = marker0.position;
+        const uint64_t positionEnd = marker1.position + k;
+        html << "<td class=centered style='font-family:courier'>";
+        for(uint64_t position=positionBegin; position!=positionEnd; ++position) {
+            html << reads->getOrientedReadBase(orientedReadId, uint32_t(position));
+        }
+
     }
     html<< "</table>";
 
 
 }
-
