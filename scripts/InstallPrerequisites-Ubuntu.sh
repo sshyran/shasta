@@ -99,12 +99,11 @@ tar -xvf 4.0.8.tar.gz
 # To avoid these additional dependencies, we turn off the dispatcher feature for now.
 # We could turn it back on if we see significant performance degradation in this area.
 spoaBuildFlags="-Dspoa_generate_dispatch=ON"
-if [[ "$isArm" == true ]]; then
-    spoaBuildFlags="-Dspoa_generate_dispatch=OFF -Dspoa_optimize_for_portability=OFF -Dspoa_optimize_for_native=OFF"
-fi
 # Per the above comment, turn off the dispatcher feature for now.
 spoaBuildFlags="-DCMAKE_BUILD_TYPE=Release -Dspoa_optimize_for_portability=ON"
-
+if [[ "$isArm" == true ]]; then
+    spoaBuildFlags="-DCMAKE_BUILD_TYPE=Release -Dspoa_build_tests=OFF"
+fi
 
 
 # Build the shared library.
