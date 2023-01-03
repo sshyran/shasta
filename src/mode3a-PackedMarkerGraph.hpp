@@ -25,6 +25,7 @@ namespace shasta {
     class CompressedMarker;
     class MarkerGraph;
     class OrientedReadId;
+    class Reads;
 }
 
 
@@ -39,6 +40,7 @@ public:
         const MappedMemoryOwner&,
         const string& name,
         uint64_t k,
+        const Reads&,
         const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
         const MarkerGraph&,
         bool accessExisting);
@@ -46,6 +48,7 @@ public:
     // Objects stored by the constructor.
     string name;
     uint64_t k;
+    const Reads& reads;
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers;
     const MarkerGraph& markerGraph;
 

@@ -178,6 +178,7 @@ public:
     void writeJourneys() const;
     void writeJourneyEntries() const;
     void writeTransitions() const;
+    void writeLinkTransitionsHtml(uint64_t linkId, ostream& html) const;
 };
 
 #endif

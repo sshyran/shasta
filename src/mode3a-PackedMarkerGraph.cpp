@@ -22,6 +22,7 @@ PackedMarkerGraph::PackedMarkerGraph(
     const MappedMemoryOwner& mappedMemoryOwner,
     const string& name,
     uint64_t k,
+    const Reads& reads,
     const MemoryMapped::VectorOfVectors<CompressedMarker, uint64_t>& markers,
     const MarkerGraph& markerGraph,
     bool accessExisting) :
@@ -29,6 +30,7 @@ PackedMarkerGraph::PackedMarkerGraph(
     MultithreadedObject<PackedMarkerGraph>(*this),
     name(name),
     k(k),
+    reads(reads),
     markers(markers),
     markerGraph(markerGraph)
 {

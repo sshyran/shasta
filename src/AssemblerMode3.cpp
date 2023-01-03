@@ -107,7 +107,7 @@ void Assembler::mode3aAssembly(
 void Assembler::accessMode3aAssemblyData()
 {
     mode3aAssemblyData.packedMarkerGraph = make_shared<mode3a::PackedMarkerGraph>(
-        MappedMemoryOwner(*this), "Mode3a-PackedMarkerGraph", assemblerInfo->k, markers, markerGraph, true);
+        MappedMemoryOwner(*this), "Mode3a-PackedMarkerGraph", assemblerInfo->k, *reads, markers, markerGraph, true);
 
     mode3aAssemblyData.assemblyGraphSnapshots.clear();
     for(uint64_t i=0; ; i++) {
