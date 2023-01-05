@@ -500,7 +500,7 @@ void AssemblerOptions::addConfigurableOptions()
         ("ReadGraph.maxChimericReadDistance",
         value<int>(&readGraphOptions.maxChimericReadDistance)->
         default_value(2),
-        "Used for chimeric read detection.")
+        "Used for chimeric read detection. Set to 0 to turn off chimera detection.")
 
         ("ReadGraph.strandSeparationMethod",
         value<uint64_t>(&readGraphOptions.strandSeparationMethod)->
