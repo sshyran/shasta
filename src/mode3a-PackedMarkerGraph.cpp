@@ -221,6 +221,7 @@ void PackedMarkerGraph::createLinks()
 void PackedMarkerGraph::assembleSegmentSequences()
 {
     createNew(segmentSequences, name + "-sequences");
+    createNew(segmentVertexOffsets, name + "-vertexOffsets");
 
     for(uint64_t segmentId=0; segmentId!=segments.size(); segmentId++) {
 
@@ -234,9 +235,8 @@ void PackedMarkerGraph::assembleSegmentSequences()
             false,
             assembledSegment);
 
-        segmentSequences.appendVector(
-            assembledSegment.rawSequence.begin(),
-            assembledSegment.rawSequence.end());
+        segmentSequences.appendVector(assembledSegment.rawSequence);
+        segmentVertexOffsets.appendVector(assembledSegment.vertexOffsets);
     }
 }
 
@@ -245,6 +245,7 @@ void PackedMarkerGraph::assembleSegmentSequences()
 void PackedMarkerGraph::accessSegmentSequences()
 {
     accessExistingReadOnly(segmentSequences, name + "-sequences");
+    accessExistingReadOnly(segmentVertexOffsets, name + "-vertexOffsets");
 }
 
 

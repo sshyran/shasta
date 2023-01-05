@@ -506,6 +506,10 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
     const auto leftSegmentSequence = packedMarkerGraph.segmentSequences[segmentId0];
     const auto rightSegmentSequence = packedMarkerGraph.segmentSequences[segmentId1];
 
+    const auto leftVertexOffsets = packedMarkerGraph.segmentVertexOffsets[segmentId0];
+    const auto rightVertexOffsets = packedMarkerGraph.segmentVertexOffsets[segmentId1];
+
+    const uint64_t k = packedMarkerGraph.k;
 
 
     // Page header.
@@ -602,15 +606,15 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
         // This will be extended to the left/right as necessary,
         // using the sequence of the left/right segment.
         const uint64_t positionBegin = marker0.position;
-        const uint64_t positionEnd = marker1.position + packedMarkerGraph.k;
+        const uint64_t positionEnd = marker1.position + k;
 
         // Compute the position of the left extension in the left segment.
-        // const uint64_t leftPositionBegin = ;
-        // const uint64_t leftPositionEnd = ;
+        const uint64_t leftPositionBegin = leftVertexOffsets[leftVertexOffsets.size() -1 - maxLeftSkip];
+        const uint64_t leftPositionEnd = leftVertexOffsets[leftVertexOffsets.size() - 1 - leftSkip];
 
         // Compute the position of the right extension in the right segment.
-        // const uint64_t rightPositionBegin = ;
-        // const uint64_t rightPositionEnd = ;
+        const uint64_t rightPositionBegin = rightVertexOffsets[rightSkip] + k;
+        const uint64_t rightPositionEnd = rightVertexOffsets[maxRightSkip] + k;
 
         // Add the left extension to the MSA sequence.
         msaSequence.clear();
@@ -645,9 +649,19 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
 
             // Write the sequence.
             html << "<td class=centered style='font-family:courier'>";
+            html << "<span style='background-color:LightGrey'>";
+            for(uint64_t position=leftPositionBegin; position!=leftPositionEnd; ++position) {
+                html << leftSegmentSequence[position];
+            }
+            html << "</span>";
             for(uint64_t position=positionBegin; position!=positionEnd; ++position) {
                 html << packedMarkerGraph.reads.getOrientedReadBase(orientedReadId, uint32_t(position));
             }
+            html << "<span style='background-color:LightGrey'>";
+            for(uint64_t position=rightPositionBegin; position!=rightPositionEnd; ++position) {
+                html << rightSegmentSequence[position];
+            }
+            html << "</span>";
         }
 
     }
