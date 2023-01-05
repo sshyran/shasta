@@ -483,8 +483,178 @@ void AssemblyGraphSnapshot::writeLinkTransitionsHtml(uint64_t linkId, ostream& h
 
     }
     html<< "</table>";
+}
 
 
+
+void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
+{
+    // Get some information about this link.
+    const Edge& edge = edgeVector[linkId];
+    const Vertex& vertex0 = vertexVector[edge.vertexId0];
+    const Vertex& vertex1 = vertexVector[edge.vertexId1];
+
+    vector<Transition> transitions;
+    getEdgeTransitions(linkId, transitions);
+
+    const uint64_t segmentId0 = vertex0.segmentId;
+    const uint64_t segmentId1 = vertex1.segmentId;
+
+    const auto leftPath = packedMarkerGraph.segments[segmentId0];
+    const auto rightPath = packedMarkerGraph.segments[segmentId1];
+
+    const auto leftSegmentSequence = packedMarkerGraph.segmentSequences[segmentId0];
+    const auto rightSegmentSequence = packedMarkerGraph.segmentSequences[segmentId1];
+
+
+
+    // Page header.
+    if(html) {
+        html << "<h2>Assembly of link " << linkId << " from " <<
+            vertexStringId(segmentId0) << " to " <<
+            vertexStringId(segmentId1) << "</h2>";
+    }
+
+    // Loop over transitions to compute the maximum left/right skip,
+    // that is, the maximum number of marker graph edges skipped
+    // by an oriented read at the end of the left segment or
+    // at the beginning of the right segment.
+    // This is needed below to compute the sequences that participate in the MSA.
+    uint64_t maxLeftSkip = 0;
+    uint64_t maxRightSkip = 0;
+    for(const AssemblyGraphSnapshot::Transition& transition: transitions) {
+        const OrientedReadId orientedReadId = transition.orientedReadId;
+        const auto journey = packedMarkerGraph.journeys[orientedReadId.getValue()];
+        const auto& leftJourneyStep = journey[transition.position];
+        const auto& rightJourneyStep = journey[transition.position+1];
+        const uint64_t leftSkip = leftPath.size() - leftJourneyStep.positions[1];
+        const uint64_t rightSkip = rightJourneyStep.positions[0];
+        maxLeftSkip = max(maxLeftSkip, leftSkip);
+        maxRightSkip = max(maxRightSkip, rightSkip);
+    }
+    if(html) {
+        html << "Maximum left skip is " << maxLeftSkip;
+        html << "<br>Maximum right skip is " << maxRightSkip;
+    }
+
+
+
+    // Table header.
+    if(html) {
+        html<< "<p><table>"
+            "<tr>"
+            "<th>Oriented<br>read<br>id"
+            "<th>Journey<br>Length"
+            "<th>Position<br>of " << vertexStringId(segmentId0) << "<br>in<br>journey"
+            "<th>Position<br>of " << vertexStringId(segmentId1) << "<br>in<br>journey";
+
+        html << "<th>Left<br>skip<br>";
+        writeInformationIcon(html,
+            "Number of marker graph edges skipped at the end of " + vertexStringId(segmentId0));
+
+        html << "<th>Right<br>skip<br>";
+        writeInformationIcon(html,
+            "Number of marker graph edges skipped at the beginning of " + vertexStringId(segmentId1));
+
+        html << "<th>Left<br>last<br>ordinal<br>";
+        writeInformationIcon(html,
+            "Last ordinal on " + vertexStringId(edge.vertexId0));
+
+        html << "<th>Right<br>first<br>ordinal<br>";
+        writeInformationIcon(html,
+            "First ordinal on " + vertexStringId(edge.vertexId1));
+
+        html << "<th>Ordinal<br>skip"
+            "<th>Estimated<br>link<br>separation";
+
+        html << "<th>Extended sequence<br>";
+        writeInformationIcon(html,
+            "Sequence between left last ordinal and right first ordinal, "
+            "extended out to the maximum left/right skip using the sequence of the "
+            "left/right segments.");
+    }
+
+
+
+    // Loop over transitions to compute the MSA sequence to be used for each oriented read.
+    vector<Base> msaSequence;
+    for(const AssemblyGraphSnapshot::Transition& transition: transitions) {
+        const OrientedReadId orientedReadId = transition.orientedReadId;
+        const auto journey = packedMarkerGraph.journeys[orientedReadId.getValue()];
+        const auto& leftJourneyStep = journey[transition.position];
+        const auto& rightJourneyStep = journey[transition.position+1];
+        const uint64_t leftSkip = leftPath.size() - leftJourneyStep.positions[1];
+        const uint64_t rightSkip = rightJourneyStep.positions[0];
+        const uint64_t leftOrdinal = leftJourneyStep.ordinals[1];
+        const uint64_t rightOrdinal = rightJourneyStep.ordinals[0];
+        SHASTA_ASSERT(rightOrdinal >= leftOrdinal);
+        const uint64_t ordinalSkip = rightOrdinal - leftOrdinal;
+        const int64_t linkSeparation =
+            int64_t(ordinalSkip) -
+            int64_t(leftSkip) -
+            int64_t(rightSkip);
+        const auto orientedReadMarkers = packedMarkerGraph.markers[orientedReadId.getValue()];
+        const CompressedMarker& marker0 = orientedReadMarkers[leftOrdinal];
+        const CompressedMarker& marker1 = orientedReadMarkers[rightOrdinal];
+
+        // Now we can compute the portion of the oriented read sequence that will
+        // participate in the MSA.
+        // This will be extended to the left/right as necessary,
+        // using the sequence of the left/right segment.
+        const uint64_t positionBegin = marker0.position;
+        const uint64_t positionEnd = marker1.position + packedMarkerGraph.k;
+
+        // Compute the position of the left extension in the left segment.
+        // const uint64_t leftPositionBegin = ;
+        // const uint64_t leftPositionEnd = ;
+
+        // Compute the position of the right extension in the right segment.
+        // const uint64_t rightPositionBegin = ;
+        // const uint64_t rightPositionEnd = ;
+
+        // Add the left extension to the MSA sequence.
+        msaSequence.clear();
+
+        // Add the oriented read to the MSA sequence.
+        for(uint64_t position=positionBegin; position!=positionEnd; ++position) {
+            msaSequence.push_back(packedMarkerGraph.reads.getOrientedReadBase(orientedReadId, uint32_t(position)));
+        }
+
+        // Add the right extension to the MSA sequence.
+
+
+
+        // Write a row to the table for this oriented read.
+        if(html) {
+            html <<
+                "<tr>"
+                "<td class=centered>"
+                "<a href='exploreRead?readId=" << orientedReadId.getReadId() <<
+                "&strand=" << orientedReadId.getStrand() <<
+                "'>"
+                << transition.orientedReadId << "</a>"
+                "<td class=centered>" << journey.size() <<
+                "<td class=centered>" << transition.position <<
+                "<td class=centered>" << transition.position+1 <<
+                "<td class=centered>" << leftSkip <<
+                "<td class=centered>" << rightSkip <<
+                "<td class=centered>" << leftOrdinal <<
+                "<td class=centered>" << rightOrdinal <<
+                "<td class=centered>" << ordinalSkip <<
+                "<td class=centered>" << linkSeparation;
+
+            // Write the sequence.
+            html << "<td class=centered style='font-family:courier'>";
+            for(uint64_t position=positionBegin; position!=positionEnd; ++position) {
+                html << packedMarkerGraph.reads.getOrientedReadBase(orientedReadId, uint32_t(position));
+            }
+        }
+
+    }
+
+    if(html) {
+        html<< "</table>";
+    }
 }
 
 

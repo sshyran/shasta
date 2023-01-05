@@ -67,11 +67,8 @@ public:
     double averageMarkerGraphEdgeCoverage(uint64_t segmentId) const;
 
     // Assembled sequence of each segment.
-    // This stores, for each segment, the sequence from the AssembledSegment
-    // with the first and last k/2 bases removed.
-private:
+    // This stores, for each segment, the entire sequence from the AssembledSegment.
     MemoryMapped::VectorOfVectors<Base, uint64_t> segmentSequences;
-public:
     void assembleSegmentSequences();
 
     // Accessors for the segment sequences.

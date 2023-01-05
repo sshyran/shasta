@@ -766,5 +766,7 @@ void Assembler::exploreMode3aAssemblyGraphLink(
     // Write the transitions.
     snapshot.writeLinkTransitionsHtml(linkId, html);
 
+    // Assemble the link.
+    snapshot.assembleLink(linkId, html);
 
 }

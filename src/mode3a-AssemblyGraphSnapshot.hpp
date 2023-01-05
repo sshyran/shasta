@@ -179,6 +179,9 @@ public:
     void writeJourneyEntries() const;
     void writeTransitions() const;
     void writeLinkTransitionsHtml(uint64_t linkId, ostream& html) const;
+
+    // Assemble sequence for a link, with optional html output.
+    void assembleLink(uint64_t linkId, ostream& html) const;
 };
 
 #endif
