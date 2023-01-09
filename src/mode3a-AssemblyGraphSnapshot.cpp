@@ -5,6 +5,7 @@
 #include "MarkerGraph.hpp"
 #include "mode3a-AssemblyGraph.hpp"
 #include "mode3a-PackedMarkerGraph.hpp"
+#include "orderPairs.hpp"
 #include "Reads.hpp"
 using namespace shasta;
 using namespace mode3a;
@@ -12,6 +13,9 @@ using namespace mode3a;
 // Boost libraries.
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/iteration_macros.hpp>
+
+// Spoa.
+#include "spoa/spoa.hpp"
 
 // Standard library.
 #include "algorithm.hpp"
@@ -537,6 +541,7 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
         maxRightSkip = max(maxRightSkip, rightSkip);
     }
     if(html) {
+        html << "<h3>Contribution of each oriented read to the MSA</h3>";
         html << "Maximum left skip is " << maxLeftSkip;
         html << "<br>Maximum right skip is " << maxRightSkip;
     }
@@ -703,7 +708,9 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
         html<< "</table>";
     }
 
-    html << "<p>Found " << msaSequences.size() << " distinct MSA sequences."
+    html <<
+        "<h3>Distinct MSA sequences</h3>"
+        "Found " << msaSequences.size() << " distinct MSA sequences."
         "<table>"
         "<tr><th>MSA<br>sequence<br>index<th>MSA Sequence<th>Length<th>Frequency";
     for(uint64_t msaSequenceIndex=0; msaSequenceIndex<msaSequences.size(); msaSequenceIndex++) {
@@ -717,6 +724,192 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
         html << "<td class=centered>" << frequency;
     }
     html << "</table>";
+
+    // Compute the multiple sequence alignment.
+    vector<Base> consensusSequence;
+    linkMsaUsingSpoa(msaSequences, html, consensusSequence);
+}
+
+
+
+// Compute the MSA for a link using spoa.
+// Takes as input a vector of (sequence, frequency) containing
+// the MSA sequences for the oriented reads of the link
+// and the number of times each was found.
+void AssemblyGraphSnapshot::linkMsaUsingSpoa(
+    const vector< pair<vector<Base>, uint64_t> >& msaSequences,
+    ostream& html,
+    vector<Base>& consensusSequence
+    )
+{
+    // We want to enter the msaSequences in order of decreasing frequency.
+    // Create a table of pairs (msaSequenceIndex, frequency)
+    // where msaSequenceIndex is the index in the msaSequences vector.
+    // Then sort by decreasing frequency.
+    vector< pair<uint64_t, uint64_t> > msaSequencesTable;
+    for(uint64_t msaSequenceIndex=0; msaSequenceIndex<msaSequences.size(); msaSequenceIndex++) {
+        const auto& p = msaSequences[msaSequenceIndex];
+        const uint64_t frequency = p.second;
+        msaSequencesTable.push_back(make_pair(msaSequenceIndex, frequency));
+    }
+    sort(msaSequencesTable.begin(), msaSequencesTable.end(),
+        OrderPairsBySecondOnlyGreater<uint64_t, uint64_t>());
+
+
+    // Create the spoa alignment engine and alignment graph.
+    const spoa::AlignmentType alignmentType = spoa::AlignmentType::kNW;
+    const int8_t match = 1;
+    const int8_t mismatch = -1;
+    const int8_t gap = -1;
+    auto spoaAlignmentEngine = spoa::AlignmentEngine::Create(alignmentType, match, mismatch, gap);
+    spoa::Graph spoaAlignmentGraph;
+
+
+
+    // Add the sequences to the MSA in order of decreasing frequency.
+    // Give each sequence a weight equal to its frequency.
+    if(html) {
+        html <<
+            "<h3>MSA input</h3>"
+            "Oriented read MSA sequences are used in the following order:"
+            "<table><tr>"
+            "<th>Index<br>by<br>frequency"
+            "<th>MSA<br>sequence<br>index"
+            "<th>MSA<br>sequence<br>frequency"
+            "<th>MSA<br>sequence"
+            "<th>MSA<br>sequence<br>length";
+    }
+    string sequenceString;
+    for(uint64_t indexByFrequency=0; indexByFrequency<msaSequencesTable.size(); indexByFrequency++) {
+        const auto& p = msaSequencesTable[indexByFrequency];
+        const uint64_t msaSequenceIndex = p.first;
+        const uint64_t frequency = p.second;
+        const auto& q = msaSequences[msaSequenceIndex];
+        SHASTA_ASSERT(q.second == frequency);
+        const vector<Base>& msaSequence = q.first;
+
+        if(html) {
+            html << "<tr>"
+                "<td class=centered>" << indexByFrequency <<
+                "<td class=centered>" << msaSequenceIndex <<
+                "<td class=centered>" << frequency <<
+                "<td class=centered style='font-family:courier'>";
+            copy(msaSequence.begin(), msaSequence.end(), ostream_iterator<Base>(html));
+            html << "<td class=centered>" << msaSequence.size();
+        }
+
+        sequenceString.clear();
+        for(const Base base: msaSequence) {
+            sequenceString += base.character();
+        }
+        auto alignment = spoaAlignmentEngine->Align(sequenceString, spoaAlignmentGraph);
+        spoaAlignmentGraph.AddAlignment(alignment, sequenceString, uint32_t(frequency));
+    }
+    if(html) {
+        html << "</table>";
+    }
+
+
+    const string consensusString = spoaAlignmentGraph.GenerateConsensus();
+    vector<Base> consensus;
+    for(const char c: consensusString) {
+        consensus.push_back(Base::fromCharacter(c));
+    }
+    if(html) {
+        html <<
+            "<h3>MSA consensus</h3>"
+            "Consensus sequence has length " << consensus.size() <<
+            ":<div style='font-family:courier'>";
+        for(const Base base: consensus) {
+            html << base;
+        }
+        html << "</div>";
+
+        // See if the consensus is equal to one of our MSA sequences.
+        // This is often the case but does not have to be.
+        bool found = false;
+        for(uint64_t msaSequenceIndex=0; msaSequenceIndex<msaSequences.size(); msaSequenceIndex++) {
+            const auto& p = msaSequences[msaSequenceIndex];
+            if(consensus == p.first) {
+                html << "The consensus sequences is the same as the MSA sequence with index " <<
+                    msaSequenceIndex << ".";
+                found = true;
+                break;
+            }
+        }
+        if(not found) {
+            html << "<br>The consensus sequence is not equal to any of the MSA sequences.";
+        }
+
+
+
+        // Write MSA details.
+        vector<string> alignment = spoaAlignmentGraph.GenerateMultipleSequenceAlignment(true);
+        html << "<h3>MSA details</h3>"
+            "<table><tr>"
+            "<th>Index<br>by<br>frequency"
+            "<th>MSA<br>sequence<br>index"
+            "<th>MSA<br>sequence<br>frequency"
+            "<th>MSA<br>sequence"
+            "<th>MSA<br>sequence<br>length";
+        vector<uint64_t> discordantCount(alignment.back().size(), 0);
+        for(uint64_t indexByFrequency=0; indexByFrequency<msaSequencesTable.size(); indexByFrequency++) {
+            const auto& p = msaSequencesTable[indexByFrequency];
+            const uint64_t msaSequenceIndex = p.first;
+            const uint64_t frequency = p.second;
+            const auto& q = msaSequences[msaSequenceIndex];
+            SHASTA_ASSERT(q.second == frequency);
+            const vector<Base>& msaSequence = q.first;
+
+            html << "<tr>"
+                "<td class=centered>" << indexByFrequency <<
+                "<td class=centered>" << msaSequenceIndex <<
+                "<td class=centered>" << frequency <<
+                "<td class=centered style='font-family:courier'>";
+            for(uint64_t i=0; i<alignment[indexByFrequency].size(); i++) {
+                const char c = alignment[indexByFrequency][i];
+                const bool isConcordant = (c == alignment.back()[i]);    // With consensus.
+                if(not isConcordant) {
+                    discordantCount[i] += frequency;
+                    html << "<span style='color:Red;font-weight:bold'>";
+                }
+                html << c;
+                if(not isConcordant) {
+                    html << "</span>";
+                }
+            }
+            html << "<td class=centered>" << msaSequence.size();
+        }
+        html << "<tr><td class=centered colspan=3>Consensus"
+            "<td class=centered style='font-family:courier'>" << alignment.back() <<
+            "<td class=centered>" << consensus.size() <<
+            "<tr><td class=centered colspan=3>Discordant"
+            "<td class=centered style='font-family:courier'>";
+        for(uint64_t i=0; i<discordantCount.size(); i++) {
+            const uint64_t n = discordantCount[i];
+            if(n == 0) {
+                html << "&nbsp;";
+            } else if(n < 10) {
+                html << n;
+            } else {
+                html << "*";
+            }
+        }
+        html << "<td>";
+
+        html << "</table>";
+    }
+
+#if 0
+    std::cerr << ">Consensus LN:i:" << consensus.size() << std::endl
+        << consensus << std::endl;
+
+    auto msa = graph.GenerateMultipleSequenceAlignment();
+
+    for (const auto& it : msa) {
+    html << "<br>" << it;
+    }
+#endif
 }
 
 

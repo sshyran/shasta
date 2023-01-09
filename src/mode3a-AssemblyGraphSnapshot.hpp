@@ -26,6 +26,8 @@ namespace shasta {
 
         class PackedMarkerGraph;
     }
+
+    class Base;
 }
 
 
@@ -182,6 +184,16 @@ public:
 
     // Assemble sequence for a link, with optional html output.
     void assembleLink(uint64_t linkId, ostream& html) const;
+
+    // Compute the MSA for a link using spoa.
+    // Takes as input a vector of (sequence, frequency) containing
+    // the MSA sequences for the oriented reads of the link
+    // and the number of times each was found.
+    static void linkMsaUsingSpoa(
+        const vector< pair<vector<Base>, uint64_t> >& msaSequences,
+        ostream& html,
+        vector<Base>& consensusSequence
+        );
 };
 
 #endif

@@ -760,13 +760,8 @@ void Assembler::exploreMode3aAssemblyGraphLink(
         "<tr><th>Dotted<td class=centered>" << (snapshot.segmentsAreAdjacent(linkId) ? "No" : "Yes") <<
         "</table>";
 
-
-
-
-    // Write the transitions.
-    snapshot.writeLinkTransitionsHtml(linkId, html);
-
     // Assemble the link.
+    // This also writes details about the transitions of the link.
     snapshot.assembleLink(linkId, html);
 
 }
