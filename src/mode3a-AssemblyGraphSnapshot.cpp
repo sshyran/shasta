@@ -571,18 +571,29 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
         html << "<th>Ordinal<br>skip"
             "<th>Estimated<br>link<br>separation";
 
-        html << "<th>Extended sequence<br>";
+        html << "<th>MSA sequence<br>";
         writeInformationIcon(html,
             "Sequence between left last ordinal and right first ordinal, "
             "extended out to the maximum left/right skip using the sequence of the "
             "left/right segments.");
+
+        html << "<th>MSA<br>sequence<br>index";
+
+        html << "<th>MSA<br>sequence<br>length";
     }
+
+    // A vector to contain the distinct MSA sequence we found, each with the number of times it was found.
+    vector< pair<vector<Base>, uint64_t> > msaSequences;
+
+    // A vector that, for each transition, gives the index in msaSequence.
+    vector<uint64_t> msaSequenceTable(transitions.size());
 
 
 
     // Loop over transitions to compute the MSA sequence to be used for each oriented read.
     vector<Base> msaSequence;
-    for(const AssemblyGraphSnapshot::Transition& transition: transitions) {
+    for(uint64_t iTransition=0; iTransition<transitions.size(); iTransition++) {
+        const AssemblyGraphSnapshot::Transition& transition = transitions[iTransition];
         const OrientedReadId orientedReadId = transition.orientedReadId;
         const auto journey = packedMarkerGraph.journeys[orientedReadId.getValue()];
         const auto& leftJourneyStep = journey[transition.position];
@@ -618,6 +629,9 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
 
         // Add the left extension to the MSA sequence.
         msaSequence.clear();
+        for(uint64_t position=leftPositionBegin; position!=leftPositionEnd; ++position) {
+            msaSequence.push_back(leftSegmentSequence[position]);
+        }
 
         // Add the oriented read to the MSA sequence.
         for(uint64_t position=positionBegin; position!=positionEnd; ++position) {
@@ -625,7 +639,24 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
         }
 
         // Add the right extension to the MSA sequence.
+        for(uint64_t position=rightPositionBegin; position!=rightPositionEnd; ++position) {
+            msaSequence.push_back(rightSegmentSequence[position]);
+        }
 
+        // Update the msaSequences and msaSequenceTable.
+        bool done = false;
+        for(uint64_t i=0; i<msaSequences.size(); i++) {
+            if(msaSequence == msaSequences[i].first) {
+                msaSequenceTable[iTransition] = i;
+                ++msaSequences[i].second;
+                done = true;
+                break;
+            }
+        }
+        if(not done) {
+            msaSequenceTable[iTransition] = msaSequences.size();
+            msaSequences.push_back(make_pair(msaSequence, 1));
+        }
 
 
         // Write a row to the table for this oriented read.
@@ -662,6 +693,8 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
                 html << rightSegmentSequence[position];
             }
             html << "</span>";
+            html << "<td class=centered>" << msaSequenceTable[iTransition];
+            html << "<td class=centered>" << msaSequence.size();
         }
 
     }
@@ -669,6 +702,21 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
     if(html) {
         html<< "</table>";
     }
+
+    html << "<p>Found " << msaSequences.size() << " distinct MSA sequences."
+        "<table>"
+        "<tr><th>MSA<br>sequence<br>index<th>MSA Sequence<th>Length<th>Frequency";
+    for(uint64_t msaSequenceIndex=0; msaSequenceIndex<msaSequences.size(); msaSequenceIndex++) {
+        const auto& p = msaSequences[msaSequenceIndex];
+        const vector<Base>& msaSequence = p.first;
+        const uint64_t frequency = p.second;
+        html << "<tr><td class=centered>" << msaSequenceIndex;
+        html << "<td class=centered style='font-family:courier'>";
+        copy(msaSequence.begin(), msaSequence.end(), ostream_iterator<Base>(html));
+        html << "<td class=centered>" << msaSequence.size();
+        html << "<td class=centered>" << frequency;
+    }
+    html << "</table>";
 }
 
 
