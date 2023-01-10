@@ -490,8 +490,18 @@ void AssemblyGraphSnapshot::writeLinkTransitionsHtml(uint64_t linkId, ostream& h
 }
 
 
-
-void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
+// Compute the consensus sequence for a link.
+// Also compute the number of bases at the end
+// of the left segment and at the beginning of the
+// right segment that are overridden by the link
+// and should be ignored during assembly.
+void AssemblyGraphSnapshot::assembleLink(
+    uint64_t linkId,
+    ostream& html,
+    vector<Base>& consensusSequence,
+    uint64_t& leftOverride,
+    uint64_t& rightOverride
+    ) const
 {
     // Get some information about this link.
     const Edge& edge = edgeVector[linkId];
@@ -540,10 +550,21 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
         maxLeftSkip = max(maxLeftSkip, leftSkip);
         maxRightSkip = max(maxRightSkip, rightSkip);
     }
+
+    // Compute the position in the left segment of the begining of the left segment
+    // sequence that will be used to fill in MSA sequence.
+    const uint64_t leftPositionBegin = leftVertexOffsets[leftVertexOffsets.size() -1 - maxLeftSkip];
+
+    // Compute the position in the right segment of the end of the right segment
+    // sequence that will be used to fill in MSA sequence.
+    const uint64_t rightPositionEnd = rightVertexOffsets[maxRightSkip] + k;
+
     if(html) {
         html << "<h3>Contribution of each oriented read to the MSA</h3>";
-        html << "Maximum left skip is " << maxLeftSkip;
-        html << "<br>Maximum right skip is " << maxRightSkip;
+        html << "Maximum left skip is " << maxLeftSkip << " markers, " <<
+            leftSegmentSequence.size() - leftPositionBegin << " bases.";
+        html << "<br>Maximum right skip is " << maxRightSkip << " markers, " <<
+            rightPositionEnd << " bases.";
     }
 
 
@@ -625,12 +646,10 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
         const uint64_t positionEnd = marker1.position + k;
 
         // Compute the position of the left extension in the left segment.
-        const uint64_t leftPositionBegin = leftVertexOffsets[leftVertexOffsets.size() -1 - maxLeftSkip];
         const uint64_t leftPositionEnd = leftVertexOffsets[leftVertexOffsets.size() - 1 - leftSkip];
 
         // Compute the position of the right extension in the right segment.
         const uint64_t rightPositionBegin = rightVertexOffsets[rightSkip] + k;
-        const uint64_t rightPositionEnd = rightVertexOffsets[maxRightSkip] + k;
 
         // Add the left extension to the MSA sequence.
         msaSequence.clear();
@@ -726,8 +745,108 @@ void AssemblyGraphSnapshot::assembleLink(uint64_t linkId, ostream& html) const
     html << "</table>";
 
     // Compute the multiple sequence alignment.
-    vector<Base> consensusSequence;
     linkMsaUsingSpoa(msaSequences, html, consensusSequence);
+
+    // Compute the number of bases at the beginning of the consensus sequence
+    // that are identical to the corresponding bases in the left segment.
+    uint64_t leftIdentical = 0;
+    for(uint64_t i=leftPositionBegin; i<leftSegmentSequence.size(); i++) {
+        if(i-leftPositionBegin >= consensusSequence.size()) {
+            break;
+        }
+        if(leftSegmentSequence[i] == consensusSequence[i-leftPositionBegin]) {
+            ++leftIdentical;
+        } else {
+            break;
+        }
+    }
+
+    // Compute the number of bases at the end of the consensus sequence
+    // that are identical to the corresponding bases in the right segment.
+    uint64_t rightIdentical = 0;
+    uint64_t j = rightPositionEnd - 1; // j is index in right segment sequence.
+    for(uint64_t i=consensusSequence.size()-1; /* Check later */; i--, j--) { // i is index in consensus sequence.
+        if(consensusSequence[i] == rightSegmentSequence[j]) {
+            ++rightIdentical;
+        } else {
+            break;
+        }
+        if(i == 0) {
+            break;
+        }
+        if(j == 0) {
+            break;
+        }
+    }
+
+    if(html) {
+        html << "<br>" << leftIdentical << " bases at the beginning of the consensus sequence "
+            "are identical to the corresponding bases in the left segment.";
+        html << "<br>" << rightIdentical << " bases at the end of the consensus sequence "
+            "are identical to the corresponding bases in the right segment.";
+    }
+
+
+    // Trim consensus bases at the end of the consensusSequence that are identical
+    // to the corresponding bases in the right segment sequence.
+    // Here, rightOverride is the number of bases at the beginning of the right segment
+    // that are overridden by bases in the consensus sequence of the link.
+    rightOverride = rightPositionEnd;
+    while(not consensusSequence.empty()) {
+        if(consensusSequence.back() == rightSegmentSequence[rightOverride-1]) {
+            consensusSequence.resize(consensusSequence.size() - 1);
+            --rightOverride;
+            if(rightOverride == 0) {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    // Same, on the left.
+    leftOverride = leftSegmentSequence.size() - leftPositionBegin;
+    uint64_t leftTrim = 0;
+    for(uint64_t i=0; i<consensusSequence.size(); i++) {
+        const uint64_t j = i + leftPositionBegin;
+        if(j >= leftSegmentSequence.size()) {
+            break;
+        }
+        if(consensusSequence[i] == leftSegmentSequence[j]) {
+            ++leftTrim;
+            --leftOverride;
+            if(leftOverride == 0) {
+                break;
+            }
+        }
+    }
+    copy(consensusSequence.begin() + leftTrim, consensusSequence.end(), consensusSequence.begin());
+    consensusSequence.resize(consensusSequence.size() - leftTrim);
+
+    if(html) {
+        html << "<h3>Link assembly results</h3>"
+            "After trimming portions of consensus sequence identical to adjacent segment sequences, "
+            "the consensus sequence has length " << consensusSequence.size() << ":"
+            "<div style='font-family:courier'>";
+        copy(consensusSequence.begin(), consensusSequence.end(), ostream_iterator<Base>(html));
+        html << "</div>"
+            "<br>Number of bases at the end of the left segment sequence overridden by link sequence: " <<
+            leftOverride <<
+            "<br>Number of bases at the beginning of the right segment sequence overridden by link sequence: " <<
+            rightOverride;
+
+        html << "<p>Assembly of the path consisting of this link plus the adjacent segments:"
+            "<div style='font-family:courier'>";
+        copy(leftSegmentSequence.begin(), leftSegmentSequence.end() - leftOverride,
+            ostream_iterator<Base>(html));
+        copy(consensusSequence.begin(), consensusSequence.end(),
+            ostream_iterator<Base>(html));
+        copy(rightSegmentSequence.begin()+ rightOverride, rightSegmentSequence.end(),
+            ostream_iterator<Base>(html));
+        html << "</div>";
+
+
+    }
 }
 
 
@@ -811,16 +930,16 @@ void AssemblyGraphSnapshot::linkMsaUsingSpoa(
 
 
     const string consensusString = spoaAlignmentGraph.GenerateConsensus();
-    vector<Base> consensus;
+    consensusSequence.clear();
     for(const char c: consensusString) {
-        consensus.push_back(Base::fromCharacter(c));
+        consensusSequence.push_back(Base::fromCharacter(c));
     }
     if(html) {
         html <<
             "<h3>MSA consensus</h3>"
-            "Consensus sequence has length " << consensus.size() <<
+            "Consensus sequence has length " << consensusSequence.size() <<
             ":<div style='font-family:courier'>";
-        for(const Base base: consensus) {
+        for(const Base base: consensusSequence) {
             html << base;
         }
         html << "</div>";
@@ -830,7 +949,7 @@ void AssemblyGraphSnapshot::linkMsaUsingSpoa(
         bool found = false;
         for(uint64_t msaSequenceIndex=0; msaSequenceIndex<msaSequences.size(); msaSequenceIndex++) {
             const auto& p = msaSequences[msaSequenceIndex];
-            if(consensus == p.first) {
+            if(consensusSequence == p.first) {
                 html << "The consensus sequences is the same as the MSA sequence with index " <<
                     msaSequenceIndex << ".";
                 found = true;
@@ -882,7 +1001,7 @@ void AssemblyGraphSnapshot::linkMsaUsingSpoa(
         }
         html << "<tr><td class=centered colspan=3>Consensus"
             "<td class=centered style='font-family:courier'>" << alignment.back() <<
-            "<td class=centered>" << consensus.size() <<
+            "<td class=centered>" << consensusSequence.size() <<
             "<tr><td class=centered colspan=3>Discordant"
             "<td class=centered style='font-family:courier'>";
         for(uint64_t i=0; i<discordantCount.size(); i++) {
@@ -899,17 +1018,6 @@ void AssemblyGraphSnapshot::linkMsaUsingSpoa(
 
         html << "</table>";
     }
-
-#if 0
-    std::cerr << ">Consensus LN:i:" << consensus.size() << std::endl
-        << consensus << std::endl;
-
-    auto msa = graph.GenerateMultipleSequenceAlignment();
-
-    for (const auto& it : msa) {
-    html << "<br>" << it;
-    }
-#endif
 }
 
 

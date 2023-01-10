@@ -762,6 +762,9 @@ void Assembler::exploreMode3aAssemblyGraphLink(
 
     // Assemble the link.
     // This also writes details about the transitions of the link.
-    snapshot.assembleLink(linkId, html);
+    vector<Base> consensusSequence;
+    uint64_t leftOverride;
+    uint64_t rightOverride;
+    snapshot.assembleLink(linkId, html, consensusSequence, leftOverride, rightOverride);
 
 }

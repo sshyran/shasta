@@ -182,8 +182,18 @@ public:
     void writeTransitions() const;
     void writeLinkTransitionsHtml(uint64_t linkId, ostream& html) const;
 
-    // Assemble sequence for a link, with optional html output.
-    void assembleLink(uint64_t linkId, ostream& html) const;
+    // Compute the consensus sequence for a link.
+    // Also compute the number of bases at the end
+    // of the left segment and at the beginning of the
+    // right segment that are overridden by the link
+    // and should be ignored during assembly.
+    void assembleLink(
+        uint64_t linkId,
+        ostream& html,
+        vector<Base>& consensusSequence,
+        uint64_t& leftOverride,
+        uint64_t& rightOverride
+        ) const;
 
     // Compute the MSA for a link using spoa.
     // Takes as input a vector of (sequence, frequency) containing
