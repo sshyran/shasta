@@ -1218,6 +1218,33 @@ void AssemblyGraphSnapshot::createAssemblyPath(
         // This can happen and has to be handled.
         SHASTA_ASSERT(vertex.sequenceBegin <= vertex.sequenceEnd);
     }
+
+
+    // Compute the begin position in the path sequence of the sequence portion
+    // contributed by each segment or link.
+    for(uint64_t i=0; /* Check later */ ; i++) {
+        auto& segment = assemblyPath.vertices[i];
+
+        // Do it for this segment.
+        if(i == 0) {
+            segment.pathPosition = 0;
+        } else {
+            const auto& previousLink = assemblyPath.edges[i-1];
+            segment.pathPosition = previousLink.pathPosition +
+                previousLink.sequenceEnd - previousLink.sequenceBegin;
+        }
+
+        // If this is the last segment, we are done.
+        if(i == assemblyPath.vertices.size() - 1) {
+            break;
+        }
+
+        // Do it for this link.
+        auto& link = assemblyPath.edges[i];
+        link.pathPosition = segment.pathPosition +
+            segment.sequenceEnd - segment.sequenceBegin;
+
+    }
 }
 
 
@@ -1230,19 +1257,104 @@ void AssemblyGraphSnapshot::writeAssemblyPath(
     html << "<h3>Assembly path with " << assemblyPath.vertices.size() << " segments and " <<
         assemblyPath.edges.size() << " links</h3>";
 
-    html << "<table><tr>"
+    vector<Base> assembledSequence;
+    assemblyPath.getAssembledSequence(packedMarkerGraph, assembledSequence);
+    html << "<h4>Assembled sequence </h4>"
+        "<div style='max-width:600px;overflow-wrap:break-word;font-family:courier'>";
+    copy(assembledSequence.begin(), assembledSequence.end(),
+        ostream_iterator<Base>(html));
+    html << "</div>";
+
+    html << "<h4>Assembled sequence breakdown</h4>"
+        "This table uses red for segments and green for links.<p>"
+        "<table><tr>"
+        "<th>Segment<br>or<br>link"
+        "<th>Position"
+        "<th>Sequence<br><tr>";
+
+    // Write the ids in a single cell.
+    html << "<td class=centered>";
+    for(uint64_t i=0; /* Check later */; i++) {
+        const AssemblyPath::Vertex& vertex = assemblyPath.vertices[i];
+        html << "<span style='font-family:courier;color:Green'>" <<
+            vertexStringId(vertex.id) << "</span><br>";
+        if(i == assemblyPath.vertices.size() -1) {
+            break;
+        }
+        const AssemblyPath::Edge& edge = assemblyPath.edges[i];
+        html << "<span style='font-family:courier;color:Red'>" <<
+            edge.edgeId << "</span><br>";
+    }
+
+    // Write the positions in a single cell.
+    html << "<td class=centered>";
+    for(uint64_t i=0; /* Check later */; i++) {
+        const AssemblyPath::Vertex& vertex = assemblyPath.vertices[i];
+        html << "<span style='font-family:courier;color:Green'>" <<
+            vertex.pathPosition << "</span><br>";
+        if(i == assemblyPath.vertices.size() -1) {
+            break;
+        }
+        const AssemblyPath::Edge& edge = assemblyPath.edges[i];
+        html << "<span style='font-family:courier;color:Red'>" <<
+            edge.pathPosition << "</span><br>";
+    }
+
+    // Write the sequence in a single cell.
+    html << "<td>";
+    for(uint64_t i=0; /* Check later */; i++) {
+        const AssemblyPath::Vertex& vertex = assemblyPath.vertices[i];
+        const auto vertexSequence = packedMarkerGraph.segmentSequences[vertex.id];
+        html << "<span style='font-family:courier;color:Green'>";
+        copy(vertexSequence.begin() + vertex.sequenceBegin, vertexSequence.begin() + vertex.sequenceEnd,
+            ostream_iterator<Base>(html));
+        html << "</span><br>";
+        if(i == assemblyPath.vertices.size() -1) {
+            break;
+        }
+        const AssemblyPath::Edge& edge = assemblyPath.edges[i];
+        html << "<span style='font-family:courier;color:Red'>";
+        copy(edge.sequence.begin() + edge.sequenceBegin, edge.sequence.begin() + edge.sequenceEnd,
+            ostream_iterator<Base>(html));
+        html << "</span><br>";
+    }
+
+
+    html << "</table>";
+
+
+
+    html <<
+        "<h4>Assembly details</h4>"
+        "<table><tr>"
         "<th>Segment<br>id"
         "<th>Link<br>id"
         "<th>Total<br>sequence<br>length<br>";
     writeInformationIcon(html,
-        "Includes sequence not used to assemble the path.");
-    html << "<th>Sequence<br>begin<br>";
+        "Total length of the sequence of this segment or link, including "
+        "the portion not used to assemble this path.");
+    html << "<th>Path<br>sequence<br>length<br>";
     writeInformationIcon(html,
-        "Begin of sequence portion used to assemble the path.");
-    html << "<th>Sequence<br>end<br>";
+        "Length of the sequence portion of this segment or link used to assemble this path.");
+    html << "<th>Link<br>or<br>segment<br>begin<br>";
     writeInformationIcon(html,
-        "End of sequence portion used to assemble the path.");
-    html << "<th style='max-width:400px'>Sequence<br>";
+        "Begin position in the sequence of this segment or link of "
+        "the sequence portion used to assemble the path.");
+    html << "<th>Link<br>or<br>segment<br>end<br>";
+    writeInformationIcon(html,
+        "End position in the sequence of this segment or link of "
+        "the sequence portion used to assemble the path. "
+        "End position is one past the end.");
+    html << "<th>Path<br>begin<br>";
+    writeInformationIcon(html,
+        "Begin position in the assembled path sequence of "
+        "the sequence portion contributed by this segment or link.");
+    html << "<th>Path<br>end<br>";
+    writeInformationIcon(html,
+        "End position in the assembled path sequence of "
+        "the sequence portion contributed by this segment or link. "
+        "End position is one past the end.");
+    html << "<th style='max-width:600px'>Sequence<br>";
     writeInformationIcon(html,
         "The portion greyed out is not used for assembly.");
 
@@ -1256,8 +1368,11 @@ void AssemblyGraphSnapshot::writeAssemblyPath(
             "<td class=centered>" << vertexStringId(vertex.id) <<
             "<td>"
             "<td class=centered>" << vertex.sequenceLength <<
+            "<td class=centered>" << vertex.sequenceEnd - vertex.sequenceBegin <<
             "<td class=centered>" << vertex.sequenceBegin <<
             "<td class=centered>" << vertex.sequenceEnd <<
+            "<td class=centered>" << vertex.pathPosition <<
+            "<td class=centered>" << vertex.pathPosition + vertex.sequenceEnd - vertex.sequenceBegin <<
             "<td class=centered style='max-width:400px;overflow-wrap:break-word;font-family:courier'>";
         const auto vertexSequence = packedMarkerGraph.segmentSequences[vertex.id];
         html << "<span style='background-color:LightGrey'>";
@@ -1283,9 +1398,12 @@ void AssemblyGraphSnapshot::writeAssemblyPath(
             "<td>" <<
             "<td class=centered>" << edge.edgeId <<
             "<td class=centered>" << edge.sequence.size() <<
+            "<td class=centered>" << edge.sequenceEnd - edge.sequenceBegin <<
             "<td class=centered>" << edge.sequenceBegin <<
             "<td class=centered>" << edge.sequenceEnd <<
-            "<td class=centered style='max-width:400px;overflow-wrap:break-word;font-family:courier'>";
+            "<td class=centered>" << edge.pathPosition <<
+            "<td class=centered>" << edge.pathPosition + edge.sequenceEnd - edge.sequenceBegin <<
+            "<td class=centered style='max-width:600px;overflow-wrap:break-word;font-family:courier'>";
         html << "<span style='background-color:LightGrey'>";
         copy(edge.sequence.begin(), edge.sequence.begin() + edge.sequenceBegin,
             ostream_iterator<Base>(html));
@@ -1307,4 +1425,25 @@ void AssemblyGraphSnapshot::AssemblyPath::clear()
 {
     vertices.clear();
     edges.clear();
+}
+
+
+
+void AssemblyGraphSnapshot::AssemblyPath::getAssembledSequence(
+    const PackedMarkerGraph& packedMarkerGraph,
+    vector<Base>& sequence) const
+{
+    sequence.clear();
+    for(uint64_t i=0; /* Check later */; i++) {
+        const AssemblyPath::Vertex& vertex = vertices[i];
+        const auto vertexSequence = packedMarkerGraph.segmentSequences[vertex.id];
+        copy(vertexSequence.begin() + vertex.sequenceBegin, vertexSequence.begin() + vertex.sequenceEnd,
+            back_inserter(sequence));
+        if(i == vertices.size() -1) {
+            break;
+        }
+        const AssemblyPath::Edge& edge = edges[i];
+        copy(edge.sequence.begin() + edge.sequenceBegin, edge.sequence.begin() + edge.sequenceEnd,
+            back_inserter(sequence));
+    }
 }

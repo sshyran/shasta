@@ -222,6 +222,9 @@ public:
             // The portion of the segment sequence that is used to assemble this path.
             uint64_t sequenceBegin;
             uint64_t sequenceEnd;
+
+            // The position of this portion of sequence in the assembled path.
+            uint64_t pathPosition;
         };
         vector<Vertex> vertices;
 
@@ -237,8 +240,14 @@ public:
             // The portion of the link sequence that is used to assemble this path.
             uint64_t sequenceBegin;
             uint64_t sequenceEnd;
+
+            // The position of this portion of sequence in the assembled path.
+            uint64_t pathPosition;
         };
         vector<Edge> edges;
+        void getAssembledSequence(
+            const PackedMarkerGraph&,
+            vector<Base>&) const;
     };
     void createAssemblyPath(
         const vector<uint64_t>& vertexIds,
