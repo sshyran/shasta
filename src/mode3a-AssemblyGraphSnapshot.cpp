@@ -147,7 +147,7 @@ uint64_t AssemblyGraphSnapshot::getVertexId(
 
     // Extract the vertexId for this segmentReplicaIndex.
     if(segmentReplicaIndex >= v.size() or v[segmentReplicaIndex] == invalid<uint64_t> ) {
-        message = "Invalid segment replica index. Valid segment replica indexes for segment are:";
+        message = "Invalid segment replica index. Valid segment replica indexes for this segment are:";
         for(uint64_t segmentReplicaIndex=0; segmentReplicaIndex<v.size(); segmentReplicaIndex++) {
             if(v[segmentReplicaIndex] != invalid<uint64_t>) {
                 message = message + " " + to_string(segmentReplicaIndex);
@@ -1149,4 +1149,162 @@ double AssemblyGraphSnapshot::jaccard(
     return
         double(intersectionOrientedReads.size()) /
         double(unionOrientedReads.size());
+}
+
+
+
+void AssemblyGraphSnapshot::createAssemblyPath(
+    const vector<uint64_t>& vertexIds,
+    AssemblyPath& assemblyPath) const
+{
+    SHASTA_ASSERT(vertexIds.size() >= 2);
+    assemblyPath.clear();
+    ofstream html;  // Not open so no output takes place.
+
+    // Store the vertex ids.
+    assemblyPath.vertices.resize(vertexIds.size());
+    for(uint64_t i=0; i<vertexIds.size(); i++) {
+        AssemblyPath::Vertex& vertex = assemblyPath.vertices[i];
+        vertex.id = vertexIds[i];
+        vertex.sequenceLength =
+            packedMarkerGraph.segmentSequences[vertexVector[vertex.id].segmentId].size();
+    }
+
+    // Find the edge ids and assemble the edges (links).
+    assemblyPath.edges.resize(vertexIds.size() - 1);
+    for(uint64_t i=1; i<vertexIds.size(); i++) {
+        const uint64_t vertexId0 = assemblyPath.vertices[i-1].id;
+        const uint64_t vertexId1 = assemblyPath.vertices[i].id;
+        const auto outEdges0 = edgesBySource[vertexId0];
+        uint64_t edgeId01 = invalid<uint64_t>;
+        for(const uint64_t edgeId: outEdges0) {
+            const Edge& edge = edgeVector[edgeId];
+            if(edge.vertexId1 == vertexId1) {
+                edgeId01 = edgeId;
+                break;
+            }
+        }
+        if(edgeId01 == invalid<uint64_t>) {
+            throw runtime_error("There is no edge between vertex " + vertexStringId(vertexId0) +
+                " and vertex " + vertexStringId(vertexId1));
+        }
+
+        // Fill in the information for this edge (link).
+        AssemblyPath::Edge& edge = assemblyPath.edges[i-1];
+        edge.edgeId = edgeId01;
+        assembleLink(edgeId01, html,
+            edge.sequence, edge.leftOverride, edge.rightOverride);
+
+        // Except for special cases (see below), the entire link sequence is
+        // used to assemble the path.
+        edge.sequenceBegin = 0;
+        edge.sequenceEnd = edge.sequence.size();
+    }
+
+
+    // Use the edges leftOverride/rightOverride to choose the portion of
+    // sequence of each vertex (segment) that will be used to assemble the path.
+    assemblyPath.vertices.front().sequenceBegin = 0;
+    assemblyPath.vertices.back().sequenceEnd = assemblyPath.vertices.back().sequenceLength;
+    for(uint64_t i=0; i<assemblyPath.edges.size(); i++) {
+        const auto& edge = assemblyPath.edges[i];
+        auto& vertex0 = assemblyPath.vertices[i];
+        auto& vertex1 = assemblyPath.vertices[i+1];
+        vertex0.sequenceEnd = vertex0.sequenceLength - edge.leftOverride;
+        vertex1.sequenceBegin = edge.rightOverride;
+    }
+
+    for(const auto& vertex:assemblyPath.vertices) {
+        // This can happen and has to be handled.
+        SHASTA_ASSERT(vertex.sequenceBegin <= vertex.sequenceEnd);
+    }
+}
+
+
+
+void AssemblyGraphSnapshot::writeAssemblyPath(
+    const AssemblyPath& assemblyPath,
+    ostream& html
+) const
+{
+    html << "<h3>Assembly path with " << assemblyPath.vertices.size() << " segments and " <<
+        assemblyPath.edges.size() << " links</h3>";
+
+    html << "<table><tr>"
+        "<th>Segment<br>id"
+        "<th>Link<br>id"
+        "<th>Total<br>sequence<br>length<br>";
+    writeInformationIcon(html,
+        "Includes sequence not used to assemble the path.");
+    html << "<th>Sequence<br>begin<br>";
+    writeInformationIcon(html,
+        "Begin of sequence portion used to assemble the path.");
+    html << "<th>Sequence<br>end<br>";
+    writeInformationIcon(html,
+        "End of sequence portion used to assemble the path.");
+    html << "<th style='max-width:400px'>Sequence<br>";
+    writeInformationIcon(html,
+        "The portion greyed out is not used for assembly.");
+
+    // Loop over all segments and links.
+    for(uint64_t i=0; /* Check later */; i++) {
+
+        // Write the vertex (segment).
+        const AssemblyPath::Vertex& vertex = assemblyPath.vertices[i];
+
+        html << "<tr>"
+            "<td class=centered>" << vertexStringId(vertex.id) <<
+            "<td>"
+            "<td class=centered>" << vertex.sequenceLength <<
+            "<td class=centered>" << vertex.sequenceBegin <<
+            "<td class=centered>" << vertex.sequenceEnd <<
+            "<td class=centered style='max-width:400px;overflow-wrap:break-word;font-family:courier'>";
+        const auto vertexSequence = packedMarkerGraph.segmentSequences[vertex.id];
+        html << "<span style='background-color:LightGrey'>";
+        copy(vertexSequence.begin(), vertexSequence.begin() + vertex.sequenceBegin,
+            ostream_iterator<Base>(html));
+        html << "</span>";
+        copy(vertexSequence.begin() + vertex.sequenceBegin, vertexSequence.begin() + vertex.sequenceEnd,
+            ostream_iterator<Base>(html));
+        html << "<span style='background-color:LightGrey'>";
+        copy(vertexSequence.begin() + vertex.sequenceEnd, vertexSequence.end(),
+            ostream_iterator<Base>(html));
+        html << "</span>";
+
+
+
+        if(i == assemblyPath.edges.size()) {
+            break;
+        }
+
+        // Write the edge (link).
+        const AssemblyPath::Edge& edge = assemblyPath.edges[i];
+        html << "<tr>"
+            "<td>" <<
+            "<td class=centered>" << edge.edgeId <<
+            "<td class=centered>" << edge.sequence.size() <<
+            "<td class=centered>" << edge.sequenceBegin <<
+            "<td class=centered>" << edge.sequenceEnd <<
+            "<td class=centered style='max-width:400px;overflow-wrap:break-word;font-family:courier'>";
+        html << "<span style='background-color:LightGrey'>";
+        copy(edge.sequence.begin(), edge.sequence.begin() + edge.sequenceBegin,
+            ostream_iterator<Base>(html));
+        html << "</span>";
+        copy(edge.sequence.begin() + edge.sequenceBegin, edge.sequence.begin() + edge.sequenceEnd,
+            ostream_iterator<Base>(html));
+        html << "<span style='background-color:LightGrey'>";
+        copy(edge.sequence.begin() + edge.sequenceEnd, edge.sequence.end(),
+            ostream_iterator<Base>(html));
+        html << "</span>";
+    }
+
+    html << "</table>";
+}
+
+
+
+void AssemblyGraphSnapshot::AssemblyPath::clear()
+{
+    vertices.clear();
+    edges.clear();
 }

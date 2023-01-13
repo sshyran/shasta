@@ -204,6 +204,49 @@ public:
         ostream& html,
         vector<Base>& consensusSequence
         );
+
+
+
+    // Create an assembly path and assemble its sequence.
+    class AssemblyPath {
+    public:
+        void clear();
+
+        class Vertex {
+        public:
+            uint64_t id;
+
+            // The length of the complete assembled sequence for this segment.
+            uint64_t sequenceLength;
+
+            // The portion of the segment sequence that is used to assemble this path.
+            uint64_t sequenceBegin;
+            uint64_t sequenceEnd;
+        };
+        vector<Vertex> vertices;
+
+        class Edge {
+        public:
+            uint64_t edgeId;
+
+            // Information obtained from assembleLink.
+            uint64_t leftOverride;
+            uint64_t rightOverride;
+            vector<Base> sequence;
+
+            // The portion of the link sequence that is used to assemble this path.
+            uint64_t sequenceBegin;
+            uint64_t sequenceEnd;
+        };
+        vector<Edge> edges;
+    };
+    void createAssemblyPath(
+        const vector<uint64_t>& vertexIds,
+        AssemblyPath&) const;
+    void writeAssemblyPath(
+        const AssemblyPath&,
+        ostream& html
+    ) const;
 };
 
 #endif

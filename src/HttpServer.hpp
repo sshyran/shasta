@@ -114,7 +114,14 @@ public:
                 }
                 try {
                     std::istringstream s(next);
-                    s >> value;
+                    if constexpr(std::is_same_v<string, T>) {
+                        // For string use getline to process correctly strings containing spaces.
+                        // The constexpr is needed to force evaluation at compile time
+                        // (otherwise this branch does not compile for types other than string).
+                        std::getline(s, value);
+                    } else {
+                        s >> value;
+                    }
                 } catch (...) {
                     return false;
                 }

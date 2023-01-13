@@ -2424,6 +2424,7 @@ public:
     void exploreMode3aAssemblyGraph(const vector<string>& request, ostream& html);
     void exploreMode3aAssemblyGraphSegment(const vector<string>&, ostream&);
     void exploreMode3aAssemblyGraphLink(const vector<string>&, ostream&);
+    void exploreMode3aAssemblyPath(const vector<string>&, ostream&);
     void exploreMode3aTangleMatrix(const vector<string>& request, ostream& html);
 
 

@@ -768,3 +768,117 @@ void Assembler::exploreMode3aAssemblyGraphLink(
     snapshot.assembleLink(linkId, html, consensusSequence, leftOverride, rightOverride);
 
 }
+
+
+
+void Assembler::exploreMode3aAssemblyPath(
+    const vector<string>& request,
+    ostream& html)
+{
+    // Get request parameters.
+    uint64_t snapshotIndex = 0;
+    getParameterValue(request, "snapshotIndex", snapshotIndex);
+
+    // The pathString consists of vertex string ids (segmentId or segmentId.replicaIndex),
+    // separated by spaces.
+    string pathString;
+    getParameterValue(request, "pathString", pathString);
+
+    // Write the form.
+    html <<
+        "<h2>Assemble a path of the assembly graph</h2>"
+        "<form>"
+        "<table>"
+
+        "<tr>"
+        "<td>Snapshot index"
+        "<td class=centered><input type=text required name=snapshotIndex size=8 style='text-align:center'"
+        " value='" << snapshotIndex <<
+        "'>"
+
+        "<tr>"
+        "<td class=left>Path ";
+    writeInformationIcon(html,
+        "Space separated vertex string ids of the form segmentId or segmentId.replicaIndex.");
+
+    html <<
+        "<td>"
+        "<input type=text required name=pathString size=8 style='text-align:center'"
+        " value='" << pathString <<
+        "'>"
+
+        "</table>"
+        "<br><input type=submit value='Display'>"
+        "</form>";
+
+    // If the pathString was not specified, stop here.
+    if(pathString.empty()) {
+        return;
+    }
+
+
+
+    // Parse the path string.
+    // It must contain space separate vertex ids of the form
+    // segmentId or segmentId.replicaIndex.
+    // The path is stored as a vector of pairs (segmentId, replicaIndex).
+    vector<pair<uint64_t, uint64_t> > segments;
+    try {
+
+        // Loop over space-separated tokens in the pathString.
+        std::istringstream s(pathString);
+        while(s) {
+            string token;
+            s >> token;
+            if(token.empty()) {
+                break;
+            }
+
+            // It must be segmentId or segmentId.replicaIndex.
+            uint64_t segmentId = invalid<uint64_t>;
+            uint64_t replicaIndex = 0;
+            auto dotPosition = token.find_first_of('.');
+            if(dotPosition == string::npos) {
+                segmentId = std::stoi(token);
+            } else {
+                segmentId = std::stoi(token.substr(0, dotPosition));
+                replicaIndex = std::stoi(token.substr(dotPosition + 1));
+            }
+            segments.push_back(make_pair(segmentId, replicaIndex));
+        }
+    } catch (std::exception&) {
+        html << "<br>Invalid path string. It must consist of space separated vertex ids "
+            "of the form segmentId or segmentId.replicaIndex.";
+    }
+
+
+
+    // Access the requested snapshot.
+    const uint64_t snapshotCount = mode3aAssemblyData.assemblyGraphSnapshots.size();
+    if(snapshotIndex >= snapshotCount) {
+        html << "<br>Invalid snapshot index. The number of available snapshots is " << snapshotCount <<
+            ". Valid snapshot indexes are 0 through " << snapshotCount - 1 << ".";
+        return;
+    }
+    const AssemblyGraphSnapshot& snapshot = *mode3aAssemblyData.assemblyGraphSnapshots[snapshotIndex];
+
+
+
+    // Find the vertex ids corresponding to these segment ids and replica indexes.
+    vector<uint64_t> vertexIds;
+    string message;
+    for(const auto& p: segments) {
+        const uint64_t vertexId = snapshot.getVertexId(p.first,  p.second, message);
+        if(vertexId == invalid<uint64_t>) {
+            html << "<br>Segment id " << p.first << ", replica index " << p.second << ": " << message;
+            return;
+        }
+        vertexIds.push_back(vertexId);
+    }
+
+    // Create an assembly path and assemble its sequence.
+    AssemblyGraphSnapshot::AssemblyPath assemblyPath;
+    snapshot.createAssemblyPath(vertexIds, assemblyPath);
+    snapshot.writeAssemblyPath(assemblyPath, html);
+}
+
