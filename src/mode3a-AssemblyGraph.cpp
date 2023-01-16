@@ -567,7 +567,7 @@ void AssemblyGraph::computePartialPathsThreadFunction(uint64_t threadId)
 // Compute partial paths (forward and backward) starting from a given vertex.
 void AssemblyGraph::computePartialPath(
     vertex_descriptor vStart,
-    uint64_t minSegmentCoverage,
+    uint64_t minSegmentCoverageNotUsed,
     uint64_t minLinkCoverage,
     ostream& debugOut
     )
@@ -591,7 +591,7 @@ void AssemblyGraph::computePartialPath(
     // The vertices we encounter when following the reads.
     vector<vertex_descriptor> verticesEncountered;
 
-    // The tansitions we encounter when following the reads.
+    // The transitions we encounter when following the reads.
     vector< pair<vertex_descriptor, vertex_descriptor> > transitionsEncountered;
 
     // Loop over JourneyEntry's of the start vertex.
@@ -628,11 +628,13 @@ void AssemblyGraph::computePartialPath(
         transitionsEncountered, transitionFrequency, minLinkCoverage);
 
     if(false) {
+        debugOut << "Segments:\n";
         for(uint64_t i=0; i<verticesEncountered.size(); i++) {
             const vertex_descriptor v = verticesEncountered[i];
             debugOut << vertexStringId(v) << " " << vertexFrequency[i] << "\n";
         }
 
+        debugOut << "Transitions:\n";
         for(uint64_t i=0; i<transitionsEncountered.size(); i++) {
             const auto& p = transitionsEncountered[i];
             const vertex_descriptor v0 = p.first;
@@ -648,7 +650,7 @@ void AssemblyGraph::computePartialPath(
 
     // Starting at the start vertex, follow the linear portion of the graph forward.
     // Stop when we encounter a branch or a vertex seen less than minSegmentCoverage times.
-    sort(transitionsEncountered.begin(), transitionsEncountered.end(),
+    sort(transitionsEncountered.begin(), transitionsEncountered.end(),  // Not strictly necessary.
         OrderPairsByFirstOnly<vertex_descriptor, vertex_descriptor>());
     vertex_descriptor v = vStart;
     while(true) {
@@ -657,7 +659,6 @@ void AssemblyGraph::computePartialPath(
             make_pair(v, null_vertex()),
             OrderPairsByFirstOnly<vertex_descriptor, vertex_descriptor>());
         if( it0 == transitionsEncountered.end() or
-            it1 == transitionsEncountered.end() or
             (it1 - it0) != 1) {
             break;
         }
@@ -689,7 +690,6 @@ void AssemblyGraph::computePartialPath(
             make_pair(null_vertex(), v),
             OrderPairsBySecondOnly<vertex_descriptor, vertex_descriptor>());
         if( it0 == transitionsEncountered.end() or
-            it1 == transitionsEncountered.end() or
             (it1 - it0) != 1) {
             break;
         }
