@@ -29,7 +29,6 @@ Assembler::Assembler(
     markerGraph(markerGraph)
 {
     // EXPOSE WHEN CODE STABILIZES.
-    const uint64_t minSegmentCoverageForPaths = 3;
     const uint64_t minLinkCoverageForPaths = 3;
 
     // This requires the marker length k to be even.
@@ -93,7 +92,7 @@ Assembler::Assembler(
     snapshot0.write();
 
     // Follow reads to compute partial paths.
-    assemblyGraph.computePartialPaths(threadCount, minSegmentCoverageForPaths, minLinkCoverageForPaths);
+    assemblyGraph.computePartialPaths(threadCount, minLinkCoverageForPaths);
     assemblyGraph.writePartialPaths();
     assemblyGraph.analyzePartialPaths();
 

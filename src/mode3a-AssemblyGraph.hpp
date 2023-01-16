@@ -180,7 +180,6 @@ private:
 public:
     void computePartialPaths(
         uint64_t threadCount,
-        uint64_t minSegmentCoverage,
         uint64_t minLinkCoverage
         );
     void writePartialPaths() const;
@@ -189,13 +188,11 @@ private:
     void computePartialPathsThreadFunction(uint64_t threadId);
     void computePartialPath(
         vertex_descriptor,
-        uint64_t minSegmentCoverage,
         uint64_t minLinkCoverage,
         ostream& debugOut
         );
     class ComputePartialPathsData {
     public:
-        uint64_t minSegmentCoverage;
         uint64_t minLinkCoverage;
     };
     ComputePartialPathsData computePartialPathsData;
