@@ -39,7 +39,7 @@ void AssemblyGraph::computePartialPaths(
 void AssemblyGraph::computePartialPathsThreadFunction(uint64_t threadId)
 {
     ofstream debugOut;
-    // debugOut.open("ComputePartialPathsDebug-Thread-" + to_string(threadId));
+    debugOut.open("ComputePartialPathsDebug-Thread-" + to_string(threadId));
 
     const uint64_t minSegmentCoverage = computePartialPathsData.minSegmentCoverage;
     const uint64_t minLinkCoverage = computePartialPathsData.minLinkCoverage;
@@ -57,7 +57,6 @@ void AssemblyGraph::computePartialPathsThreadFunction(uint64_t threadId)
                     computePartialPath2(v, minSegmentCoverage, minLinkCoverage, debugOut);
                 }
             }
-
         }
     }
 }
@@ -316,6 +315,7 @@ void AssemblyGraph::computePartialPath2(
     }
 
 
+
     // To compute the forward partial path, compute the dominator tree of the graph,
     // with the start vertex as the entrance.
     const auto q = std::equal_range(verticesEncountered.begin(), verticesEncountered.end(), vStart);
@@ -328,43 +328,47 @@ void AssemblyGraph::computePartialPath2(
         ivStart,
         boost::make_assoc_property_map(predecessorMap));
 
-    // The allSuccessorMap stores all possible successors in the dominator tree.
-    std::map<uint64_t, vector<uint64_t> > allSuccessorMap;
+    // Explicitly construct the forward dominator tree.
+    Graph forwardTree(verticesEncountered.size());
     for(const auto& p: predecessorMap) {
-        // In the predecessor map, the key is the target vertex and the value is the source vertex.
         const uint64_t iv0 = p.second;
         const uint64_t iv1 = p.first;
-        allSuccessorMap[iv0].push_back(iv1);
-    }
-    std::map<uint64_t, uint64_t> bestSuccessorMap;
-    for(const auto& p: allSuccessorMap) {
-        const uint64_t iv0 = p.first;
-        uint64_t iv1Best = invalid<uint64_t>;
-        uint64_t frequencyBest = 0;
-        for(const uint64_t iv1: p.second) {
-            const uint64_t frequency = vertexFrequency[iv1];
-            if(frequency > frequencyBest) {
-                frequencyBest = frequency;
-                iv1Best = iv1;
-            }
-        }
-        bestSuccessorMap.insert(make_pair(iv0, iv1Best));
+        add_edge(iv0, iv1, forwardTree);
     }
 
-    // Follow the bestSuccessorMap to construct the forward path.
+
+
+    // To compute the forward partial path, follow the forward dominator tree.
     uint64_t iv = ivStart;
     while(true) {
-        auto it = bestSuccessorMap.find(iv);
-        if(it == bestSuccessorMap.end()) {
+
+        // Find the out-vertices and sort them by decreasing vertex frequency.
+        vector< pair<uint64_t, uint64_t> > outVertices;
+        BGL_FORALL_OUTEDGES(iv, e, forwardTree, Graph) {
+            const uint64_t iv1 = target(e, forwardTree);
+            outVertices.push_back(make_pair(iv1, vertexFrequency[iv1]));
+        }
+        sort(outVertices.begin(), outVertices.end(), OrderPairsBySecondOnlyGreater<uint64_t, uint64_t >());
+
+        // If there are no out-vertices, the forward path ends here.
+        if(outVertices.empty()) {
             break;
         }
-        iv = it->second;
-        if(vertexFrequency[iv] < minSegmentCoverage) {
+
+        // If the strongest out-vertex is too weak, the forward path ends here.
+        if(outVertices.front().second < minSegmentCoverage) {
             break;
         }
+
+        // If the second strongest out-vertex is too strong, the forward path ends here.
+        if(outVertices.size() > 1 and outVertices[1].second >= minSegmentCoverage) {
+            break;
+        }
+
+        // In all other cases, we add the strongest out-vertex to the forward path.
+        iv = outVertices.front().first;
         forwardPartialPath.push_back(verticesEncountered[iv]);
     }
-
 
 
 
@@ -416,41 +420,45 @@ void AssemblyGraph::computePartialPath2(
         ivStart,
         boost::make_assoc_property_map(predecessorMap));
 
-
-
-    // The allSuccessorMap stores all possible successors in the dominator tree.
-    allSuccessorMap.clear();
+    // Explicitly construct the backward dominator tree.
+    Graph backwardTree(verticesEncountered.size());
     for(const auto& p: predecessorMap) {
-        const uint64_t iv0 = p.second;
-        const uint64_t iv1 = p.first;
-        allSuccessorMap[iv0].push_back(iv1);
-    }
-    bestSuccessorMap.clear();
-    for(const auto& p: allSuccessorMap) {
         const uint64_t iv0 = p.first;
-        uint64_t iv1Best = invalid<uint64_t>;
-        uint64_t frequencyBest = 0;
-        for(const uint64_t iv1: p.second) {
-            const uint64_t frequency = vertexFrequency[iv1];
-            if(frequency > frequencyBest) {
-                frequencyBest = frequency;
-                iv1Best = iv1;
-            }
-        }
-        bestSuccessorMap.insert(make_pair(iv0, iv1Best));
+        const uint64_t iv1 = p.second;
+        add_edge(iv0, iv1, backwardTree);
     }
 
-    // Follow the bestSuccessorMap to construct the backward path.
+
+
+    // To compute the backward partial path, follow the backward dominator tree.
     iv = ivStart;
     while(true) {
-        auto it = bestSuccessorMap.find(iv);
-        if(it == bestSuccessorMap.end()) {
+
+        // Find the in-vertices and sort them by decreasing vertex frequency.
+        vector< pair<uint64_t, uint64_t> > inVertices;
+        BGL_FORALL_INEDGES(iv, e, backwardTree, Graph) {
+            const uint64_t iv1 = source(e, forwardTree);
+            inVertices.push_back(make_pair(iv1, vertexFrequency[iv1]));
+        }
+        sort(inVertices.begin(), inVertices.end(), OrderPairsBySecondOnlyGreater<uint64_t, uint64_t >());
+
+        // If there are no in-vertices, the backward path ends here.
+        if(inVertices.empty()) {
             break;
         }
-        iv = it->second;
-        if(vertexFrequency[iv] < minSegmentCoverage) {
+
+        // If the strongest in-vertex is too weak, the backward path ends here.
+        if(inVertices.front().second < minSegmentCoverage) {
             break;
         }
+
+        // If the second strongest in-vertex is too strong, the backward path ends here.
+        if(inVertices.size() > 1 and inVertices[1].second >= minSegmentCoverage) {
+            break;
+        }
+
+        // In all other cases, we add the strongest in-vertex to the backward path.
+        iv = inVertices.front().first;
         backwardPartialPath.push_back(verticesEncountered[iv]);
     }
 
@@ -501,25 +509,36 @@ void AssemblyGraph::writePartialPaths() const
 {
     const AssemblyGraph& assemblyGraph = *this;
 
-    ofstream csv("PartialPaths.csv");
-    csv << "Start,Direction,Position,Vertex\n";
+    // One line for each partial path entry.
+    ofstream csv1("PartialPaths1.csv");
+    csv1 << "Start,Direction,Position,Vertex\n";
+
+    // One line for each partial path.
+    ofstream csv2("PartialPaths2.csv");
+    csv1 << "Start,Direction,Vertices\n";
 
     BGL_FORALL_VERTICES(v0, assemblyGraph, AssemblyGraph) {
         const AssemblyGraphVertex& vertex0 = assemblyGraph[v0];
 
+        csv2 << vertexStringId(v0) << ",Forward,";
         for(uint64_t position=0; position<vertex0.forwardPartialPath.size(); position++) {
             const vertex_descriptor v1 = vertex0.forwardPartialPath[position];
-            csv << vertexStringId(v0) << ",Forward,";
-            csv << position << ",";
-            csv << vertexStringId(v1) << "\n";
+            csv1 << vertexStringId(v0) << ",Forward,";
+            csv1 << position << ",";
+            csv1 << vertexStringId(v1) << "\n";
+            csv2 << vertexStringId(v1) << ",";
         }
+        csv2 << "\n";
 
+        csv2 << vertexStringId(v0) << ",Backward,";
         for(uint64_t position=0; position<vertex0.backwardPartialPath.size(); position++) {
             const vertex_descriptor v1 = vertex0.backwardPartialPath[position];
-            csv << vertexStringId(v0) << ",Backward,";
-            csv << position << ",";
-            csv << vertexStringId(v1) << "\n";
+            csv1 << vertexStringId(v0) << ",Backward,";
+            csv1 << position << ",";
+            csv1 << vertexStringId(v1) << "\n";
+            csv2 << vertexStringId(v1) << ",";
         }
+        csv2 << "\n";
     }
 }
 

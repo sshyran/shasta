@@ -95,7 +95,7 @@ Assembler::Assembler(
     // Follow reads to compute partial paths.
     assemblyGraph.computePartialPaths(threadCount, minSegmentCoverageForPaths, minLinkCoverageForPaths);
     assemblyGraph.writePartialPaths();
-    // assemblyGraph.analyzePartialPaths();
+    assemblyGraph.analyzePartialPaths();
 
 #if 0
     const uint64_t minLinkCoverage = 6;
