@@ -391,8 +391,10 @@ void LocalAssemblyGraph::writeSvg(
     string message;
     const uint64_t referenceVertexId = assemblyGraphSnapshot.getVertexId(
         options.referenceSegmentId, options.referenceSegmentReplicaIndex, message);
-    if(referenceVertexId == invalid<uint64_t>) {
-        svg << "<br>Invalid combination of reference segment id and reference segment replicaIndex.<br>" << message;
+    if((options.segmentColoring != "random") and (referenceVertexId == invalid<uint64_t>)) {
+        svg << "<br>Invalid combination " << options.referenceSegmentId << "." <<
+            options.referenceSegmentReplicaIndex <<
+            " of reference segment id and reference segment replicaIndex.<br>" << message;
         return;
     }
 
