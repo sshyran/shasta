@@ -110,7 +110,8 @@ void Assembler::exploreMode3aAssemblyGraph(
     string message;
     const uint64_t startVertexId = snapshot.getVertexId(startSegmentId, startSegmentReplicaIndex, message);
     if(startVertexId == invalid<uint64_t>) {
-        html << "<br>Invalid combination of start segment id and start segment replicaIndex.<br>" << message;
+        html << "<br>Invalid combination " << startSegmentId << "." << startSegmentReplicaIndex <<
+            " of start segment id and start segment replicaIndex.<br>" << message;
         return;
     }
     SHASTA_ASSERT(startVertexId < snapshot.vertexVector.size());
@@ -227,6 +228,7 @@ void Assembler::exploreMode3aTangleMatrix(
                 html << " " << segmentReplicaIndex;
             }
         }
+        html << "<br>Value specified is " << segmentReplicaIndex;
         return;
     }
     const uint64_t vertexId = v[segmentReplicaIndex];
@@ -477,6 +479,7 @@ void Assembler::exploreMode3aAssemblyGraphSegment(
                 html << " " << segmentReplicaIndex;
             }
         }
+        html << "<br>Value specified is " << segmentReplicaIndex;
         return;
     }
     const uint64_t vertexId = v[segmentReplicaIndex];
