@@ -29,6 +29,11 @@ Assembler::Assembler(
     markerGraph(markerGraph)
 {
     // EXPOSE WHEN CODE STABILIZES.
+#if 0
+    // These are used for detangling.
+    const uint64_t minLinkCoverage = 6;
+    const uint64_t minTangleCoverage = 4;
+#endif
     const uint64_t segmentCoverageThreshold1ForPaths = 3;
     const uint64_t segmentCoverageThreshold2ForPaths = 6;
     const uint64_t minLinkCoverageForPaths = 3;
@@ -93,17 +98,8 @@ Assembler::Assembler(
     AssemblyGraphSnapshot snapshot0(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-0", *this);
     snapshot0.write();
 
-    // Follow reads to compute partial paths.
-    assemblyGraph.computePartialPaths(threadCount,
-        segmentCoverageThreshold1ForPaths, segmentCoverageThreshold2ForPaths, minLinkCoverageForPaths);
-    assemblyGraph.writePartialPaths();
-    assemblyGraph.analyzePartialPaths();
-
 #if 0
-    const uint64_t minLinkCoverage = 6;
-    const uint64_t minTangleCoverage = 4;
-
-    // Simple detangle.
+    // Do a simple detangle step.
     assemblyGraph.simpleDetangle(minLinkCoverage, minTangleCoverage);
     cout << "After simple detangling, the AssemblyGraph has " <<
        num_vertices(assemblyGraph) << " segments and " <<
@@ -114,6 +110,11 @@ Assembler::Assembler(
     snapshot1.write();
 #endif
 
+    // Follow reads to compute partial paths.
+    assemblyGraph.computePartialPaths(threadCount,
+        segmentCoverageThreshold1ForPaths, segmentCoverageThreshold2ForPaths, minLinkCoverageForPaths);
+    assemblyGraph.writePartialPaths();
+    assemblyGraph.analyzePartialPaths();
 }
 
 
