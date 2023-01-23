@@ -180,7 +180,8 @@ private:
 public:
     void computePartialPaths(
         uint64_t threadCount,
-        uint64_t minSegmentCoverage,
+        uint64_t segmentCoverageThreshold1,
+        uint64_t segmentCoverageThreshold2,
         uint64_t minLinkCoverage
         );
     void writePartialPaths() const;
@@ -198,7 +199,8 @@ private:
     // More robust version that uses dominator trees.
     void computePartialPath2(
         vertex_descriptor,
-        uint64_t minSegmentCoverage,
+        uint64_t segmentCoverageThreshold1,
+        uint64_t segmentCoverageThreshold2,
         uint64_t minLinkCoverage,
         ostream& debugOut
         );
@@ -206,7 +208,8 @@ private:
     // Data used by computePartialPaths multithreaded code.
     class ComputePartialPathsData {
     public:
-        uint64_t minSegmentCoverage;
+        uint64_t segmentCoverageThreshold1;
+        uint64_t segmentCoverageThreshold2;
         uint64_t minLinkCoverage;
     };
     ComputePartialPathsData computePartialPathsData;

@@ -19,13 +19,15 @@ using namespace mode3a;
 
 void AssemblyGraph::computePartialPaths(
     uint64_t threadCount,
-    uint64_t minSegmentCoverage,
+    uint64_t segmentCoverageThreshold1,
+    uint64_t segmentCoverageThreshold2,
     uint64_t minLinkCoverage)
 {
     SHASTA_ASSERT(threadCount > 0);
 
     // Store the arguments so the thread function can see them.
-    computePartialPathsData.minSegmentCoverage = minSegmentCoverage;
+    computePartialPathsData.segmentCoverageThreshold1 = segmentCoverageThreshold1;
+    computePartialPathsData.segmentCoverageThreshold2 = segmentCoverageThreshold2;
     computePartialPathsData.minLinkCoverage = minLinkCoverage;
 
     const uint64_t segmentCount = verticesBySegment.size();
@@ -41,7 +43,8 @@ void AssemblyGraph::computePartialPathsThreadFunction(uint64_t threadId)
     ofstream debugOut;
     debugOut.open("ComputePartialPathsDebug-Thread-" + to_string(threadId));
 
-    const uint64_t minSegmentCoverage = computePartialPathsData.minSegmentCoverage;
+    const uint64_t segmentCoverageThreshold1 = computePartialPathsData.segmentCoverageThreshold1;
+    const uint64_t segmentCoverageThreshold2 = computePartialPathsData.segmentCoverageThreshold2;
     const uint64_t minLinkCoverage = computePartialPathsData.minLinkCoverage;
 
     // Loop over all batches assigned to this thread.
@@ -54,7 +57,8 @@ void AssemblyGraph::computePartialPathsThreadFunction(uint64_t threadId)
             // Loop over all vertices (replicas) of this segment.
             for(const vertex_descriptor v: verticesBySegment[segmentId]) {
                 if(v != null_vertex()) {
-                    computePartialPath2(v, minSegmentCoverage, minLinkCoverage, debugOut);
+                    computePartialPath2(v,
+                        segmentCoverageThreshold1, segmentCoverageThreshold2, minLinkCoverage, debugOut);
                 }
             }
         }
@@ -216,7 +220,8 @@ void AssemblyGraph::computePartialPath1(
 // More robust version that uses dominator trees.
 void AssemblyGraph::computePartialPath2(
     vertex_descriptor vStart,
-    uint64_t minSegmentCoverage,
+    uint64_t segmentCoverageThreshold1,
+    uint64_t segmentCoverageThreshold2,
     uint64_t minLinkCoverage,
     ostream& debugOut
     )
@@ -356,12 +361,15 @@ void AssemblyGraph::computePartialPath2(
         }
 
         // If the strongest out-vertex is too weak, the forward path ends here.
-        if(outVertices.front().second < minSegmentCoverage) {
+        if(outVertices.front().second < segmentCoverageThreshold1) {
             break;
         }
 
-        // If the second strongest out-vertex is too strong, the forward path ends here.
-        if(outVertices.size() > 1 and outVertices[1].second >= minSegmentCoverage) {
+        // If the strongest in-vertex loses too much coverage compared to iv, the backward path ends here.
+        const uint64_t coverageLoss =
+            (outVertices.front().second >= vertexFrequency[iv]) ? 0 :
+            (vertexFrequency[iv] - outVertices.front().second);
+        if(coverageLoss > segmentCoverageThreshold2) {
             break;
         }
 
@@ -448,12 +456,15 @@ void AssemblyGraph::computePartialPath2(
         }
 
         // If the strongest in-vertex is too weak, the backward path ends here.
-        if(inVertices.front().second < minSegmentCoverage) {
+        if(inVertices.front().second < segmentCoverageThreshold1) {
             break;
         }
 
-        // If the second strongest in-vertex is too strong, the backward path ends here.
-        if(inVertices.size() > 1 and inVertices[1].second >= minSegmentCoverage) {
+        // If the strongest in-vertex loses too much coverage compared to iv, the backward path ends here.
+        const uint64_t coverageLoss =
+            (inVertices.front().second >= vertexFrequency[iv]) ? 0 :
+            (vertexFrequency[iv] - inVertices.front().second);
+        if(coverageLoss > segmentCoverageThreshold2) {
             break;
         }
 
@@ -546,19 +557,23 @@ void AssemblyGraph::writePartialPaths() const
 
 void AssemblyGraph::analyzePartialPaths() const
 {
+    // EXPOSE WHEN CODE STABILIZES
+    const uint64_t n = 6;
+
     const AssemblyGraph& assemblyGraph = *this;
 
     vector< pair<vertex_descriptor, vertex_descriptor> > forwardPairs;
     vector< pair<vertex_descriptor, vertex_descriptor> > backwardPairs;
     BGL_FORALL_VERTICES(v0, assemblyGraph, AssemblyGraph) {
 
-        for(const vertex_descriptor v1: assemblyGraph[v0].forwardPartialPath) {
-            forwardPairs.push_back(make_pair(v0, v1));
+        for(uint64_t i=0; i<min(n, assemblyGraph[v0].forwardPartialPath.size()); i++) {
+            forwardPairs.push_back(make_pair(v0, assemblyGraph[v0].forwardPartialPath[i]));
         }
 
-        for(const vertex_descriptor v1: assemblyGraph[v0].backwardPartialPath) {
-            backwardPairs.push_back(make_pair(v1, v0));
+        for(uint64_t i=0; i<min(n, assemblyGraph[v0].backwardPartialPath.size()); i++) {
+            backwardPairs.push_back(make_pair(assemblyGraph[v0].backwardPartialPath[i], v0));
         }
+
     }
     sort(forwardPairs.begin(), forwardPairs.end());
     sort(backwardPairs.begin(), backwardPairs.end());
