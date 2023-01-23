@@ -29,14 +29,16 @@ Assembler::Assembler(
     markerGraph(markerGraph)
 {
     // EXPOSE WHEN CODE STABILIZES.
-#if 0
     // These are used for detangling.
-    const uint64_t minLinkCoverage = 6;
+    const uint64_t minLinkCoverage = 4;
     const uint64_t minTangleCoverage = 4;
-#endif
+    const uint64_t detangleIterationCount = 3;
+#if 0
+    // These are used to compute partial paths.
     const uint64_t segmentCoverageThreshold1ForPaths = 3;
     const uint64_t segmentCoverageThreshold2ForPaths = 6;
     const uint64_t minLinkCoverageForPaths = 3;
+#endif
 
     // This requires the marker length k to be even.
     SHASTA_ASSERT((k % 2) == 0);
@@ -98,23 +100,26 @@ Assembler::Assembler(
     AssemblyGraphSnapshot snapshot0(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-0", *this);
     snapshot0.write();
 
+    // Simple detangling.
+    for(uint64_t iteration=0; iteration<detangleIterationCount; iteration++) {
+        assemblyGraph.simpleDetangle(minLinkCoverage, minTangleCoverage);
+        cout << "After simple detangling, the AssemblyGraph has " <<
+           num_vertices(assemblyGraph) << " segments and " <<
+           num_edges(assemblyGraph) << " links." << endl;
+
+        // Create a snapshot.
+        AssemblyGraphSnapshot snapshot1(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-" + to_string(iteration+1), *this);
+        snapshot1.write();
+    }
+
+
 #if 0
-    // Do a simple detangle step.
-    assemblyGraph.simpleDetangle(minLinkCoverage, minTangleCoverage);
-    cout << "After simple detangling, the AssemblyGraph has " <<
-       num_vertices(assemblyGraph) << " segments and " <<
-       num_edges(assemblyGraph) << " links." << endl;
-
-    // Create a snapshot.
-    AssemblyGraphSnapshot snapshot1(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-1", *this);
-    snapshot1.write();
-#endif
-
     // Follow reads to compute partial paths.
     assemblyGraph.computePartialPaths(threadCount,
         segmentCoverageThreshold1ForPaths, segmentCoverageThreshold2ForPaths, minLinkCoverageForPaths);
     assemblyGraph.writePartialPaths();
     assemblyGraph.analyzePartialPaths();
+#endif
 }
 
 
