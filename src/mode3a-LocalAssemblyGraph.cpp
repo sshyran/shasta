@@ -529,6 +529,8 @@ void LocalAssemblyGraph::writeSvg(
         const AssemblyGraphSnapshot::Vertex& snapshotVertex =
             assemblyGraphSnapshot.vertexVector[localAssemblyGraphVertex.vertexId];
         const uint64_t distance = localAssemblyGraph[v].distance;
+        const double averageEdgeCoverage =
+            assemblyGraphSnapshot.packedMarkerGraph.averageMarkerGraphEdgeCoverage(snapshotVertex.segmentId);
 
         // Get the positions of the ends of this segment.
         SHASTA_ASSERT(localAssemblyGraphVertex.position.size() >= 2);
@@ -612,7 +614,7 @@ void LocalAssemblyGraph::writeSvg(
             p2.x() << " " << p2.y() << "'" <<
             " stroke='" << color << "'"
             " stroke-width='" <<
-            options.minimumSegmentThickness /* + averageEdgeCoverage * options.additionalSegmentThicknessPerUnitCoverage*/ << "'"
+            options.minimumSegmentThickness + averageEdgeCoverage * options.additionalSegmentThicknessPerUnitCoverage << "'"
             " fill='none'"
             " marker-end='url(#" <<
             arrowMarkerName <<
