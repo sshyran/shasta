@@ -558,7 +558,7 @@ void AssemblyGraph::writePartialPaths() const
 void AssemblyGraph::analyzePartialPaths() const
 {
     // EXPOSE WHEN CODE STABILIZES
-    const uint64_t n = 6;
+    const uint64_t n = 10;
 
     const AssemblyGraph& assemblyGraph = *this;
 

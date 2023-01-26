@@ -30,10 +30,12 @@ Assembler::Assembler(
 {
     // EXPOSE WHEN CODE STABILIZES.
     // These are used for detangling.
+#if 0
     const uint64_t minLinkCoverage = 4;
     const uint64_t minTangleCoverage = 4;
     const uint64_t detangleIterationCount = 3;
-#if 0
+#endif
+#if 1
     // These are used to compute partial paths.
     const uint64_t segmentCoverageThreshold1ForPaths = 3;
     const uint64_t segmentCoverageThreshold2ForPaths = 6;
@@ -100,6 +102,7 @@ Assembler::Assembler(
     AssemblyGraphSnapshot snapshot0(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-0", *this);
     snapshot0.write();
 
+#if 0
     // Simple detangling.
     for(uint64_t iteration=0; iteration<detangleIterationCount; iteration++) {
         assemblyGraph.simpleDetangle(minLinkCoverage, minTangleCoverage);
@@ -111,9 +114,9 @@ Assembler::Assembler(
         AssemblyGraphSnapshot snapshot1(assemblyGraph, "Mode3a-AssemblyGraphSnapshot-" + to_string(iteration+1), *this);
         snapshot1.write();
     }
+#endif
 
-
-#if 0
+#if 1
     // Follow reads to compute partial paths.
     assemblyGraph.computePartialPaths(threadCount,
         segmentCoverageThreshold1ForPaths, segmentCoverageThreshold2ForPaths, minLinkCoverageForPaths);
