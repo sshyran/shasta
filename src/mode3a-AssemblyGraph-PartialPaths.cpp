@@ -612,6 +612,7 @@ void AssemblyGraph::analyzePartialPaths() const
 
     // The bidirectional pairs define a graph.
     // Create it and compute its transitive reduction.
+    // This will fail if the graph has cycles.
     vector<vertex_descriptor> vertexTable;
     std::map<vertex_descriptor, uint64_t> vertexMap;
     uint64_t vertexIndex = 0;
@@ -619,13 +620,14 @@ void AssemblyGraph::analyzePartialPaths() const
         vertexTable.push_back(v);
         vertexMap.insert(make_pair(v, vertexIndex++));
     }
-    using Graph = boost::adjacency_list<boost::listS, boost::vecS, boost::bidirectionalS>;
+    using Graph = boost::adjacency_list<boost::listS, boost::vecS, boost::directedS>;
     Graph graph(vertexTable.size());
     for(const auto& p: bidirectionalPairs) {
         const vertex_descriptor v0 = p.first;
         const vertex_descriptor v1 = p.second;
         add_edge(vertexMap[v0], vertexMap[v1], graph);
     }
+    // The transitive reduction could be computed in parallel over connected components.
     transitiveReduction(graph);
     cout << "Number of bidirectional pairs after transitive reduction " <<
         num_edges(graph) << endl;

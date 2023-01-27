@@ -23,13 +23,14 @@ namespace shasta {
 
 // Transitive reduction of a directed graph without cycles.
 // Class Graph must be a boost::adjacency_list with
-// the first three template arguments set to <listS, vecS, directedS>.
+// the first three template arguments set to <listS, vecS, directedS or bidirectionalS>.
 // If the graph has cycles, this throws boost::not_a_dag.
 template<class Graph> void shasta::transitiveReduction(Graph &graph)
     {
     using namespace boost;
     using vertex_descriptor = typename Graph::vertex_descriptor;
     using edge_descriptor = typename Graph::edge_descriptor;
+    using edge_iterator = typename Graph::edge_iterator;
 
     // Check the Graph type.
     // Use C++20 concepts instead.
@@ -42,16 +43,18 @@ template<class Graph> void shasta::transitiveReduction(Graph &graph)
         "shasta::transitiveReduction requires an adjacency_list "
         "with the second template argument set to boost::vecS.");
     static_assert(
+        std::is_same<typename Graph::directed_selector, directedS>::value
+        or
         std::is_same<typename Graph::directed_selector, bidirectionalS>::value,
         "shasta::transitiveReduction requires an adjacency_list "
-        "with the third template argument set to boost::bidirectionalS.");
+        "with the third template argument set to boost::directedS or boost::bidirectionalS.");
 
     // Use boost topological_sort to get a vector of vertex descriptors
     // in reverse toplogical order.
     vector<vertex_descriptor> sortedVertices;
     topological_sort(graph, back_inserter(sortedVertices));
 
-    // Now construct a vector containg the rank of each vertex in topological order.
+    // Now construct a vector containing the rank of each vertex in topological order.
     vector<uint64_t> vertexRank(num_vertices(graph));
     uint64_t rank = num_vertices(graph);
     for (const vertex_descriptor v : sortedVertices) {
@@ -60,9 +63,14 @@ template<class Graph> void shasta::transitiveReduction(Graph &graph)
 
     // Find the edges that should be removed.
     vector<edge_descriptor> edgesToBeRemoved;
-    vector<bool> wasVisited(num_vertices(graph));
-    BGL_FORALL_EDGES_T(e, graph, Graph)
-    {
+    vector<bool> wasVisited(num_vertices(graph), false);
+    vector<vertex_descriptor> visitedVertices;
+    edge_iterator it, itEnd;
+    tie(it, itEnd) = edges(graph);
+    while(it != itEnd) {
+        edge_iterator itNext = it;
+        ++itNext;
+        const edge_descriptor e = *it;
         const vertex_descriptor v0 = source(e, graph);
         const vertex_descriptor v1 = target(e, graph);
 
@@ -80,11 +88,11 @@ template<class Graph> void shasta::transitiveReduction(Graph &graph)
         // Initialize the BFS.
         std::queue<vertex_descriptor> q;
         q.push(v0);
-        std::fill(wasVisited.begin(), wasVisited.end(), false);
         wasVisited[v0] = true;
+        visitedVertices.push_back(v0);
 
         // BFS loop.
-        while (not q.empty()) {
+        while(not q.empty()) {
 
             // Dequeue a vertex.
             const vertex_descriptor vv0 = q.front();
@@ -114,22 +122,28 @@ template<class Graph> void shasta::transitiveReduction(Graph &graph)
 
                 if (vv1 == v1) {
                     // We reached v1. Edge e can be removed and we can stop the BFS.
-                    edgesToBeRemoved.push_back(e);
+                    boost::remove_edge(e, graph);
                     q = { };
+                    break;
                 } else {
                     // Continue the BFS.
                     wasVisited[vv1] = true;
+                    visitedVertices.push_back(vv1);
                     q.push(vv1);
                 }
             }
         }
+
+        // Prepare for the next iteration.
+        it = itNext;
+
+        // Clean up.
+        for(const vertex_descriptor v: visitedVertices) {
+            wasVisited[v] = false;
+        }
+        visitedVertices.clear();
     }
 
-    // Remove the edges.
-    deduplicate(edgesToBeRemoved);
-    for (const edge_descriptor e : edgesToBeRemoved) {
-        remove_edge(e, graph);
-    }
 }
 
 
