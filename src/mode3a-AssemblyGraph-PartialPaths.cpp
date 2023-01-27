@@ -3,6 +3,7 @@
 #include "deduplicate.hpp"
 #include "invalid.hpp"
 #include "orderPairs.hpp"
+#include "transitiveReduction.hpp"
 using namespace shasta;
 using namespace mode3a;
 
@@ -592,7 +593,7 @@ void AssemblyGraph::analyzePartialPaths() const
     cout << "Number of bidirectional pairs " << bidirectionalPairs.size() << endl;
 
 
-
+#if 0
     // Write the bidirectional pairs as a Graphviz graph.
     ofstream dot("PartialPaths.dot");
     dot << "digraph PartialPaths {\n";
@@ -605,7 +606,38 @@ void AssemblyGraph::analyzePartialPaths() const
         dot << "\"" << vertexStringId(v0) << "\"->";
         dot << "\"" << vertexStringId(v1) << "\";\n";
     }
+    dot << "}\n";
+#endif
 
 
+    // The bidirectional pairs define a graph.
+    // Create it and compute its transitive reduction.
+    vector<vertex_descriptor> vertexTable;
+    std::map<vertex_descriptor, uint64_t> vertexMap;
+    uint64_t vertexIndex = 0;
+    BGL_FORALL_VERTICES(v, assemblyGraph, AssemblyGraph) {
+        vertexTable.push_back(v);
+        vertexMap.insert(make_pair(v, vertexIndex++));
+    }
+    using Graph = boost::adjacency_list<boost::listS, boost::vecS, boost::bidirectionalS>;
+    Graph graph(vertexTable.size());
+    for(const auto& p: bidirectionalPairs) {
+        const vertex_descriptor v0 = p.first;
+        const vertex_descriptor v1 = p.second;
+        add_edge(vertexMap[v0], vertexMap[v1], graph);
+    }
+    transitiveReduction(graph);
+    cout << "Number of bidirectional pairs after transitive reduction " <<
+        num_edges(graph) << endl;
+
+    // Write out the transitive reduction as a Graphviz graph.
+    ofstream dot("PartialPaths.dot");
+    dot << "digraph PartialPaths {\n";
+    BGL_FORALL_EDGES(e, graph, Graph) {
+        const vertex_descriptor v0 = vertexTable[source(e, graph)];
+        const vertex_descriptor v1 = vertexTable[target(e, graph)];
+        dot << "\"" << vertexStringId(v0) << "\"->";
+        dot << "\"" << vertexStringId(v1) << "\";\n";
+    }
     dot << "}\n";
 }
